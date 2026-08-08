@@ -1,6 +1,6 @@
 # Spec 00: Walking skeleton (Phase A)
 
-Status: in progress. This checklist is the gate for Phase B; every box must be checked before parallel module work starts. Kept updated as steps complete.
+Status: complete. Phase A is done; every box below is checked, which unlocks Phase B (parallel module work).
 
 ## Step 1: Repository foundation
 
@@ -54,6 +54,6 @@ Status: in progress. This checklist is the gate for Phase B; every box must be c
 
 ## Step 7: README + docs
 
-- [ ] Public README (logo placeholder, pitch, badges, features, quickstart, architecture diagram, API-first section, roadmap, contributing, MIT license)
-- [ ] ADR-001: stack decision
-- [ ] ADR-002: entity envelope
+- [x] Public README (logo placeholder, pitch, badges, features, quickstart, architecture diagram, API-first section, roadmap, contributing, MIT license)
+- [x] ADR-001: stack decision
+- [x] ADR-002: entity envelope
