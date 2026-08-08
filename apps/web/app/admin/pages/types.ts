@@ -17,3 +17,17 @@ export type Block = Omit<components['schemas']['BlockDto'], 'category' | 'descri
 export type Site = Omit<components['schemas']['SiteDto'], 'description'> & {
   description: string | null;
 };
+
+export type EntityStatus = components['schemas']['PageDto']['status'];
+
+// Badge colors from spec 09: DRAFT gray, PUBLISHED green, ARCHIVED dark.
+export function statusColor(status: EntityStatus): string {
+  switch (status) {
+    case 'PUBLISHED':
+      return 'green';
+    case 'ARCHIVED':
+      return 'dark';
+    default:
+      return 'gray';
+  }
+}
