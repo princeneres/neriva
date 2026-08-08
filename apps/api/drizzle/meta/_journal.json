@@ -57,6 +57,13 @@
       "when": 1786224774481,
       "tag": "0007_light_jubilee",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786225101491,
+      "tag": "0008_curly_sharon_ventura",
+      "breakpoints": true
     }
   ]
 }

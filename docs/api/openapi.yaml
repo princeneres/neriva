@@ -783,6 +783,191 @@ paths:
         - bearer: []
       tags:
         - blocks
+  /sites/{siteRef}/pages:
+    get:
+      operationId: PagesController_list
+      parameters:
+        - name: siteRef
+          required: true
+          in: path
+          description: Site UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PageDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      security:
+        - bearer: []
+      tags:
+        - pages
+    post:
+      operationId: PagesController_create
+      parameters:
+        - name: siteRef
+          required: true
+          in: path
+          description: Site UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePageDto"
+      responses:
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PageDto"
+      security:
+        - bearer: []
+      tags:
+        - pages
+  /pages/{id}:
+    get:
+      operationId: PagesController_get
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PageDto"
+      security:
+        - bearer: []
+      tags:
+        - pages
+    patch:
+      operationId: PagesController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePageDto"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PageDto"
+      security:
+        - bearer: []
+      tags:
+        - pages
+    delete:
+      operationId: PagesController_delete
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      security:
+        - bearer: []
+      tags:
+        - pages
+  /pages/{id}/publish:
+    post:
+      operationId: PagesController_publish
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PageDto"
+      security:
+        - bearer: []
+      tags:
+        - pages
   /object-definitions:
     get:
       operationId: ObjectDefinitionsController_list
@@ -1881,6 +2066,126 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BlockSlotDto"
+    PageDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReferenceCode:
+          type: string
+        tenantId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type:
+            - object
+            - "null"
+          format: uuid
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - PUBLISHED
+            - ARCHIVED
+        siteId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        path:
+          type: string
+          description: Unique per site, ^/[a-z0-9/-]*$
+        tree:
+          type: object
+          additionalProperties: true
+          description: "Recursive tree of block instances: { blocks: [...] }"
+        customFields:
+          type: object
+          additionalProperties: true
+      required:
+        - id
+        - externalReferenceCode
+        - tenantId
+        - createdAt
+        - updatedAt
+        - createdBy
+        - status
+        - siteId
+        - title
+        - path
+        - tree
+        - customFields
+    CreatePageDto:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 255
+          example: Home
+        path:
+          type: string
+          maxLength: 255
+          pattern: ^\/[a-z0-9/-]*$
+          description: Unique per site
+          example: /home
+        tree:
+          type: object
+          additionalProperties: true
+          description: "Recursive tree of block instances: { blocks: [{ block: <block
+            ERC>, props, slots }] }. Validated against each referenced block
+            definition on every write."
+          example:
+            blocks:
+              - block: hero-banner
+                props:
+                  title: Welcome
+                slots:
+                  main:
+                    - block: text
+                      props:
+                        body: Hello
+          default:
+            blocks: []
+        externalReferenceCode:
+          type: string
+          description: Stable code for idempotent upsert; generated when omitted
+      required:
+        - title
+        - path
+    UpdatePageDto:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        path:
+          type: string
+          maxLength: 255
+          pattern: ^\/[a-z0-9/-]*$
+          description: Unique per site
+        tree:
+          type: object
+          additionalProperties: true
+          description: "Recursive tree of block instances: { blocks: [{ block: <block
+            ERC>, props, slots }] }. Validated against each referenced block
+            definition on every write."
+          example:
+            blocks:
+              - block: hero-banner
+                props:
+                  title: Welcome
+                slots:
+                  main:
+                    - block: text
+                      props:
+                        body: Hello
     ObjectFieldDto:
       type: object
       properties:
