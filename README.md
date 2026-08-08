@@ -87,7 +87,7 @@ The OpenAPI 3.1 document at [`docs/api/openapi.yaml`](docs/api/openapi.yaml) is 
 - [x] Objects API (client-defined entities over JSONB, dynamic filtering)
 - [x] Style Book API (versioned design tokens, CSS endpoint)
 - [x] System settings API (SMTP, site metadata)
-- [ ] Admin UI screens for the feature modules
+- [x] Admin UI screens for the feature modules
 - [ ] Page rendering runtime in apps/web
 
 ## Contributing
