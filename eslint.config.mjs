@@ -12,6 +12,7 @@ export default tseslint.config(
       '**/next-env.d.ts',
       'apps/api/drizzle/',
       'packages/contracts/src/generated/',
+      '.claude/',
     ],
   },
   js.configs.recommended,
