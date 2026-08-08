@@ -1,14 +1,15 @@
 'use client';
 
+import { Card, Group, Text, Title } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import { useRouter } from 'next/navigation';
-import { useToast } from '../../../../components/toast';
+import { HelpTip } from '../../../../components/help-tip';
 import { api } from '../../../../lib/api';
 import { DefinitionForm, type DefinitionFormValues } from '../definition-form';
-import type { ObjectDefinition } from '../types';
+import { OBJECTS_HELP, type ObjectDefinition } from '../types';
 
 export default function NewObjectDefinitionPage() {
   const router = useRouter();
-  const toast = useToast();
 
   async function onSubmit(values: DefinitionFormValues) {
     const description = values.description.trim();
@@ -18,24 +19,31 @@ export default function NewObjectDefinitionPage() {
       ...(description ? { description } : {}),
       fields: values.fields,
     });
-    toast.success('Object definition created');
+    notifications.show({
+      color: 'green',
+      title: 'Object created',
+      message: `"${values.name}" is ready. You can start adding records.`,
+    });
     router.push('/admin/objects');
   }
 
   return (
     <>
-      <div className="nv-toolbar">
-        <h1>New object definition</h1>
-      </div>
-      <div className="nv-card">
-        <div className="nv-card-body">
-          <DefinitionForm
-            submitLabel="Create definition"
-            busyLabel="Creating…"
-            onSubmit={onSubmit}
-          />
+      <Group justify="space-between" mb="lg">
+        <div>
+          <Group gap={6}>
+            <Title order={1} fz="h2">
+              New object
+            </Title>
+            <HelpTip label={OBJECTS_HELP} />
+          </Group>
+          <Text c="slate.5">Name your table and describe its columns.</Text>
         </div>
-      </div>
+      </Group>
+
+      <Card padding="xl" maw={760}>
+        <DefinitionForm submitLabel="Create object" onSubmit={onSubmit} />
+      </Card>
     </>
   );
 }

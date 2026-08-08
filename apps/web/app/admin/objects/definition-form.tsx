@@ -1,10 +1,33 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { type FormEvent, type ReactNode, useState } from 'react';
-import { Button, Field, FormActions } from '../../../components/form';
+import {
+  ActionIcon,
+  Alert,
+  Box,
+  Button,
+  Card,
+  Group,
+  Select,
+  Stack,
+  Switch,
+  TagsInput,
+  Text,
+  TextInput,
+  Textarea,
+  Tooltip,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { IconPlus, IconTrash } from '@tabler/icons-react';
+import Link from 'next/link';
+import { useState } from 'react';
+import { HelpTip } from '../../../components/help-tip';
 import { ApiError } from '../../../lib/api';
-import { FIELD_KEY_PATTERN, FIELD_TYPES, type ObjectField, type ObjectFieldType } from './types';
+import {
+  FIELD_KEY_PATTERN,
+  FIELD_TYPE_OPTIONS,
+  type ObjectField,
+  type ObjectFieldType,
+} from './types';
 
 export interface DefinitionFormValues {
   name: string;
@@ -14,278 +37,292 @@ export interface DefinitionFormValues {
 }
 
 interface FieldRow {
-  rowKey: number;
   key: string;
   label: string;
   type: ObjectFieldType;
   required: boolean;
-  options: string;
+  options: string[];
 }
 
-interface RowErrors {
-  key?: string;
-  options?: string;
+interface FormValues {
+  name: string;
+  pluralName: string;
+  description: string;
+  fields: FieldRow[];
 }
 
-const KEY_HINT = 'Use a lowercase letter followed by letters or digits (e.g. firstName)';
-
-function fieldError(errors: string[], field: string): string | null {
-  return errors.find((message) => message.toLowerCase().startsWith(field.toLowerCase())) ?? null;
-}
-
-function parseOptions(raw: string): string[] {
-  return raw
-    .split(',')
-    .map((option) => option.trim())
-    .filter((option) => option !== '');
-}
+const KEY_HINT = 'Start with a lowercase letter, then letters or digits (e.g. firstName)';
 
 function toRows(fields: ObjectField[]): FieldRow[] {
-  return fields.map((field, index) => ({
-    rowKey: index + 1,
+  return fields.map((field) => ({
     key: field.key,
     label: field.label,
     type: field.type,
     required: field.required,
-    options: (field.options ?? []).join(', '),
+    options: field.options ?? [],
   }));
+}
+
+// Maps problem `errors[]` entries to top-level form fields by prefix.
+function matchTopLevelField(message: string): string | null {
+  const lower = message.toLowerCase();
+  for (const field of ['pluralName', 'name', 'description', 'fields']) {
+    if (lower.startsWith(field.toLowerCase())) {
+      return field;
+    }
+  }
+  return null;
 }
 
 export function DefinitionForm({
   initial,
   submitLabel,
-  busyLabel,
   onSubmit,
-  children,
 }: {
   initial?: DefinitionFormValues;
   submitLabel: string;
-  busyLabel: string;
   onSubmit: (values: DefinitionFormValues) => Promise<void>;
-  children?: ReactNode;
 }) {
-  const router = useRouter();
-  const [name, setName] = useState(initial?.name ?? '');
-  const [pluralName, setPluralName] = useState(initial?.pluralName ?? '');
-  const [description, setDescription] = useState(initial?.description ?? '');
-  const [rows, setRows] = useState<FieldRow[]>(() => toRows(initial?.fields ?? []));
-  const [nextKey, setNextKey] = useState(() => (initial?.fields.length ?? 0) + 1);
-  const [rowErrors, setRowErrors] = useState<Record<number, RowErrors>>({});
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<string[]>([]);
+  const [formError, setFormError] = useState<string[] | null>(null);
   const [busy, setBusy] = useState(false);
 
-  function addRow() {
-    setRows((current) => [
-      ...current,
-      { rowKey: nextKey, key: '', label: '', type: 'text', required: false, options: '' },
-    ]);
-    setNextKey((key) => key + 1);
+  const form = useForm<FormValues>({
+    initialValues: {
+      name: initial?.name ?? '',
+      pluralName: initial?.pluralName ?? '',
+      description: initial?.description ?? '',
+      fields: toRows(initial?.fields ?? []),
+    },
+    validate: {
+      name: (value) => (value.trim() === '' ? 'Name is required' : null),
+      pluralName: (value) => (value.trim() === '' ? 'Plural name is required' : null),
+      fields: {
+        key: (value, values, path) => {
+          if (!FIELD_KEY_PATTERN.test(value)) {
+            return KEY_HINT;
+          }
+          const index = Number(path.split('.')[1]);
+          const isDuplicate = values.fields.some(
+            (row, rowIndex) => rowIndex < index && row.key === value,
+          );
+          return isDuplicate ? `Duplicate key "${value}"` : null;
+        },
+        label: (value) => (value.trim() === '' ? 'Label is required' : null),
+        options: (value, values, path) => {
+          const index = Number(path.split('.')[1]);
+          if (values.fields[index]?.type === 'picklist' && value.length === 0) {
+            return 'Add at least one choice';
+          }
+          return null;
+        },
+      },
+    },
+  });
+
+  function addField() {
+    form.insertListItem('fields', {
+      key: '',
+      label: '',
+      type: 'text',
+      required: false,
+      options: [],
+    } satisfies FieldRow);
   }
 
-  function removeRow(rowKey: number) {
-    setRows((current) => current.filter((row) => row.rowKey !== rowKey));
-    setRowErrors((current) => {
-      const { [rowKey]: _removed, ...rest } = current;
-      return rest;
-    });
-  }
-
-  function updateRow(rowKey: number, patch: Partial<Omit<FieldRow, 'rowKey'>>) {
-    setRows((current) =>
-      current.map((row) => (row.rowKey === rowKey ? { ...row, ...patch } : row)),
-    );
-  }
-
-  function validateRows(): boolean {
-    const errors: Record<number, RowErrors> = {};
-    const seenKeys = new Set<string>();
-    for (const row of rows) {
-      const rowError: RowErrors = {};
-      if (!FIELD_KEY_PATTERN.test(row.key)) {
-        rowError.key = KEY_HINT;
-      } else if (seenKeys.has(row.key)) {
-        rowError.key = `Duplicate key "${row.key}"`;
-      }
-      seenKeys.add(row.key);
-      if (row.type === 'picklist' && parseOptions(row.options).length === 0) {
-        rowError.options = 'Picklist needs at least one option';
-      }
-      if (rowError.key || rowError.options) {
-        errors[row.rowKey] = rowError;
-      }
-    }
-    setRowErrors(errors);
-    return Object.keys(errors).length === 0;
-  }
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    setError(null);
-    setFieldErrors([]);
-    if (!validateRows()) {
-      return;
-    }
+  async function handleSubmit(values: FormValues) {
+    setFormError(null);
     setBusy(true);
     try {
       await onSubmit({
-        name,
-        pluralName,
-        description,
-        fields: rows.map((row) => ({
+        name: values.name,
+        pluralName: values.pluralName,
+        description: values.description,
+        fields: values.fields.map((row) => ({
           key: row.key,
           label: row.label,
           type: row.type,
           required: row.required,
-          ...(row.type === 'picklist' ? { options: parseOptions(row.options) } : {}),
+          ...(row.type === 'picklist' ? { options: row.options } : {}),
         })),
       });
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
-        setFieldErrors(err.problem.errors ?? []);
+        const unmapped: string[] = [];
+        for (const message of err.problem.errors ?? []) {
+          const field = matchTopLevelField(message);
+          if (field) {
+            form.setFieldError(field, message);
+          } else {
+            unmapped.push(message);
+          }
+        }
+        setFormError([err.message, ...unmapped]);
       } else {
-        setError('Saving the object definition failed');
+        setFormError(['Saving the object failed. Please try again.']);
       }
       setBusy(false);
     }
   }
 
   return (
-    <form className="nv-form" onSubmit={handleSubmit}>
-      {error ? <div className="nv-error">{error}</div> : null}
-      {children}
-      <Field label="Name" htmlFor="name" error={fieldError(fieldErrors, 'name')}>
-        <input
-          id="name"
-          type="text"
-          required
+    <form onSubmit={form.onSubmit((values) => void handleSubmit(values))}>
+      <Stack gap="md">
+        {formError ? (
+          <Alert color="red" title="Could not save">
+            {formError.map((message) => (
+              <Text key={message} size="sm">
+                {message}
+              </Text>
+            ))}
+          </Alert>
+        ) : null}
+
+        <TextInput
+          label={
+            <>
+              Name
+              <HelpTip label="What one item is called, e.g. Product or Lead" />
+            </>
+          }
+          placeholder="Product"
+          withAsterisk
           maxLength={255}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          {...form.getInputProps('name')}
         />
-      </Field>
-      <Field label="Plural name" htmlFor="pluralName" error={fieldError(fieldErrors, 'pluralName')}>
-        <input
-          id="pluralName"
-          type="text"
-          required
+        <TextInput
+          label={
+            <>
+              Plural name
+              <HelpTip label="Used when listing many items, e.g. Products or Leads" />
+            </>
+          }
+          placeholder="Products"
+          withAsterisk
           maxLength={255}
-          value={pluralName}
-          onChange={(e) => setPluralName(e.target.value)}
+          {...form.getInputProps('pluralName')}
         />
-      </Field>
-      <Field
-        label="Description"
-        htmlFor="description"
-        error={fieldError(fieldErrors, 'description')}
-      >
-        <textarea
-          id="description"
-          rows={3}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+        <Textarea
+          label={
+            <>
+              Description
+              <HelpTip label="A note for your team about what this table stores. Optional." />
+            </>
+          }
+          placeholder="What does this table store?"
+          autosize
+          minRows={2}
+          {...form.getInputProps('description')}
         />
-      </Field>
-      <Field label="Fields" error={fieldError(fieldErrors, 'fields')}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--nv-space-2)' }}>
-          {rows.map((row) => (
-            <div
-              key={row.rowKey}
-              style={{
-                display: 'flex',
-                gap: 'var(--nv-space-2)',
-                alignItems: 'flex-start',
-                flexWrap: 'wrap',
-              }}
-            >
-              <div className="nv-field" style={{ flex: 1, minWidth: '10rem' }}>
-                <input
-                  type="text"
-                  aria-label="Field key"
-                  placeholder="Key (e.g. firstName)"
-                  required
-                  value={row.key}
-                  onChange={(e) => updateRow(row.rowKey, { key: e.target.value })}
-                />
-                {rowErrors[row.rowKey]?.key ? (
-                  <span className="nv-field-error">{rowErrors[row.rowKey]?.key}</span>
-                ) : null}
-              </div>
-              <div className="nv-field" style={{ flex: 1, minWidth: '10rem' }}>
-                <input
-                  type="text"
-                  aria-label="Field label"
-                  placeholder="Label"
-                  required
-                  value={row.label}
-                  onChange={(e) => updateRow(row.rowKey, { label: e.target.value })}
-                />
-              </div>
-              <div className="nv-field">
-                <select
-                  aria-label="Field type"
-                  value={row.type}
-                  onChange={(e) =>
-                    updateRow(row.rowKey, { type: e.target.value as ObjectFieldType })
-                  }
-                >
-                  {FIELD_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <label
-                style={{
-                  display: 'flex',
-                  gap: 'var(--nv-space-1)',
-                  alignItems: 'center',
-                  paddingTop: '0.5rem',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={row.required}
-                  onChange={(e) => updateRow(row.rowKey, { required: e.target.checked })}
-                />
-                Required
-              </label>
-              {row.type === 'picklist' ? (
-                <div className="nv-field" style={{ flex: 1, minWidth: '10rem' }}>
-                  <input
-                    type="text"
-                    aria-label="Picklist options"
-                    placeholder="Options, comma separated"
-                    value={row.options}
-                    onChange={(e) => updateRow(row.rowKey, { options: e.target.value })}
+
+        <Box>
+          <Group gap={4} mb={4}>
+            <Text component="span" fw={600} size="sm">
+              Fields
+            </Text>
+            <HelpTip label="Each field is a column of your table: a short key for the API, a label people see, and the kind of value it holds" />
+          </Group>
+          <Stack gap="sm">
+            {form.values.fields.map((row, index) => (
+              // Rows are index-keyed: @mantine/form list helpers address rows by position.
+              <Card key={index} padding="md" bg="slate.0">
+                <Group align="flex-start" gap="sm" wrap="wrap">
+                  <TextInput
+                    style={{ flex: 1, minWidth: 160 }}
+                    aria-label="Field key"
+                    label={
+                      <>
+                        Key
+                        <HelpTip label="Internal name used by the API, e.g. firstName" />
+                      </>
+                    }
+                    placeholder="price"
+                    {...form.getInputProps(`fields.${index}.key`)}
                   />
-                  {rowErrors[row.rowKey]?.options ? (
-                    <span className="nv-field-error">{rowErrors[row.rowKey]?.options}</span>
+                  <TextInput
+                    style={{ flex: 1, minWidth: 160 }}
+                    aria-label="Field label"
+                    label={
+                      <>
+                        Label
+                        <HelpTip label="The name people see in forms and tables" />
+                      </>
+                    }
+                    placeholder="Price"
+                    {...form.getInputProps(`fields.${index}.label`)}
+                  />
+                  <Select
+                    w={140}
+                    aria-label="Field type"
+                    label={
+                      <>
+                        Type
+                        <HelpTip label="What kind of value this column holds" />
+                      </>
+                    }
+                    data={FIELD_TYPE_OPTIONS}
+                    allowDeselect={false}
+                    {...form.getInputProps(`fields.${index}.type`)}
+                  />
+                  {row.type === 'picklist' ? (
+                    <TagsInput
+                      style={{ flex: 1, minWidth: 180 }}
+                      aria-label="Choices"
+                      label={
+                        <>
+                          Choices
+                          <HelpTip label="The allowed values. Type one and press Enter to add it." />
+                        </>
+                      }
+                      placeholder="Type and press Enter"
+                      {...form.getInputProps(`fields.${index}.options`)}
+                    />
                   ) : null}
-                </div>
-              ) : null}
-              <Button type="button" variant="danger" onClick={() => removeRow(row.rowKey)}>
-                Remove
+                  <Switch
+                    mt={30}
+                    label="Required"
+                    {...form.getInputProps(`fields.${index}.required`, { type: 'checkbox' })}
+                  />
+                  <Tooltip label="Remove this field">
+                    <ActionIcon
+                      variant="subtle"
+                      color="red"
+                      mt={28}
+                      aria-label="Remove field"
+                      onClick={() => form.removeListItem('fields', index)}
+                    >
+                      <IconTrash size={16} />
+                    </ActionIcon>
+                  </Tooltip>
+                </Group>
+              </Card>
+            ))}
+            {form.values.fields.length === 0 ? (
+              <Text size="sm" c="slate.5">
+                No fields yet. Add the columns this table should have.
+              </Text>
+            ) : null}
+            <Group>
+              <Button
+                variant="light"
+                leftSection={<IconPlus size={16} />}
+                onClick={addField}
+                type="button"
+              >
+                Add field
               </Button>
-            </div>
-          ))}
-          <div>
-            <Button type="button" variant="secondary" onClick={addRow}>
-              Add field
-            </Button>
-          </div>
-        </div>
-      </Field>
-      <FormActions>
-        <Button type="submit" disabled={busy}>
-          {busy ? busyLabel : submitLabel}
-        </Button>
-        <Button type="button" variant="secondary" onClick={() => router.push('/admin/objects')}>
-          Cancel
-        </Button>
-      </FormActions>
+            </Group>
+          </Stack>
+        </Box>
+
+        <Group mt="sm">
+          <Button type="submit" loading={busy}>
+            {submitLabel}
+          </Button>
+          <Button component={Link} href="/admin/objects" variant="subtle" color="gray">
+            Cancel
+          </Button>
+        </Group>
+      </Stack>
     </form>
   );
 }
