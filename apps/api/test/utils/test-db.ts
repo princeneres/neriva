@@ -2,7 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
-import type { Database } from '../../src/db/db.module';
+import type { Database } from '../../src/db/database';
 import * as schema from '../../src/db/schema';
 
 export interface TestDb {

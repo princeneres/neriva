@@ -9,7 +9,7 @@ import {
 } from 'drizzle-orm';
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { clampLimit, decodeCursor, encodeCursor } from '../common/pagination';
-import type { Database } from './db.module';
+import type { Database } from './database';
 
 export type EnvelopeTable = PgTable & {
   id: AnyPgColumn;

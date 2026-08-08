@@ -15,19 +15,19 @@ Status: in progress. This checklist is the gate for Phase B; every box must be c
 
 ## Step 2: Entity envelope base
 
-- [ ] Drizzle setup + migrations infrastructure
-- [ ] Shared column helpers for the standard entity envelope (id UUIDv7, externalReferenceCode, tenantId, createdAt, updatedAt, createdBy, status, customFields JSONB)
-- [ ] Generic repository/service pattern: tenant-scoped queries by construction
-- [ ] Upsert by externalReferenceCode
-- [ ] Cursor pagination (?limit=&cursor=, default 20, max 100)
-- [ ] First-boot seed: tenant "default", role "Administrator", admin@neriva.com / admin with mustChangePassword=true
+- [x] Drizzle setup + migrations infrastructure
+- [x] Shared column helpers for the standard entity envelope (id UUIDv7, externalReferenceCode, tenantId, createdAt, updatedAt, createdBy, status, customFields JSONB)
+- [x] Generic repository/service pattern: tenant-scoped queries by construction
+- [x] Upsert by externalReferenceCode
+- [x] Cursor pagination (?limit=&cursor=, default 20, max 100)
+- [x] First-boot seed: tenant "default", role "Administrator", admin@neriva.com / admin with mustChangePassword=true
 
 ## Step 3: Auth module
 
-- [ ] Email+password login with argon2
-- [ ] JWT access + refresh tokens, login/refresh/logout endpoints
-- [ ] mustChangePassword enforcement (403 problem+json on everything except password change and logout)
-- [ ] e2e tests covering the forced password change flow
+- [x] Email+password login with argon2
+- [x] JWT access + refresh tokens, login/refresh/logout endpoints
+- [x] mustChangePassword enforcement (403 problem+json on everything except password change and logout)
+- [x] e2e tests covering the forced password change flow
 
 ## Step 4: Users and Roles modules
 

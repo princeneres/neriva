@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { and, eq } from 'drizzle-orm';
-import { DB, type Database } from './db.module';
+import { DB, type Database } from './database';
 import { roles, tenants, userRoles, users } from './schema';
 
 export const DEFAULT_TENANT_ERC = 'default';

@@ -1,30 +1,38 @@
-import { Global, Module } from '@nestjs/common';
-import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
-import * as schema from './schema';
+import { Global, Inject, Injectable, Module, type OnApplicationShutdown } from '@nestjs/common';
+import type { Pool } from 'pg';
+import { createDatabase, createPool, DB, PG_POOL, type Database } from './database';
 import { SeedService } from './seed.service';
 
-export const DB = Symbol('DB');
-export type Database = NodePgDatabase<typeof schema>;
+// useFactory providers get no lifecycle hooks, so this closes the pool when
+// the app shuts down (enableShutdownHooks / app.close in tests).
+@Injectable()
+class PoolLifecycle implements OnApplicationShutdown {
+  constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
 
-export function createDatabase(connectionString: string): Database {
-  const pool = new Pool({ connectionString });
-  return drizzle(pool, { schema });
+  async onApplicationShutdown(): Promise<void> {
+    await this.pool.end();
+  }
 }
 
 @Global()
 @Module({
   providers: [
     {
-      provide: DB,
-      useFactory: (): Database => {
+      provide: PG_POOL,
+      useFactory: (): Pool => {
         const url = process.env.DATABASE_URL;
         if (!url) {
           throw new Error('DATABASE_URL is not set');
         }
-        return createDatabase(url);
+        return createPool(url);
       },
     },
+    {
+      provide: DB,
+      useFactory: (pool: Pool): Database => createDatabase(pool),
+      inject: [PG_POOL],
+    },
+    PoolLifecycle,
     SeedService,
   ],
   exports: [DB],
