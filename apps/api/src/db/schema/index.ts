@@ -4,3 +4,5 @@ export * from './users';
 export * from './roles';
 export * from './refresh-tokens';
 export * from './role-permissions';
+export * from './object-definitions';
+export * from './object-records';
