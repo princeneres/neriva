@@ -260,6 +260,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/content-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ContentTypesController_list"];
+        put?: never;
+        post: operations["ContentTypesController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/content-types/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ContentTypesController_get"];
+        put?: never;
+        post?: never;
+        delete: operations["ContentTypesController_delete"];
+        options?: never;
+        head?: never;
+        patch: operations["ContentTypesController_update"];
+        trace?: never;
+    };
+    "/content-entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ContentEntriesController_list"];
+        put?: never;
+        post: operations["ContentEntriesController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/content-entries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ContentEntriesController_get"];
+        put?: never;
+        post?: never;
+        delete: operations["ContentEntriesController_delete"];
+        options?: never;
+        head?: never;
+        patch: operations["ContentEntriesController_update"];
+        trace?: never;
+    };
+    "/content-entries/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ContentEntriesController_publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/object-definitions": {
         parameters: {
             query?: never;
@@ -647,6 +727,96 @@ export interface components {
             };
             /** @description Replaces the full slot list */
             slots?: components["schemas"]["BlockSlotDto"][];
+        };
+        ContentFieldDto: {
+            /** @example headline */
+            key: string;
+            /** @example Headline */
+            label: string;
+            /** @enum {string} */
+            type: "text" | "richtext" | "number" | "boolean" | "date";
+            /** @default false */
+            required: boolean;
+        };
+        ContentTypeDto: {
+            /** Format: uuid */
+            id: string;
+            externalReferenceCode: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uuid */
+            createdBy: Record<string, never> | null;
+            name: string;
+            description: Record<string, never> | null;
+            fields: components["schemas"]["ContentFieldDto"][];
+        };
+        CreateContentTypeDto: {
+            name: string;
+            description?: string;
+            /** @description Stable code for idempotent upsert; generated when omitted */
+            externalReferenceCode?: string;
+            fields: components["schemas"]["ContentFieldDto"][];
+        };
+        UpdateContentTypeDto: {
+            name?: string;
+            description?: string;
+            /** @description Replaces the full field list */
+            fields?: components["schemas"]["ContentFieldDto"][];
+        };
+        ContentEntryDto: {
+            /** Format: uuid */
+            id: string;
+            externalReferenceCode: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uuid */
+            createdBy: Record<string, never> | null;
+            /** @enum {string} */
+            status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+            /** Format: uuid */
+            contentTypeId: string;
+            /**
+             * Format: uuid
+             * @description null = tenant-wide entry
+             */
+            siteId: Record<string, never> | null;
+            title: string;
+            values: {
+                [key: string]: unknown;
+            };
+            customFields: {
+                [key: string]: unknown;
+            };
+        };
+        CreateContentEntryDto: {
+            /** @description Content type reference: UUID or erc:<externalReferenceCode> */
+            contentType: string;
+            /** @description Site reference: UUID or erc:<externalReferenceCode>; omitted = tenant-wide entry */
+            site?: string;
+            title: string;
+            /** @description Field values keyed by the content type field keys */
+            values: {
+                [key: string]: unknown;
+            };
+            /** @description Stable code for idempotent upsert; generated when omitted */
+            externalReferenceCode?: string;
+        };
+        UpdateContentEntryDto: {
+            title?: string;
+            /** @description Replaces the full values payload; validated against the content type fields */
+            values?: {
+                [key: string]: unknown;
+            };
+            /** @description Site reference: UUID or erc:<externalReferenceCode>; null detaches the entry to tenant-wide */
+            site?: Record<string, never> | null;
         };
         ObjectFieldDto: {
             /** @example firstName */
@@ -1492,6 +1662,286 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["BlockDto"];
+                    };
+                };
+            };
+        };
+    };
+    ContentTypesController_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque cursor from the previous page meta */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentTypeDto"][];
+                        meta: {
+                            cursor: string | null;
+                            limit: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    ContentTypesController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateContentTypeDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentTypeDto"];
+                    };
+                };
+            };
+        };
+    };
+    ContentTypesController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentTypeDto"];
+                    };
+                };
+            };
+        };
+    };
+    ContentTypesController_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ContentTypesController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateContentTypeDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentTypeDto"];
+                    };
+                };
+            };
+        };
+    };
+    ContentEntriesController_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque cursor from the previous page meta */
+                cursor?: string;
+                /** @description Filter by content type: UUID or erc:<externalReferenceCode> */
+                contentType?: string;
+                /** @description Filter by site: UUID or erc:<externalReferenceCode> */
+                site?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentEntryDto"][];
+                        meta: {
+                            cursor: string | null;
+                            limit: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    ContentEntriesController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateContentEntryDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentEntryDto"];
+                    };
+                };
+            };
+        };
+    };
+    ContentEntriesController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentEntryDto"];
+                    };
+                };
+            };
+        };
+    };
+    ContentEntriesController_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ContentEntriesController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateContentEntryDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentEntryDto"];
+                    };
+                };
+            };
+        };
+    };
+    ContentEntriesController_publish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentEntryDto"];
                     };
                 };
             };
