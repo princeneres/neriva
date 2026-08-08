@@ -9,5 +9,7 @@ export * from './blocks';
 export * from './pages';
 export * from './object-definitions';
 export * from './object-records';
+export * from './content-types';
+export * from './content-entries';
 export * from './style-books';
 export * from './system-settings';

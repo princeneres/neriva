@@ -64,6 +64,13 @@
       "when": 1786225101491,
       "tag": "0008_curly_sharon_ventura",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786225675875,
+      "tag": "0009_vengeful_wendell_rand",
+      "breakpoints": true
     }
   ]
 }

@@ -601,188 +601,6 @@ paths:
         - bearer: []
       tags:
         - sites
-  /blocks:
-    get:
-      operationId: BlocksController_list
-      parameters:
-        - name: limit
-          required: false
-          in: query
-          schema:
-            minimum: 1
-            maximum: 100
-            default: 20
-            type: number
-        - name: cursor
-          required: false
-          in: query
-          description: Opaque cursor from the previous page meta
-          schema:
-            type: string
-        - name: status
-          required: false
-          in: query
-          schema:
-            type: string
-            enum:
-              - DRAFT
-              - PUBLISHED
-              - ARCHIVED
-      responses:
-        "200":
-          description: ""
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - data
-                  - meta
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/BlockDto"
-                  meta:
-                    type: object
-                    required:
-                      - cursor
-                      - limit
-                    properties:
-                      cursor:
-                        type:
-                          - string
-                          - "null"
-                      limit:
-                        type: number
-      security:
-        - bearer: []
-      tags:
-        - blocks
-    post:
-      operationId: BlocksController_create
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateBlockDto"
-      responses:
-        "201":
-          description: ""
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - data
-                properties:
-                  data:
-                    $ref: "#/components/schemas/BlockDto"
-      security:
-        - bearer: []
-      tags:
-        - blocks
-  /blocks/{id}:
-    get:
-      operationId: BlocksController_get
-      parameters:
-        - name: id
-          required: true
-          in: path
-          description: UUID or erc:<externalReferenceCode>
-          schema:
-            type: string
-      responses:
-        "200":
-          description: ""
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - data
-                properties:
-                  data:
-                    $ref: "#/components/schemas/BlockDto"
-      security:
-        - bearer: []
-      tags:
-        - blocks
-    patch:
-      operationId: BlocksController_update
-      parameters:
-        - name: id
-          required: true
-          in: path
-          description: UUID or erc:<externalReferenceCode>
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateBlockDto"
-      responses:
-        "200":
-          description: ""
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - data
-                properties:
-                  data:
-                    $ref: "#/components/schemas/BlockDto"
-      security:
-        - bearer: []
-      tags:
-        - blocks
-    delete:
-      operationId: BlocksController_delete
-      parameters:
-        - name: id
-          required: true
-          in: path
-          description: UUID or erc:<externalReferenceCode>
-          schema:
-            type: string
-      responses:
-        "204":
-          description: ""
-      security:
-        - bearer: []
-      tags:
-        - blocks
-  /blocks/{id}/publish:
-    post:
-      operationId: BlocksController_publish
-      parameters:
-        - name: id
-          required: true
-          in: path
-          description: UUID or erc:<externalReferenceCode>
-          schema:
-            type: string
-      responses:
-        "200":
-          description: ""
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - data
-                properties:
-                  data:
-                    $ref: "#/components/schemas/BlockDto"
-      security:
-        - bearer: []
-      tags:
-        - blocks
   /sites/{siteRef}/pages:
     get:
       operationId: PagesController_list
@@ -968,6 +786,520 @@ paths:
         - bearer: []
       tags:
         - pages
+  /blocks:
+    get:
+      operationId: BlocksController_list
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+        - name: status
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - DRAFT
+              - PUBLISHED
+              - ARCHIVED
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/BlockDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      security:
+        - bearer: []
+      tags:
+        - blocks
+    post:
+      operationId: BlocksController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBlockDto"
+      responses:
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BlockDto"
+      security:
+        - bearer: []
+      tags:
+        - blocks
+  /blocks/{id}:
+    get:
+      operationId: BlocksController_get
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BlockDto"
+      security:
+        - bearer: []
+      tags:
+        - blocks
+    patch:
+      operationId: BlocksController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBlockDto"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BlockDto"
+      security:
+        - bearer: []
+      tags:
+        - blocks
+    delete:
+      operationId: BlocksController_delete
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      security:
+        - bearer: []
+      tags:
+        - blocks
+  /blocks/{id}/publish:
+    post:
+      operationId: BlocksController_publish
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BlockDto"
+      security:
+        - bearer: []
+      tags:
+        - blocks
+  /content-types:
+    get:
+      operationId: ContentTypesController_list
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ContentTypeDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      security:
+        - bearer: []
+      tags:
+        - content-types
+    post:
+      operationId: ContentTypesController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateContentTypeDto"
+      responses:
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ContentTypeDto"
+      security:
+        - bearer: []
+      tags:
+        - content-types
+  /content-types/{id}:
+    get:
+      operationId: ContentTypesController_get
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ContentTypeDto"
+      security:
+        - bearer: []
+      tags:
+        - content-types
+    patch:
+      operationId: ContentTypesController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateContentTypeDto"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ContentTypeDto"
+      security:
+        - bearer: []
+      tags:
+        - content-types
+    delete:
+      operationId: ContentTypesController_delete
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      security:
+        - bearer: []
+      tags:
+        - content-types
+  /content-entries:
+    get:
+      operationId: ContentEntriesController_list
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+        - name: contentType
+          required: false
+          in: query
+          description: "Filter by content type: UUID or erc:<externalReferenceCode>"
+          schema:
+            type: string
+        - name: site
+          required: false
+          in: query
+          description: "Filter by site: UUID or erc:<externalReferenceCode>"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ContentEntryDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      security:
+        - bearer: []
+      tags:
+        - content-entries
+    post:
+      operationId: ContentEntriesController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateContentEntryDto"
+      responses:
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ContentEntryDto"
+      security:
+        - bearer: []
+      tags:
+        - content-entries
+  /content-entries/{id}:
+    get:
+      operationId: ContentEntriesController_get
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ContentEntryDto"
+      security:
+        - bearer: []
+      tags:
+        - content-entries
+    patch:
+      operationId: ContentEntriesController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateContentEntryDto"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ContentEntryDto"
+      security:
+        - bearer: []
+      tags:
+        - content-entries
+    delete:
+      operationId: ContentEntriesController_delete
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      security:
+        - bearer: []
+      tags:
+        - content-entries
+  /content-entries/{id}/publish:
+    post:
+      operationId: ContentEntriesController_publish
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ContentEntryDto"
+      security:
+        - bearer: []
+      tags:
+        - content-entries
   /object-definitions:
     get:
       operationId: ObjectDefinitionsController_list
@@ -1944,6 +2276,126 @@ components:
           type:
             - string
             - "null"
+    PageDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReferenceCode:
+          type: string
+        tenantId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type:
+            - object
+            - "null"
+          format: uuid
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - PUBLISHED
+            - ARCHIVED
+        siteId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        path:
+          type: string
+          description: Unique per site, ^/[a-z0-9/-]*$
+        tree:
+          type: object
+          additionalProperties: true
+          description: "Recursive tree of block instances: { blocks: [...] }"
+        customFields:
+          type: object
+          additionalProperties: true
+      required:
+        - id
+        - externalReferenceCode
+        - tenantId
+        - createdAt
+        - updatedAt
+        - createdBy
+        - status
+        - siteId
+        - title
+        - path
+        - tree
+        - customFields
+    CreatePageDto:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 255
+          example: Home
+        path:
+          type: string
+          maxLength: 255
+          pattern: ^\/[a-z0-9/-]*$
+          description: Unique per site
+          example: /home
+        tree:
+          type: object
+          additionalProperties: true
+          description: "Recursive tree of block instances: { blocks: [{ block: <block
+            ERC>, props, slots }] }. Validated against each referenced block
+            definition on every write."
+          example:
+            blocks:
+              - block: hero-banner
+                props:
+                  title: Welcome
+                slots:
+                  main:
+                    - block: text
+                      props:
+                        body: Hello
+          default:
+            blocks: []
+        externalReferenceCode:
+          type: string
+          description: Stable code for idempotent upsert; generated when omitted
+      required:
+        - title
+        - path
+    UpdatePageDto:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        path:
+          type: string
+          maxLength: 255
+          pattern: ^\/[a-z0-9/-]*$
+          description: Unique per site
+        tree:
+          type: object
+          additionalProperties: true
+          description: "Recursive tree of block instances: { blocks: [{ block: <block
+            ERC>, props, slots }] }. Validated against each referenced block
+            definition on every write."
+          example:
+            blocks:
+              - block: hero-banner
+                props:
+                  title: Welcome
+                slots:
+                  main:
+                    - block: text
+                      props:
+                        body: Hello
     BlockSlotDto:
       type: object
       properties:
@@ -2066,7 +2518,105 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BlockSlotDto"
-    PageDto:
+    ContentFieldDto:
+      type: object
+      properties:
+        key:
+          type: string
+          pattern: ^[a-z][a-zA-Z0-9]*$
+          example: headline
+        label:
+          type: string
+          example: Headline
+        type:
+          type: string
+          enum:
+            - text
+            - richtext
+            - number
+            - boolean
+            - date
+        required:
+          type: boolean
+          default: false
+      required:
+        - key
+        - label
+        - type
+    ContentTypeDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReferenceCode:
+          type: string
+        tenantId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type:
+            - object
+            - "null"
+          format: uuid
+        name:
+          type: string
+        description:
+          type:
+            - object
+            - "null"
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContentFieldDto"
+      required:
+        - id
+        - externalReferenceCode
+        - tenantId
+        - createdAt
+        - updatedAt
+        - createdBy
+        - name
+        - description
+        - fields
+    CreateContentTypeDto:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        externalReferenceCode:
+          type: string
+          description: Stable code for idempotent upsert; generated when omitted
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContentFieldDto"
+      required:
+        - name
+        - fields
+    UpdateContentTypeDto:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        fields:
+          description: Replaces the full field list
+          type: array
+          items:
+            $ref: "#/components/schemas/ContentFieldDto"
+    ContentEntryDto:
       type: object
       properties:
         id:
@@ -2094,18 +2644,20 @@ components:
             - DRAFT
             - PUBLISHED
             - ARCHIVED
-        siteId:
+        contentTypeId:
           type: string
           format: uuid
+        siteId:
+          type:
+            - object
+            - "null"
+          format: uuid
+          description: null = tenant-wide entry
         title:
           type: string
-        path:
-          type: string
-          description: Unique per site, ^/[a-z0-9/-]*$
-        tree:
+        values:
           type: object
           additionalProperties: true
-          description: "Recursive tree of block instances: { blocks: [...] }"
         customFields:
           type: object
           additionalProperties: true
@@ -2117,75 +2669,52 @@ components:
         - updatedAt
         - createdBy
         - status
+        - contentTypeId
         - siteId
         - title
-        - path
-        - tree
+        - values
         - customFields
-    CreatePageDto:
+    CreateContentEntryDto:
       type: object
       properties:
+        contentType:
+          type: string
+          description: "Content type reference: UUID or erc:<externalReferenceCode>"
+        site:
+          type: string
+          description: "Site reference: UUID or erc:<externalReferenceCode>; omitted =
+            tenant-wide entry"
         title:
           type: string
           maxLength: 255
-          example: Home
-        path:
-          type: string
-          maxLength: 255
-          pattern: ^\/[a-z0-9/-]*$
-          description: Unique per site
-          example: /home
-        tree:
+        values:
           type: object
           additionalProperties: true
-          description: "Recursive tree of block instances: { blocks: [{ block: <block
-            ERC>, props, slots }] }. Validated against each referenced block
-            definition on every write."
-          example:
-            blocks:
-              - block: hero-banner
-                props:
-                  title: Welcome
-                slots:
-                  main:
-                    - block: text
-                      props:
-                        body: Hello
-          default:
-            blocks: []
+          description: Field values keyed by the content type field keys
         externalReferenceCode:
           type: string
           description: Stable code for idempotent upsert; generated when omitted
       required:
+        - contentType
         - title
-        - path
-    UpdatePageDto:
+        - values
+    UpdateContentEntryDto:
       type: object
       properties:
         title:
           type: string
           maxLength: 255
-        path:
-          type: string
-          maxLength: 255
-          pattern: ^\/[a-z0-9/-]*$
-          description: Unique per site
-        tree:
+        values:
           type: object
           additionalProperties: true
-          description: "Recursive tree of block instances: { blocks: [{ block: <block
-            ERC>, props, slots }] }. Validated against each referenced block
-            definition on every write."
-          example:
-            blocks:
-              - block: hero-banner
-                props:
-                  title: Welcome
-                slots:
-                  main:
-                    - block: text
-                      props:
-                        body: Hello
+          description: Replaces the full values payload; validated against the content
+            type fields
+        site:
+          type:
+            - object
+            - "null"
+          description: "Site reference: UUID or erc:<externalReferenceCode>; null detaches
+            the entry to tenant-wide"
     ObjectFieldDto:
       type: object
       properties:

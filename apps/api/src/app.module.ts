@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { DbModule } from './db/db.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BlocksModule } from './modules/blocks/blocks.module';
+import { ContentModule } from './modules/content/content.module';
 import { ObjectsModule } from './modules/objects/objects.module';
 import { PagesModule } from './modules/pages/pages.module';
 import { RolesModule } from './modules/roles/roles.module';
@@ -19,8 +20,9 @@ import { UsersModule } from './modules/users/users.module';
     RolesModule,
     UsersModule,
     SitesModule,
-    BlocksModule,
     PagesModule,
+    BlocksModule,
+    ContentModule,
     ObjectsModule,
     StylebookModule,
     SystemModule,
