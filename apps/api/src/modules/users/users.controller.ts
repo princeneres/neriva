@@ -1,17 +1,25 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiDataResponse, ApiListResponse } from '../../common/api-envelope.decorators';
 import { ListQueryDto } from '../../common/list-query.dto';
 import { CurrentUser } from '../auth/auth.decorators';
 import type { AuthenticatedUser, PublicUser } from '../auth/auth.types';
+import { PublicUserDto } from '../auth/dto/auth-response.dto';
 import { AssignRoleDto } from '../roles/dto/roles.dto';
 import { RequirePermission } from '../roles/require-permission.decorator';
 import { CreateUserDto, UpdateUserDto } from './dto/users.dto';
 import { UsersService } from './users.service';
 
+const ID_PARAM = { name: 'id', description: 'UUID or erc:<externalReferenceCode>' };
+
+@ApiTags('users')
+@ApiBearerAuth()
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
+  @ApiListResponse(PublicUserDto)
   @RequirePermission('user:read')
   async list(
     @CurrentUser() user: AuthenticatedUser,
@@ -22,15 +30,18 @@ export class UsersController {
   }
 
   @Get(':id')
+  @ApiParam(ID_PARAM)
+  @ApiDataResponse(PublicUserDto)
   @RequirePermission('user:read')
   async get(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
   ): Promise<{ data: PublicUser }> {
-    return { data: await this.usersService.getById(user.tenantId, id) };
+    return { data: await this.usersService.getByRef(user.tenantId, id) };
   }
 
   @Post()
+  @ApiDataResponse(PublicUserDto, { status: 201 })
   @RequirePermission('user:create')
   async create(
     @CurrentUser() user: AuthenticatedUser,
@@ -40,6 +51,8 @@ export class UsersController {
   }
 
   @Patch(':id')
+  @ApiParam(ID_PARAM)
+  @ApiDataResponse(PublicUserDto)
   @RequirePermission('user:update')
   async update(
     @CurrentUser() user: AuthenticatedUser,
@@ -50,6 +63,7 @@ export class UsersController {
   }
 
   @Delete(':id')
+  @ApiParam(ID_PARAM)
   @RequirePermission('user:delete')
   @HttpCode(204)
   async delete(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string): Promise<void> {
@@ -57,6 +71,7 @@ export class UsersController {
   }
 
   @Post(':id/roles')
+  @ApiParam(ID_PARAM)
   @RequirePermission('user:update')
   @HttpCode(204)
   async assignRole(
@@ -68,6 +83,7 @@ export class UsersController {
   }
 
   @Delete(':id/roles/:roleId')
+  @ApiParam(ID_PARAM)
   @RequirePermission('user:update')
   @HttpCode(204)
   async unassignRole(

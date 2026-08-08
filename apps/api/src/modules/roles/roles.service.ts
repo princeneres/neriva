@@ -30,10 +30,10 @@ export class RolesService {
     return { ...page, items: withPermissions };
   }
 
-  async getById(tenantId: string, id: string): Promise<RoleWithPermissions> {
-    const role = await this.repo(tenantId).findById(id);
+  async getByRef(tenantId: string, ref: string): Promise<RoleWithPermissions> {
+    const role = await this.repo(tenantId).findByRef(ref);
     if (!role) {
-      throw new NotFoundException({ detail: `Role ${id} not found` });
+      throw new NotFoundException({ detail: `Role ${ref} not found` });
     }
     return (await this.attachPermissions([role]))[0]!;
   }
@@ -60,7 +60,7 @@ export class RolesService {
       };
       const role = await this.repo(tenantId).create(values);
       await this.replacePermissions(tenantId, role.id, input.permissions ?? []);
-      return this.getById(tenantId, role.id);
+      return this.getByRef(tenantId, role.id);
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new ConflictException({ detail: 'A role with this name or ERC already exists' });
@@ -71,9 +71,10 @@ export class RolesService {
 
   async update(
     tenantId: string,
-    id: string,
+    ref: string,
     input: { name?: string; description?: string; permissions?: PermissionDto[] },
   ): Promise<RoleWithPermissions> {
+    const existing = await this.getByRef(tenantId, ref);
     const values: Partial<{ name: string; description: string | null }> = {};
     if (input.name !== undefined) {
       values.name = input.name;
@@ -83,17 +84,13 @@ export class RolesService {
     }
 
     try {
-      const updated =
-        Object.keys(values).length > 0
-          ? await this.repo(tenantId).updateById(id, values)
-          : await this.repo(tenantId).findById(id);
-      if (!updated) {
-        throw new NotFoundException({ detail: `Role ${id} not found` });
+      if (Object.keys(values).length > 0) {
+        await this.repo(tenantId).updateById(existing.id, values);
       }
       if (input.permissions !== undefined) {
-        await this.replacePermissions(tenantId, id, input.permissions);
+        await this.replacePermissions(tenantId, existing.id, input.permissions);
       }
-      return this.getById(tenantId, id);
+      return this.getByRef(tenantId, existing.id);
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new ConflictException({ detail: 'A role with this name already exists' });
@@ -102,11 +99,9 @@ export class RolesService {
     }
   }
 
-  async delete(tenantId: string, id: string): Promise<void> {
-    const deleted = await this.repo(tenantId).deleteById(id);
-    if (!deleted) {
-      throw new NotFoundException({ detail: `Role ${id} not found` });
-    }
+  async delete(tenantId: string, ref: string): Promise<void> {
+    const existing = await this.getByRef(tenantId, ref);
+    await this.repo(tenantId).deleteById(existing.id);
   }
 
   private async replacePermissions(

@@ -1,3 +1,6 @@
+// Generated from docs/api/openapi.yaml (pnpm --filter @neriva/contracts generate).
+export type { components, operations, paths } from './generated/api';
+
 export type EntityStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 
 export interface EntityEnvelope {

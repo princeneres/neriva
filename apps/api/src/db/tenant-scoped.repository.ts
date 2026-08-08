@@ -8,6 +8,7 @@ import {
   type SQL,
 } from 'drizzle-orm';
 import type { AnyPgColumn, PgTable, PgUpdateSetSource } from 'drizzle-orm/pg-core';
+import { parseEntityRef } from '../common/entity-ref';
 import { clampLimit, decodeCursor, encodeCursor } from '../common/pagination';
 import type { Database } from './database';
 
@@ -61,6 +62,12 @@ export class TenantScopedRepository<TTable extends EnvelopeTable> {
       .where(this.scoped(eq(this.table.externalReferenceCode, externalReferenceCode)))
       .limit(1);
     return (rows[0] as InferSelectModel<TTable> | undefined) ?? null;
+  }
+
+  // Accepts a UUID or erc:<externalReferenceCode> (URL id convention).
+  async findByRef(ref: string): Promise<InferSelectModel<TTable> | null> {
+    const parsed = parseEntityRef(ref);
+    return parsed.kind === 'id' ? this.findById(parsed.value) : this.findByErc(parsed.value);
   }
 
   async list(

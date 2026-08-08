@@ -23,10 +23,10 @@ export class UsersService {
     return { ...page, items: page.items.map(toPublicUser) };
   }
 
-  async getById(tenantId: string, id: string): Promise<PublicUser> {
-    const user = await this.repo(tenantId).findById(id);
+  async getByRef(tenantId: string, ref: string): Promise<PublicUser> {
+    const user = await this.repo(tenantId).findByRef(ref);
     if (!user) {
-      throw new NotFoundException({ detail: `User ${id} not found` });
+      throw new NotFoundException({ detail: `User ${ref} not found` });
     }
     return toPublicUser(user);
   }
@@ -78,13 +78,14 @@ export class UsersService {
 
   async update(
     tenantId: string,
-    id: string,
+    ref: string,
     input: { email?: string; displayName?: string },
   ): Promise<PublicUser> {
+    const existing = await this.getByRef(tenantId, ref);
     try {
-      const updated = await this.repo(tenantId).updateById(id, input);
+      const updated = await this.repo(tenantId).updateById(existing.id, input);
       if (!updated) {
-        throw new NotFoundException({ detail: `User ${id} not found` });
+        throw new NotFoundException({ detail: `User ${ref} not found` });
       }
       return toPublicUser(updated);
     } catch (error) {
@@ -95,25 +96,27 @@ export class UsersService {
     }
   }
 
-  async delete(tenantId: string, id: string): Promise<void> {
-    const deleted = await this.repo(tenantId).deleteById(id);
-    if (!deleted) {
-      throw new NotFoundException({ detail: `User ${id} not found` });
-    }
+  async delete(tenantId: string, ref: string): Promise<void> {
+    const existing = await this.getByRef(tenantId, ref);
+    await this.repo(tenantId).deleteById(existing.id);
   }
 
-  async assignRole(tenantId: string, userId: string, roleId: string): Promise<void> {
-    await this.getById(tenantId, userId);
+  async assignRole(tenantId: string, userRef: string, roleId: string): Promise<void> {
+    const user = await this.getByRef(tenantId, userRef);
     await this.assertRolesExist(tenantId, [roleId]);
-    await this.db.insert(userRoles).values({ userId, roleId, tenantId }).onConflictDoNothing();
+    await this.db
+      .insert(userRoles)
+      .values({ userId: user.id, roleId, tenantId })
+      .onConflictDoNothing();
   }
 
-  async unassignRole(tenantId: string, userId: string, roleId: string): Promise<void> {
+  async unassignRole(tenantId: string, userRef: string, roleId: string): Promise<void> {
+    const user = await this.getByRef(tenantId, userRef);
     await this.db
       .delete(userRoles)
       .where(
         and(
-          eq(userRoles.userId, userId),
+          eq(userRoles.userId, user.id),
           eq(userRoles.roleId, roleId),
           eq(userRoles.tenantId, tenantId),
         ),

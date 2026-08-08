@@ -31,3 +31,9 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: OpenAPI spec and generated types are up to date
+        run: |
+          pnpm --filter @neriva/api openapi:generate
+          pnpm --filter @neriva/contracts generate
+          git diff --exit-code docs/api/openapi.yaml packages/contracts/src/generated

@@ -39,11 +39,11 @@ Status: in progress. This checklist is the gate for Phase B; every box must be c
 
 ## Step 5: Contracts and API conventions
 
-- [ ] OpenAPI 3.1 spec generated from decorators into docs/api/openapi.yaml, committed
-- [ ] packages/contracts exporting generated types consumed by apps/web
-- [ ] Success envelope { data, meta } as global infrastructure
-- [ ] RFC 7807 problem+json errors as global infrastructure
-- [ ] URL id resolution (uuid or erc:<code>) as global infrastructure
+- [x] OpenAPI 3.1 spec generated from decorators into docs/api/openapi.yaml, committed
+- [x] packages/contracts exporting generated types consumed by apps/web
+- [x] Success envelope { data, meta } as global infrastructure
+- [x] RFC 7807 problem+json errors as global infrastructure
+- [x] URL id resolution (uuid or erc:<code>) as global infrastructure
 
 ## Step 6: Web shell
 

@@ -1,4 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { ApiBearerAuth, ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
+import { ApiDataResponse } from '../../common/api-envelope.decorators';
 import { CurrentUser, Public, SkipMustChangePassword } from './auth.decorators';
 import { AuthService } from './auth.service';
 import {
@@ -7,8 +9,11 @@ import {
   type PublicUser,
   toPublicUser,
 } from './auth.types';
+import { AuthTokensDto, PublicUserDto } from './dto/auth-response.dto';
 import { ChangePasswordDto, LoginDto, LogoutDto, RefreshDto } from './dto/auth.dto';
 
+@ApiTags('auth')
+@ApiBearerAuth()
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -16,6 +21,7 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(200)
+  @ApiDataResponse(AuthTokensDto)
   async login(@Body() dto: LoginDto): Promise<{ data: AuthTokens }> {
     return { data: await this.authService.login(dto.email, dto.password) };
   }
@@ -23,6 +29,7 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(200)
+  @ApiDataResponse(AuthTokensDto)
   async refresh(@Body() dto: RefreshDto): Promise<{ data: AuthTokens }> {
     return { data: await this.authService.refresh(dto.refreshToken) };
   }
@@ -30,6 +37,7 @@ export class AuthController {
   @SkipMustChangePassword()
   @Post('logout')
   @HttpCode(204)
+  @ApiNoContentResponse()
   async logout(@Body() dto: LogoutDto): Promise<void> {
     await this.authService.logout(dto.refreshToken);
   }
@@ -37,6 +45,7 @@ export class AuthController {
   @SkipMustChangePassword()
   @Post('change-password')
   @HttpCode(200)
+  @ApiDataResponse(AuthTokensDto)
   async changePassword(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: ChangePasswordDto,
@@ -47,6 +56,7 @@ export class AuthController {
   }
 
   @Get('me')
+  @ApiDataResponse(PublicUserDto)
   me(@CurrentUser() user: AuthenticatedUser): { data: PublicUser } {
     return { data: toPublicUser(user) };
   }
