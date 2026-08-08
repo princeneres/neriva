@@ -202,3 +202,192 @@ a {
   text-align: center;
   color: var(--nv-color-neutral-500);
 }
+
+/* Admin building blocks */
+.nv-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--nv-space-3);
+  margin-bottom: var(--nv-space-4);
+}
+
+.nv-toolbar h1 {
+  margin: 0;
+  font-size: var(--nv-text-xl);
+}
+
+.nv-card {
+  background: var(--nv-color-neutral-0);
+  border: 1px solid var(--nv-color-neutral-200);
+  border-radius: var(--nv-radius-md);
+  box-shadow: var(--nv-shadow-sm);
+  overflow: hidden;
+}
+
+.nv-card-body {
+  padding: var(--nv-space-5);
+}
+
+.nv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--nv-text-sm);
+}
+
+.nv-table th {
+  text-align: left;
+  padding: var(--nv-space-3) var(--nv-space-4);
+  background: var(--nv-color-neutral-50);
+  border-bottom: 1px solid var(--nv-color-neutral-200);
+  color: var(--nv-color-neutral-600);
+  font-weight: 600;
+}
+
+.nv-table td {
+  padding: var(--nv-space-3) var(--nv-space-4);
+  border-bottom: 1px solid var(--nv-color-neutral-100);
+}
+
+.nv-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.nv-table tbody tr:hover {
+  background: var(--nv-color-neutral-50);
+}
+
+.nv-table-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.nv-table-actions .nv-button {
+  margin-left: var(--nv-space-2);
+}
+
+.nv-table-empty {
+  text-align: center;
+  color: var(--nv-color-neutral-500);
+  padding: var(--nv-space-6) !important;
+}
+
+.nv-badge {
+  display: inline-block;
+  padding: 2px var(--nv-space-2);
+  border-radius: 999px;
+  font-size: var(--nv-text-xs);
+  font-weight: 600;
+  background: var(--nv-color-neutral-100);
+  color: var(--nv-color-neutral-600);
+}
+
+.nv-badge[data-status='PUBLISHED'] {
+  background: #e3f2e8;
+  color: var(--nv-color-success);
+}
+
+.nv-badge[data-status='DRAFT'] {
+  background: var(--nv-color-primary-soft);
+  color: var(--nv-color-primary);
+}
+
+.nv-badge[data-status='ARCHIVED'] {
+  background: var(--nv-color-neutral-200);
+  color: var(--nv-color-neutral-600);
+}
+
+.nv-button[data-variant='secondary'] {
+  background: var(--nv-color-neutral-0);
+  color: var(--nv-color-neutral-700);
+  border: 1px solid var(--nv-color-neutral-300);
+}
+
+.nv-button[data-variant='secondary']:hover {
+  border-color: var(--nv-color-primary);
+  color: var(--nv-color-primary);
+  background: var(--nv-color-neutral-0);
+}
+
+.nv-button[data-variant='danger'] {
+  background: var(--nv-color-neutral-0);
+  color: var(--nv-color-danger);
+  border: 1px solid var(--nv-color-neutral-300);
+}
+
+.nv-button[data-variant='danger']:hover {
+  border-color: var(--nv-color-danger);
+  background: var(--nv-color-danger-soft);
+}
+
+.nv-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nv-space-4);
+  max-width: 560px;
+}
+
+.nv-form textarea,
+.nv-form select {
+  padding: var(--nv-space-2) var(--nv-space-3);
+  border: 1px solid var(--nv-color-neutral-300);
+  border-radius: var(--nv-radius-sm);
+  font-size: var(--nv-text-md);
+  font-family: inherit;
+  background: var(--nv-color-neutral-0);
+}
+
+.nv-form textarea:focus,
+.nv-form select:focus {
+  outline: 2px solid var(--nv-color-primary);
+  outline-offset: 1px;
+  border-color: var(--nv-color-primary);
+}
+
+.nv-form-actions {
+  display: flex;
+  gap: var(--nv-space-3);
+}
+
+.nv-field-error {
+  color: var(--nv-color-danger);
+  font-size: var(--nv-text-xs);
+}
+
+.nv-load-more {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--nv-space-4);
+}
+
+.nv-toast-stack {
+  position: fixed;
+  bottom: var(--nv-space-5);
+  right: var(--nv-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--nv-space-2);
+  z-index: 100;
+}
+
+.nv-toast {
+  padding: var(--nv-space-3) var(--nv-space-4);
+  border-radius: var(--nv-radius-md);
+  box-shadow: var(--nv-shadow-md);
+  font-size: var(--nv-text-sm);
+  background: var(--nv-color-neutral-900);
+  color: var(--nv-color-neutral-0);
+  max-width: 360px;
+}
+
+.nv-toast[data-kind='error'] {
+  background: var(--nv-color-danger);
+}
+
+.nv-code {
+  font-family: var(--nv-font-mono);
+  font-size: var(--nv-text-xs);
+  background: var(--nv-color-neutral-100);
+  padding: 2px var(--nv-space-1);
+  border-radius: var(--nv-radius-sm);
+}

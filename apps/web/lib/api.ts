@@ -1,6 +1,6 @@
 import type { components } from '@neriva/contracts';
 import { apiUrl } from './api-url';
-import { getAccessToken } from './auth-storage';
+import { clearTokens, getAccessToken, getRefreshToken, saveTokens } from './auth-storage';
 
 export type AuthTokens = components['schemas']['AuthTokensDto'];
 export type PublicUser = components['schemas']['PublicUserDto'];
@@ -11,6 +11,12 @@ export interface ProblemDetails {
   status: number;
   detail?: string;
   code?: string;
+  errors?: string[];
+}
+
+export interface ListMeta {
+  cursor: string | null;
+  limit: number;
 }
 
 export class ApiError extends Error {
@@ -20,7 +26,40 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+// Single-flight refresh: concurrent 401s share one refresh round-trip.
+let refreshing: Promise<boolean> | null = null;
+
+async function tryRefresh(): Promise<boolean> {
+  refreshing ??= (async () => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) {
+      return false;
+    }
+    try {
+      const response = await fetch(apiUrl('/auth/refresh'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!response.ok) {
+        return false;
+      }
+      const body = (await response.json()) as { data: AuthTokens };
+      saveTokens(body.data);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      // allow the next expiry to trigger a fresh round-trip
+      setTimeout(() => {
+        refreshing = null;
+      }, 0);
+    }
+  })();
+  return refreshing;
+}
+
+async function request<T>(path: string, init: RequestInit = {}, allowRetry = true): Promise<T> {
   const token = getAccessToken();
   const response = await fetch(apiUrl(path), {
     ...init,
@@ -30,6 +69,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       ...init.headers,
     },
   });
+
+  if (response.status === 401 && allowRetry && getRefreshToken()) {
+    if (await tryRefresh()) {
+      return request<T>(path, init, false);
+    }
+    clearTokens();
+  }
 
   if (!response.ok) {
     let problem: ProblemDetails = { status: response.status };
@@ -46,24 +92,35 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await response.json()) as T;
 }
 
+export const api = {
+  get: <T>(path: string) => request<T>(path, { method: 'GET' }),
+  post: <T>(path: string, body?: unknown) =>
+    request<T>(path, {
+      method: 'POST',
+      body: body === undefined ? undefined : JSON.stringify(body),
+    }),
+  patch: <T>(path: string, body: unknown) =>
+    request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
+  put: <T>(path: string, body: unknown) =>
+    request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
+  del: (path: string) => request<undefined>(path, { method: 'DELETE' }),
+};
+
 export function login(email: string, password: string): Promise<{ data: AuthTokens }> {
-  return request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+  return api.post('/auth/login', { email, password });
 }
 
 export function changePassword(
   currentPassword: string,
   newPassword: string,
 ): Promise<{ data: AuthTokens }> {
-  return request('/auth/change-password', {
-    method: 'POST',
-    body: JSON.stringify({ currentPassword, newPassword }),
-  });
+  return api.post('/auth/change-password', { currentPassword, newPassword });
 }
 
 export function me(): Promise<{ data: PublicUser }> {
-  return request('/auth/me', { method: 'GET' });
+  return api.get('/auth/me');
 }
 
-export function logout(refreshToken: string): Promise<void> {
-  return request('/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken }) });
+export function logout(refreshToken: string): Promise<undefined> {
+  return api.post('/auth/logout', { refreshToken });
 }

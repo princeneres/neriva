@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useEffect, useState } from 'react';
+import { ToastProvider } from '../../components/toast';
 import { ApiError, logout, me, type PublicUser } from '../../lib/api';
 import { clearTokens, getRefreshToken } from '../../lib/auth-storage';
 
@@ -47,28 +48,30 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="nv-shell">
-      <aside className="nv-sidebar">
-        <div className="nv-brand">
-          Neriva<span>.</span>
+    <ToastProvider>
+      <div className="nv-shell">
+        <aside className="nv-sidebar">
+          <div className="nv-brand">
+            Neriva<span>.</span>
+          </div>
+          <nav className="nv-nav">
+            {NAV_ITEMS.map((item) => (
+              <Link key={item.href} href={item.href}>
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        </aside>
+        <div className="nv-main">
+          <header className="nv-topbar">
+            <span>{user.email}</span>
+            <button type="button" onClick={onLogout}>
+              Sign out
+            </button>
+          </header>
+          <div className="nv-content">{children}</div>
         </div>
-        <nav className="nv-nav">
-          {NAV_ITEMS.map((item) => (
-            <Link key={item.href} href={item.href}>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </aside>
-      <div className="nv-main">
-        <header className="nv-topbar">
-          <span>{user.email}</span>
-          <button type="button" onClick={onLogout}>
-            Sign out
-          </button>
-        </header>
-        <div className="nv-content">{children}</div>
       </div>
-    </div>
+    </ToastProvider>
   );
 }
