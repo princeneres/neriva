@@ -1,81 +1,41 @@
 'use client';
 
 import type { components } from '@neriva/contracts';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Code,
+  Grid,
+  Group,
+  Skeleton,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core';
+import { notifications } from '@mantine/notifications';
+import { IconAlertCircle, IconCode } from '@tabler/icons-react';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Button } from '../../../../components/form';
-import { useToast } from '../../../../components/toast';
+import { HelpTip } from '../../../../components/help-tip';
 import { ApiError, api } from '../../../../lib/api';
 import { apiUrl } from '../../../../lib/api-url';
 import { getAccessToken } from '../../../../lib/auth-storage';
 import { StyleBookForm, type StyleBookDraft } from '../style-book-form';
+import { TokenPreview } from '../token-preview';
 import { tokensToRows, type TokenRow } from '../token-rows';
 
 type StyleBook = components['schemas']['StyleBookDto'];
 
-function TokenPreview({ rows }: { rows: TokenRow[] }) {
-  const colorRows = rows.filter((row) => row.name.trim().startsWith('color'));
-  const otherRows = rows.filter((row) => !row.name.trim().startsWith('color'));
-
-  if (rows.length === 0) {
-    return <div className="nv-empty">No tokens to preview.</div>;
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--nv-space-4)' }}>
-      {colorRows.length > 0 ? (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--nv-space-3)' }}>
-          {colorRows.map((row) => (
-            <div key={row.id} style={{ width: '96px' }}>
-              <div
-                style={{
-                  height: '48px',
-                  borderRadius: 'var(--nv-radius-sm)',
-                  border: '1px solid var(--nv-color-neutral-200)',
-                  background: row.value,
-                }}
-              />
-              <div
-                style={{
-                  marginTop: 'var(--nv-space-1)',
-                  fontSize: 'var(--nv-text-xs)',
-                  color: 'var(--nv-color-neutral-600)',
-                  wordBreak: 'break-all',
-                }}
-              >
-                {row.name}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : null}
-      {otherRows.length > 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--nv-space-1)' }}>
-          {otherRows.map((row) => (
-            <div
-              key={row.id}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                gap: 'var(--nv-space-3)',
-                fontSize: 'var(--nv-text-sm)',
-              }}
-            >
-              <code>{row.name}</code>
-              <span style={{ color: 'var(--nv-color-neutral-600)', wordBreak: 'break-all' }}>
-                {row.value}
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
+const STATUS_COLORS: Record<StyleBook['status'], string> = {
+  DRAFT: 'gray',
+  PUBLISHED: 'green',
+  ARCHIVED: 'dark',
+};
 
 export default function EditStyleBookPage() {
   const { id } = useParams<{ id: string }>();
-  const toast = useToast();
   const [styleBook, setStyleBook] = useState<StyleBook | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [previewRows, setPreviewRows] = useState<TokenRow[]>([]);
@@ -97,7 +57,8 @@ export default function EditStyleBookPage() {
   async function onSubmit(draft: StyleBookDraft) {
     const { data } = await api.patch<{ data: StyleBook }>(`/style-books/${id}`, draft);
     setStyleBook(data);
-    toast.success('Style book saved');
+    setCss(null);
+    notifications.show({ color: 'green', message: 'Style book saved' });
   }
 
   async function onViewCss() {
@@ -117,7 +78,10 @@ export default function EditStyleBookPage() {
       }
       setCss(await response.text());
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to load CSS');
+      notifications.show({
+        color: 'red',
+        message: error instanceof Error ? error.message : 'Failed to load CSS',
+      });
     } finally {
       setCssLoading(false);
     }
@@ -126,10 +90,12 @@ export default function EditStyleBookPage() {
   if (loadError) {
     return (
       <>
-        <div className="nv-toolbar">
-          <h1>Style book</h1>
-        </div>
-        <div className="nv-error">{loadError}</div>
+        <Title order={1} fz="h2" mb="lg">
+          Style book
+        </Title>
+        <Alert color="red" icon={<IconAlertCircle size={16} />}>
+          {loadError}
+        </Alert>
       </>
     );
   }
@@ -137,37 +103,47 @@ export default function EditStyleBookPage() {
   if (!styleBook) {
     return (
       <>
-        <div className="nv-toolbar">
-          <h1>Style book</h1>
-        </div>
-        <div className="nv-empty">Loading…</div>
+        <Skeleton height={34} width={280} mb="lg" />
+        <Grid gutter="lg">
+          <Grid.Col span={{ base: 12, lg: 7 }}>
+            <Card>
+              <Stack gap="md">
+                <Skeleton height={36} />
+                <Skeleton height={36} />
+                <Skeleton height={36} />
+              </Stack>
+            </Card>
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, lg: 5 }}>
+            <Card>
+              <Skeleton height={120} />
+            </Card>
+          </Grid.Col>
+        </Grid>
       </>
     );
   }
 
   return (
     <>
-      <div className="nv-toolbar">
-        <h1>{styleBook.name}</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--nv-space-3)' }}>
-          <span className="nv-badge" data-status={styleBook.status}>
-            {styleBook.status}
-          </span>
-          <span style={{ fontSize: 'var(--nv-text-sm)', color: 'var(--nv-color-neutral-600)' }}>
+      <Group justify="space-between" mb="lg">
+        <div>
+          <Group gap="sm">
+            <Title order={1} fz="h2">
+              {styleBook.name}
+            </Title>
+            <Badge color={STATUS_COLORS[styleBook.status]}>{styleBook.status}</Badge>
+          </Group>
+          <Text c="slate.5">
             Version {styleBook.version}
-          </span>
+            <HelpTip label="Goes up by one every time you publish, so you can tell which set of tokens is live. Publish from the Style Book list." />
+          </Text>
         </div>
-      </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-          gap: 'var(--nv-space-4)',
-          alignItems: 'start',
-        }}
-      >
-        <div className="nv-card">
-          <div className="nv-card-body">
+      </Group>
+
+      <Grid gutter="lg" align="stretch">
+        <Grid.Col span={{ base: 12, lg: 7 }}>
+          <Card>
             <StyleBookForm
               initialName={styleBook.name}
               initialTokens={styleBook.tokens}
@@ -175,35 +151,79 @@ export default function EditStyleBookPage() {
               onSubmit={onSubmit}
               onRowsChange={setPreviewRows}
             />
-          </div>
-        </div>
-        <div className="nv-card">
-          <div className="nv-card-body">
-            <div className="nv-toolbar" style={{ marginBottom: 'var(--nv-space-3)' }}>
-              <h2 style={{ margin: 0, fontSize: 'var(--nv-text-md)' }}>Preview</h2>
-              <Button type="button" variant="secondary" onClick={() => void onViewCss()}>
-                {cssLoading ? 'Loading…' : css !== null ? 'Hide CSS' : 'View CSS'}
-              </Button>
-            </div>
-            <TokenPreview rows={previewRows} />
-            {css !== null ? (
-              <pre
-                style={{
-                  marginTop: 'var(--nv-space-4)',
-                  padding: 'var(--nv-space-3)',
-                  background: 'var(--nv-color-neutral-50)',
-                  border: '1px solid var(--nv-color-neutral-200)',
-                  borderRadius: 'var(--nv-radius-sm)',
-                  fontSize: 'var(--nv-text-xs)',
-                  overflowX: 'auto',
-                }}
-              >
-                {css}
-              </pre>
-            ) : null}
-          </div>
-        </div>
-      </div>
+          </Card>
+        </Grid.Col>
+
+        <Grid.Col span={{ base: 12, lg: 5 }}>
+          <Stack gap="lg">
+            <Card>
+              <Group gap={2} mb="md">
+                <Text fw={600}>Preview</Text>
+                <HelpTip label="Updates live as you type: color tokens show as chips, other tokens as a list." />
+              </Group>
+              <TokenPreview rows={previewRows} />
+            </Card>
+
+            <Card>
+              <Group justify="space-between" mb="md">
+                <Group gap={2}>
+                  <Text fw={600}>CSS output</Text>
+                  <HelpTip label="Every token becomes a --nv- CSS variable. Sites load this stylesheet to apply the style book. Shows the last saved version." />
+                </Group>
+                <Button
+                  variant="light"
+                  size="xs"
+                  leftSection={<IconCode size={14} />}
+                  loading={cssLoading}
+                  onClick={() => void onViewCss()}
+                >
+                  {css !== null ? 'Hide CSS' : 'View CSS'}
+                </Button>
+              </Group>
+              {css !== null ? (
+                <Code block>{css}</Code>
+              ) : (
+                <Text size="sm" c="slate.5">
+                  See the stylesheet exactly as the rendering runtime consumes it.
+                </Text>
+              )}
+            </Card>
+
+            <Card bg="slate.0">
+              <Text size="xs" fw={700} tt="uppercase" c="slate.4" lts="0.06em" mb="xs">
+                Details
+              </Text>
+              <Stack gap={6}>
+                <Group justify="space-between" gap="md" wrap="nowrap">
+                  <Text size="sm" c="slate.5">
+                    ID
+                  </Text>
+                  <Code>{styleBook.id}</Code>
+                </Group>
+                <Group justify="space-between" gap="md" wrap="nowrap">
+                  <Text size="sm" c="slate.5">
+                    Reference code
+                    <HelpTip label="A stable code other systems can use to find this style book, even across environments." />
+                  </Text>
+                  <Code>{styleBook.externalReferenceCode}</Code>
+                </Group>
+                <Group justify="space-between" gap="md" wrap="nowrap">
+                  <Text size="sm" c="slate.5">
+                    Created
+                  </Text>
+                  <Text size="sm">{new Date(styleBook.createdAt).toLocaleString()}</Text>
+                </Group>
+                <Group justify="space-between" gap="md" wrap="nowrap">
+                  <Text size="sm" c="slate.5">
+                    Updated
+                  </Text>
+                  <Text size="sm">{new Date(styleBook.updatedAt).toLocaleString()}</Text>
+                </Group>
+              </Stack>
+            </Card>
+          </Stack>
+        </Grid.Col>
+      </Grid>
     </>
   );
 }
