@@ -6,6 +6,9 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.spec.ts', 'test/**/*.e2e-spec.ts'],
+    // e2e suites pull Postgres images through Testcontainers.
+    testTimeout: 120_000,
+    hookTimeout: 180_000,
   },
   plugins: [
     swc.vite({

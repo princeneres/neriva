@@ -3,3 +3,5 @@ dist/
 .next/
 coverage/
 docs/api/openapi.yaml
+apps/api/drizzle/
+drizzle/meta
