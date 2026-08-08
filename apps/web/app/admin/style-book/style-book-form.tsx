@@ -1,14 +1,43 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useRef, useState, type FormEvent } from 'react';
-import { Button, Field, FormActions } from '../../../components/form';
+import {
+  ActionIcon,
+  Alert,
+  Anchor,
+  Box,
+  Button,
+  ColorInput,
+  Divider,
+  Group,
+  Menu,
+  Stack,
+  Text,
+  TextInput,
+  Tooltip,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import {
+  IconAlertCircle,
+  IconBorderRadius,
+  IconPalette,
+  IconPlus,
+  IconRuler2,
+  IconTag,
+  IconTrash,
+  IconTypography,
+} from '@tabler/icons-react';
+import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
+import { HelpTip } from '../../../components/help-tip';
 import { ApiError } from '../../../lib/api';
 import {
+  TOKEN_GROUPS,
+  TOKEN_NAME_HINT,
   TOKEN_NAME_PATTERN,
+  isColorToken,
   rowsToTokens,
+  tokenGroupKey,
   tokensToRows,
-  validateTokenRows,
   type TokenRow,
 } from './token-rows';
 
@@ -16,6 +45,33 @@ export interface StyleBookDraft {
   name: string;
   tokens: Record<string, string>;
 }
+
+interface FormValues {
+  name: string;
+  rows: TokenRow[];
+}
+
+const COLOR_SWATCHES = [
+  '#cc3d47',
+  '#1a1917',
+  '#403d37',
+  '#7c7870',
+  '#d4d0c8',
+  '#faf9f7',
+  '#ffffff',
+  '#2f6fed',
+  '#12b886',
+  '#f59f00',
+  '#7048e8',
+  '#e64980',
+];
+
+const ADD_TOKEN_OPTIONS = [
+  { label: 'Color', seed: 'color-', icon: IconPalette },
+  { label: 'Spacing', seed: 'space-', icon: IconRuler2 },
+  { label: 'Typography', seed: 'font-', icon: IconTypography },
+  { label: 'Radius', seed: 'radius-', icon: IconBorderRadius },
+];
 
 export function StyleBookForm({
   initialName = '',
@@ -30,152 +86,213 @@ export function StyleBookForm({
   onSubmit: (draft: StyleBookDraft) => Promise<void>;
   onRowsChange?: (rows: TokenRow[]) => void;
 }) {
-  const router = useRouter();
-  const [name, setName] = useState(initialName);
-  const [rows, setRows] = useState<TokenRow[]>(() => tokensToRows(initialTokens));
-  const nextId = useRef(rows.length + 1);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [nameError, setNameError] = useState<string | null>(null);
-  const [tokensError, setTokensError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const nextId = useRef(Object.keys(initialTokens).length + 1);
 
-  function updateRows(next: TokenRow[]) {
-    setRows(next);
-    onRowsChange?.(next);
-  }
+  const form = useForm<FormValues>({
+    initialValues: {
+      name: initialName,
+      rows: tokensToRows(initialTokens),
+    },
+    validate: {
+      name: (value) => (value.trim() === '' ? 'Give this style book a name.' : null),
+      rows: {
+        name: (value, values) => {
+          const trimmed = value.trim();
+          if (!TOKEN_NAME_PATTERN.test(trimmed)) {
+            return TOKEN_NAME_HINT;
+          }
+          const occurrences = values.rows.filter((row) => row.name.trim() === trimmed).length;
+          return occurrences > 1 ? `The name "${trimmed}" is used more than once.` : null;
+        },
+        value: (value) => (value.trim() === '' ? 'Every token needs a value.' : null),
+      },
+    },
+  });
 
-  function addRow() {
+  const rows = form.values.rows;
+
+  useEffect(() => {
+    onRowsChange?.(rows);
+  }, [rows, onRowsChange]);
+
+  function addRow(seed: string) {
     const id = nextId.current;
     nextId.current += 1;
-    updateRows([...rows, { id, name: '', value: '' }]);
+    form.insertListItem('rows', { id, name: seed, value: '' });
   }
 
-  function removeRow(id: number) {
-    updateRows(rows.filter((row) => row.id !== id));
-  }
-
-  function changeRow(id: number, patch: Partial<Pick<TokenRow, 'name' | 'value'>>) {
-    updateRows(rows.map((row) => (row.id === id ? { ...row, ...patch } : row)));
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    setNameError(null);
-    setTokensError(null);
-
-    const trimmedName = name.trim();
-    if (trimmedName === '') {
-      setNameError('Name is required.');
-      return;
-    }
-    const validationErrors = validateTokenRows(rows);
-    if (validationErrors.length > 0) {
-      setTokensError(validationErrors.join(' '));
-      return;
-    }
-
+  const handleSubmit = form.onSubmit(async (values) => {
+    setFormError(null);
     setSubmitting(true);
     try {
-      await onSubmit({ name: trimmedName, tokens: rowsToTokens(rows) });
-    } catch (err) {
-      if (err instanceof ApiError) {
-        const fieldErrors = err.problem.errors ?? [];
-        const nameMessages = fieldErrors.filter((m) => m.toLowerCase().startsWith('name'));
-        const tokenMessages = fieldErrors.filter((m) => m.toLowerCase().includes('token'));
+      await onSubmit({ name: values.name.trim(), tokens: rowsToTokens(values.rows) });
+    } catch (error) {
+      if (error instanceof ApiError) {
+        const messages = error.problem.errors ?? [];
+        const nameMessages = messages.filter((message) => message.toLowerCase().startsWith('name'));
         if (nameMessages.length > 0) {
-          setNameError(nameMessages.join(' '));
+          form.setFieldError('name', nameMessages.join(' '));
         }
-        if (tokenMessages.length > 0) {
-          setTokensError(tokenMessages.join(' '));
-        }
-        setError(err.message);
+        setFormError(messages.length > 0 ? messages.join(' ') : error.message);
       } else {
-        setError('Unexpected error. Please try again.');
+        setFormError('Unexpected error. Please try again.');
       }
     } finally {
       setSubmitting(false);
     }
-  }
+  });
+
+  const groups = TOKEN_GROUPS.map((group) => ({
+    ...group,
+    rows: rows
+      .map((row, index) => ({ row, index }))
+      .filter(({ row }) => tokenGroupKey(row.name) === group.key),
+  })).filter((group) => group.rows.length > 0);
 
   return (
-    <form className="nv-form" onSubmit={handleSubmit}>
-      {error ? <div className="nv-error">{error}</div> : null}
-      <Field label="Name" htmlFor="style-book-name" error={nameError}>
-        <input
-          id="style-book-name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
+    <form onSubmit={handleSubmit}>
+      <Stack gap="lg">
+        {formError ? (
+          <Alert color="red" icon={<IconAlertCircle size={16} />}>
+            {formError}
+          </Alert>
+        ) : null}
+
+        <TextInput
+          label="Name"
           placeholder="Default theme"
           disabled={submitting}
+          {...form.getInputProps('name')}
         />
-      </Field>
-      <Field label="Tokens" error={tokensError}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--nv-space-2)' }}>
-          {rows.map((row) => {
-            const trimmed = row.name.trim();
-            const invalidName = trimmed !== '' && !TOKEN_NAME_PATTERN.test(trimmed);
-            return (
-              <div key={row.id}>
-                <div style={{ display: 'flex', gap: 'var(--nv-space-2)' }}>
-                  <input
-                    aria-label="Token name"
-                    placeholder="color-primary"
-                    value={row.name}
-                    onChange={(event) => changeRow(row.id, { name: event.target.value })}
-                    disabled={submitting}
-                    style={{ flex: 1, minWidth: 0 }}
-                  />
-                  <input
-                    aria-label="Token value"
-                    placeholder="#cc3d47"
-                    value={row.value}
-                    onChange={(event) => changeRow(row.id, { value: event.target.value })}
-                    disabled={submitting}
-                    style={{ flex: 1, minWidth: 0 }}
-                  />
+
+        <Box>
+          <Group gap={2} mb={4}>
+            <Text component="label" size="sm" fw={500}>
+              Tokens
+            </Text>
+            <HelpTip label="Design decisions with a name: blocks reference the name, you change the value in one place." />
+          </Group>
+          <Text size="xs" c="slate.5" mb="sm">
+            Names use lowercase letters, digits and dashes, and start with a letter, e.g.{' '}
+            <Text span ff="var(--font-mono)" inherit>
+              color-primary
+            </Text>{' '}
+            or{' '}
+            <Text span ff="var(--font-mono)" inherit>
+              space-4
+            </Text>
+            . Tokens named{' '}
+            <Text span ff="var(--font-mono)" inherit>
+              color...
+            </Text>{' '}
+            get a color picker.
+          </Text>
+
+          <Stack gap="md">
+            {groups.map((group, groupIndex) => (
+              <Box key={group.key}>
+                {groupIndex > 0 ? <Divider mb="md" color="slate.1" /> : null}
+                <Text size="xs" fw={700} tt="uppercase" c="slate.4" lts="0.06em" mb={6}>
+                  {group.label}
+                </Text>
+                <Stack gap="xs">
+                  {group.rows.map(({ row, index }) => (
+                    <Group key={row.id} gap="xs" align="flex-start" wrap="nowrap">
+                      <TextInput
+                        aria-label="Token name"
+                        placeholder="color-primary"
+                        disabled={submitting}
+                        style={{ flex: 1, minWidth: 0 }}
+                        styles={{ input: { fontFamily: 'var(--font-mono)' } }}
+                        {...form.getInputProps(`rows.${index}.name`)}
+                      />
+                      {isColorToken(row.name) ? (
+                        <ColorInput
+                          aria-label="Token value"
+                          placeholder="#cc3d47"
+                          disabled={submitting}
+                          withEyeDropper
+                          fixOnBlur={false}
+                          swatches={COLOR_SWATCHES}
+                          swatchesPerRow={6}
+                          style={{ flex: 1, minWidth: 0 }}
+                          {...form.getInputProps(`rows.${index}.value`)}
+                        />
+                      ) : (
+                        <TextInput
+                          aria-label="Token value"
+                          placeholder="1rem"
+                          disabled={submitting}
+                          style={{ flex: 1, minWidth: 0 }}
+                          {...form.getInputProps(`rows.${index}.value`)}
+                        />
+                      )}
+                      <Tooltip label="Remove token">
+                        <ActionIcon
+                          variant="subtle"
+                          color="red"
+                          mt={4}
+                          disabled={submitting}
+                          aria-label="Remove token"
+                          onClick={() => form.removeListItem('rows', index)}
+                        >
+                          <IconTrash size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                  ))}
+                </Stack>
+              </Box>
+            ))}
+
+            {rows.length === 0 ? (
+              <Text size="sm" c="slate.5">
+                No tokens yet. Start with a color: name it color-primary and pick a value.
+              </Text>
+            ) : null}
+
+            <Box>
+              <Menu shadow="md" width={200}>
+                <Menu.Target>
                   <Button
-                    type="button"
-                    variant="danger"
-                    onClick={() => removeRow(row.id)}
+                    variant="light"
+                    leftSection={<IconPlus size={16} />}
                     disabled={submitting}
                   >
-                    Remove
+                    Add token
                   </Button>
-                </div>
-                {invalidName ? (
-                  <span className="nv-field-error">
-                    Use lowercase letters, digits and dashes, starting with a letter.
-                  </span>
-                ) : null}
-              </div>
-            );
-          })}
-          {rows.length === 0 ? (
-            <span style={{ color: 'var(--nv-color-neutral-500)', fontSize: 'var(--nv-text-sm)' }}>
-              No tokens yet.
-            </span>
-          ) : null}
-          <div>
-            <Button type="button" variant="secondary" onClick={addRow} disabled={submitting}>
-              Add token
-            </Button>
-          </div>
-        </div>
-      </Field>
-      <FormActions>
-        <Button type="submit" disabled={submitting}>
-          {submitting ? 'Saving…' : submitLabel}
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => router.push('/admin/style-book')}
-          disabled={submitting}
-        >
-          Cancel
-        </Button>
-      </FormActions>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  {ADD_TOKEN_OPTIONS.map((option) => (
+                    <Menu.Item
+                      key={option.seed}
+                      leftSection={<option.icon size={15} />}
+                      onClick={() => addRow(option.seed)}
+                    >
+                      {option.label}
+                    </Menu.Item>
+                  ))}
+                  <Menu.Divider />
+                  <Menu.Item leftSection={<IconTag size={15} />} onClick={() => addRow('')}>
+                    Custom token
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+            </Box>
+          </Stack>
+        </Box>
+
+        <Group>
+          <Button type="submit" loading={submitting}>
+            {submitLabel}
+          </Button>
+          <Anchor component={Link} href="/admin/style-book" size="sm" c="slate.5">
+            Cancel
+          </Anchor>
+        </Group>
+      </Stack>
     </form>
   );
 }
