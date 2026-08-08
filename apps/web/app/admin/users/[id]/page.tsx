@@ -1,193 +1,257 @@
 'use client';
 
+import {
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  Card,
+  Code,
+  Group,
+  Select,
+  Skeleton,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { notifications } from '@mantine/notifications';
 import type { components } from '@neriva/contracts';
+import { IconInfoCircle } from '@tabler/icons-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, use, useEffect, useState } from 'react';
-import { Button, Field, FormActions } from '../../../../components/form';
-import { useToast } from '../../../../components/toast';
+import { use, useEffect, useState } from 'react';
+import { HelpTip } from '../../../../components/help-tip';
 import { ApiError, api, type PublicUser } from '../../../../lib/api';
+import { findFieldError, type Role, userInitials } from '../shared';
 
-type Role = components['schemas']['RoleDto'];
 type UpdateUserDto = components['schemas']['UpdateUserDto'];
-
-function fieldError(errors: string[] | undefined, field: string): string | null {
-  return errors?.find((message) => message.toLowerCase().startsWith(field.toLowerCase())) ?? null;
-}
 
 export default function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const toast = useToast();
-  const [loaded, setLoaded] = useState(false);
-  const [email, setEmail] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [user, setUser] = useState<PublicUser | null>(null);
   const [roles, setRoles] = useState<Role[]>([]);
-  const [roleId, setRoleId] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<string[]>([]);
+  const [roleId, setRoleId] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [roleBusy, setRoleBusy] = useState(false);
+
+  const form = useForm({
+    initialValues: { email: '', displayName: '' },
+    validate: {
+      email: (value) => (/^\S+@\S+\.\S+$/.test(value) ? null : 'Enter a valid email address'),
+      displayName: (value) => (value.trim() ? null : 'Enter a name'),
+    },
+  });
 
   useEffect(() => {
     api
       .get<{ data: PublicUser }>(`/users/${encodeURIComponent(id)}`)
       .then(({ data }) => {
-        setEmail(data.email);
-        setDisplayName(data.displayName);
-        setLoaded(true);
+        setUser(data);
+        form.setValues({ email: data.email, displayName: data.displayName });
+        form.resetDirty({ email: data.email, displayName: data.displayName });
       })
       .catch((err: unknown) => {
-        toast.error(err instanceof ApiError ? err.message : 'Failed to load user');
+        notifications.show({
+          color: 'red',
+          title: 'Could not load user',
+          message: err instanceof ApiError ? err.message : 'Something went wrong',
+        });
       });
     api
       .get<{ data: Role[] }>('/roles?limit=100')
       .then(({ data }) => setRoles(data))
       .catch((err: unknown) => {
         if (err instanceof ApiError) {
-          toast.error(err.message);
+          notifications.show({
+            color: 'red',
+            title: 'Could not load roles',
+            message: err.message,
+          });
         }
       });
-  }, [id, toast]);
+    // `form` is intentionally not a dependency: @mantine/form returns a new
+    // object each render, and only the initial load should populate values.
+  }, [id]);
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
+  async function onSubmit(values: typeof form.values) {
     setBusy(true);
-    setError(null);
-    setFieldErrors([]);
-    const body: UpdateUserDto = { email, displayName };
+    setFormError(null);
+    const body: UpdateUserDto = { email: values.email, displayName: values.displayName };
     try {
       await api.patch<{ data: PublicUser }>(`/users/${encodeURIComponent(id)}`, body);
-      toast.success('User updated');
+      notifications.show({ color: 'green', message: 'User updated' });
       router.push('/admin/users');
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
-        setFieldErrors(err.problem.errors ?? []);
+        const errors = err.problem.errors;
+        let mapped = false;
+        for (const field of ['email', 'displayName'] as const) {
+          const message = findFieldError(errors, field);
+          if (message) {
+            form.setFieldError(field, message);
+            mapped = true;
+          }
+        }
+        if (!mapped) {
+          setFormError(err.message);
+        }
       } else {
-        setError('User update failed');
+        setFormError('Updating the user failed. Please try again.');
       }
       setBusy(false);
     }
   }
 
-  async function onAssignRole() {
+  async function changeRole(assign: boolean) {
     if (!roleId) {
       return;
     }
     setRoleBusy(true);
     try {
-      await api.post(`/users/${encodeURIComponent(id)}/roles`, { roleId });
-      toast.success('Role assigned');
+      if (assign) {
+        await api.post(`/users/${encodeURIComponent(id)}/roles`, { roleId });
+        notifications.show({ color: 'green', message: 'Role assigned' });
+      } else {
+        await api.del(`/users/${encodeURIComponent(id)}/roles/${encodeURIComponent(roleId)}`);
+        notifications.show({ color: 'green', message: 'Role unassigned' });
+      }
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Role assignment failed');
+      notifications.show({
+        color: 'red',
+        title: assign ? 'Assign failed' : 'Unassign failed',
+        message: err instanceof ApiError ? err.message : 'Something went wrong',
+      });
     } finally {
       setRoleBusy(false);
     }
   }
 
-  async function onUnassignRole() {
-    if (!roleId) {
-      return;
-    }
-    setRoleBusy(true);
-    try {
-      await api.del(`/users/${encodeURIComponent(id)}/roles/${encodeURIComponent(roleId)}`);
-      toast.success('Role unassigned');
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Role unassignment failed');
-    } finally {
-      setRoleBusy(false);
-    }
-  }
-
-  if (!loaded) {
+  if (!user) {
     return (
-      <>
-        <div className="nv-toolbar">
-          <h1>Edit user</h1>
-        </div>
-        <p>Loading…</p>
-      </>
+      <Box maw={560}>
+        <Skeleton height={34} width={220} mb="lg" />
+        <Card padding="xl">
+          <Stack gap="md">
+            <Skeleton height={54} />
+            <Skeleton height={54} />
+            <Skeleton height={36} width={180} />
+          </Stack>
+        </Card>
+      </Box>
     );
   }
 
   return (
-    <>
-      <div className="nv-toolbar">
-        <h1>Edit user</h1>
-      </div>
-      <form className="nv-form" onSubmit={onSubmit}>
-        {error ? <div className="nv-error">{error}</div> : null}
-        <Field label="Email" htmlFor="email" error={fieldError(fieldErrors, 'email')}>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </Field>
-        <Field
-          label="Display name"
-          htmlFor="displayName"
-          error={fieldError(fieldErrors, 'displayName')}
-        >
-          <input
-            id="displayName"
-            type="text"
-            required
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-          />
-        </Field>
-        <FormActions>
-          <Button type="submit" disabled={busy}>
-            {busy ? 'Saving…' : 'Save changes'}
-          </Button>
-          <Button type="button" variant="secondary" onClick={() => router.push('/admin/users')}>
-            Cancel
-          </Button>
-        </FormActions>
-      </form>
-      <div className="nv-card" style={{ marginTop: 'var(--nv-space-5)', maxWidth: 560 }}>
-        <div className="nv-card-body">
-          <h2 style={{ marginTop: 0, fontSize: 'var(--nv-text-md)' }}>Roles</h2>
-          <p style={{ color: 'var(--nv-color-neutral-500)', fontSize: 'var(--nv-text-sm)' }}>
-            The API does not expose a user&apos;s current role assignments yet, so they cannot be
-            listed here. Assigning an already assigned role or unassigning a role that is not
-            assigned is harmless.
-          </p>
-          <div className="nv-form">
-            <Field label="Role" htmlFor="assignRoleId">
-              <select id="assignRoleId" value={roleId} onChange={(e) => setRoleId(e.target.value)}>
-                <option value="">Select a role</option>
-                {roles.map((role) => (
-                  <option key={role.id} value={role.id}>
-                    {role.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <FormActions>
+    <Box maw={560}>
+      <Group gap="sm" mb="lg" wrap="nowrap">
+        <Avatar color="neriva" radius="xl" size={44}>
+          {userInitials(user.displayName)}
+        </Avatar>
+        <Box miw={0}>
+          <Title order={1} fz="h2" lh={1.2}>
+            {user.displayName}
+          </Title>
+          <Text c="slate.5">Update this account or change what it is allowed to do.</Text>
+        </Box>
+      </Group>
+
+      <Stack gap="md">
+        <Card padding="xl">
+          <form onSubmit={form.onSubmit((values) => void onSubmit(values))}>
+            <Stack gap="md">
+              {formError ? <Alert color="red">{formError}</Alert> : null}
+              <TextInput label="Email" required {...form.getInputProps('email')} />
+              <TextInput
+                label="Display name"
+                description="How this person appears across the admin"
+                required
+                {...form.getInputProps('displayName')}
+              />
+              <Group mt="xs">
+                <Button type="submit" loading={busy}>
+                  Save changes
+                </Button>
+                <Button component={Link} href="/admin/users" variant="subtle" color="gray">
+                  Cancel
+                </Button>
+              </Group>
+            </Stack>
+          </form>
+        </Card>
+
+        <Card padding="xl">
+          <Group gap={4} mb={4}>
+            <Title order={3} fz="h4">
+              Roles
+            </Title>
+            <HelpTip label="Roles decide what this user can do. Neriva denies everything by default: users can only do what a role explicitly grants." />
+          </Group>
+          <Alert color="gray" icon={<IconInfoCircle size={16} />} mb="md">
+            The API cannot list this user&apos;s current role assignments yet, so they are not shown
+            here. Assigning a role twice or unassigning one that was never assigned is harmless.
+          </Alert>
+          <Stack gap="md">
+            <Select
+              label="Role"
+              placeholder="Pick a role"
+              data={roles.map((role) => ({ value: role.id, label: role.name }))}
+              searchable
+              clearable
+              value={roleId}
+              onChange={setRoleId}
+            />
+            <Group>
               <Button
-                type="button"
-                disabled={roleBusy || !roleId}
-                onClick={() => void onAssignRole()}
+                variant="light"
+                disabled={!roleId}
+                loading={roleBusy}
+                onClick={() => void changeRole(true)}
               >
-                Assign
+                Assign role
               </Button>
               <Button
-                type="button"
-                variant="secondary"
-                disabled={roleBusy || !roleId}
-                onClick={() => void onUnassignRole()}
+                variant="subtle"
+                color="gray"
+                disabled={!roleId || roleBusy}
+                onClick={() => void changeRole(false)}
               >
-                Unassign
+                Unassign role
               </Button>
-            </FormActions>
-          </div>
-        </div>
-      </div>
-    </>
+            </Group>
+          </Stack>
+        </Card>
+
+        <Card padding="lg" bg="slate.0">
+          <Text size="xs" fw={700} tt="uppercase" c="slate.4" lts="0.06em" mb="xs">
+            Details
+          </Text>
+          <Stack gap={6}>
+            <Group gap="xs">
+              <Text size="sm" c="slate.5" w={110}>
+                ID
+              </Text>
+              <Code>{user.id}</Code>
+            </Group>
+            <Group gap="xs">
+              <Text size="sm" c="slate.5" w={110}>
+                Reference code
+                <HelpTip label="A stable code integrations can use to refer to this user, even across environments." />
+              </Text>
+              <Code>{user.externalReferenceCode}</Code>
+            </Group>
+            <Group gap="xs">
+              <Text size="sm" c="slate.5" w={110}>
+                Created
+              </Text>
+              <Text size="sm">{new Date(user.createdAt).toLocaleString()}</Text>
+            </Group>
+          </Stack>
+        </Card>
+      </Stack>
+    </Box>
   );
 }
