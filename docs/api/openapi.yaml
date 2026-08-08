@@ -601,6 +601,200 @@ paths:
         - bearer: []
       tags:
         - sites
+  /style-books:
+    get:
+      operationId: StylebookController_list
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/StyleBookDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      security:
+        - bearer: []
+      tags:
+        - style-books
+    post:
+      operationId: StylebookController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStyleBookDto"
+      responses:
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/StyleBookDto"
+      security:
+        - bearer: []
+      tags:
+        - style-books
+  /style-books/{id}:
+    get:
+      operationId: StylebookController_get
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/StyleBookDto"
+      security:
+        - bearer: []
+      tags:
+        - style-books
+    patch:
+      operationId: StylebookController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStyleBookDto"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/StyleBookDto"
+      security:
+        - bearer: []
+      tags:
+        - style-books
+    delete:
+      operationId: StylebookController_delete
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      security:
+        - bearer: []
+      tags:
+        - style-books
+  /style-books/{id}/publish:
+    post:
+      operationId: StylebookController_publish
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/StyleBookDto"
+      security:
+        - bearer: []
+      tags:
+        - style-books
+  /style-books/{id}/css:
+    get:
+      operationId: StylebookController_css
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Design tokens rendered as CSS custom properties on :root
+          content:
+            text/css:
+              schema:
+                type: string
+      security:
+        - bearer: []
+      tags:
+        - style-books
   /health:
     get:
       operationId: HealthController_check
@@ -1057,6 +1251,89 @@ components:
           type:
             - string
             - "null"
+    StyleBookDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReferenceCode:
+          type: string
+        tenantId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type:
+            - object
+            - "null"
+          format: uuid
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - PUBLISHED
+            - ARCHIVED
+        name:
+          type: string
+        version:
+          type: number
+          description: Incremented on each publish
+        tokens:
+          type: object
+          description: Flat map of token name to CSS value
+          additionalProperties:
+            type: string
+      required:
+        - id
+        - externalReferenceCode
+        - tenantId
+        - createdAt
+        - updatedAt
+        - createdBy
+        - status
+        - name
+        - version
+        - tokens
+    CreateStyleBookDto:
+      type: object
+      properties:
+        name:
+          type: string
+        tokens:
+          type: object
+          description: Flat map of token name to CSS value. Names match ^[a-z][a-z0-9-]*$;
+            values are non-empty strings.
+          additionalProperties:
+            type: string
+          example:
+            color-primary: "#cc3d47"
+            space-4: 1rem
+        externalReferenceCode:
+          type: string
+          description: Stable code for idempotent upsert; generated when omitted
+      required:
+        - name
+        - tokens
+    UpdateStyleBookDto:
+      type: object
+      properties:
+        name:
+          type: string
+        tokens:
+          type: object
+          description: Flat map of token name to CSS value. Names match ^[a-z][a-z0-9-]*$;
+            values are non-empty strings.
+          additionalProperties:
+            type: string
+          example:
+            color-primary: "#cc3d47"
+            space-4: 1rem
     SystemSettingDto:
       type: object
       properties:
