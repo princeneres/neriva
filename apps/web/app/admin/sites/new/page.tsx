@@ -1,48 +1,37 @@
 'use client';
 
+import { Box, Card, Text, Title } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { useToast } from '../../../../components/toast';
-import { ApiError, api } from '../../../../lib/api';
+import { api } from '../../../../lib/api';
 import { SiteForm, type SiteFormValues } from '../site-form';
 import type { Site } from '../types';
 
 export default function NewSitePage() {
   const router = useRouter();
-  const toast = useToast();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<ApiError | null>(null);
 
-  async function onSubmit(values: SiteFormValues) {
-    setBusy(true);
-    setError(null);
-    try {
-      const description = values.description.trim();
-      await api.post<{ data: Site }>('/sites', {
-        name: values.name,
-        slug: values.slug,
-        ...(description ? { description } : {}),
-      });
-      toast.success('Site created');
-      router.push('/admin/sites');
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err : new ApiError({ status: 0, detail: 'Request failed' }),
-      );
-      setBusy(false);
-    }
+  async function handleSubmit(values: SiteFormValues) {
+    const description = values.description.trim();
+    await api.post<{ data: Site }>('/sites', {
+      name: values.name.trim(),
+      slug: values.slug,
+      ...(description ? { description } : {}),
+    });
+    notifications.show({ color: 'green', message: `Site "${values.name.trim()}" was created.` });
+    router.push('/admin/sites');
   }
 
   return (
-    <>
-      <div className="nv-toolbar">
-        <h1>New site</h1>
-      </div>
-      <div className="nv-card">
-        <div className="nv-card-body">
-          <SiteForm busy={busy} error={error} submitLabel="Create site" onSubmit={onSubmit} />
-        </div>
-      </div>
-    </>
+    <Box maw={640}>
+      <Title order={1} fz="h2">
+        New site
+      </Title>
+      <Text c="slate.5" mb="lg">
+        A site groups your pages and content under one address.
+      </Text>
+      <Card padding="xl">
+        <SiteForm submitLabel="Create site" suggestSlug onSubmit={handleSubmit} />
+      </Card>
+    </Box>
   );
 }
