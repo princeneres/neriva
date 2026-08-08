@@ -610,6 +610,139 @@ paths:
           description: ""
       tags:
         - Health
+  /system/settings:
+    get:
+      operationId: SystemSettingsController_list
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SystemSettingDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      security:
+        - bearer: []
+      tags:
+        - system
+  /system/settings/{key}:
+    get:
+      operationId: SystemSettingsController_get
+      parameters:
+        - name: key
+          required: true
+          in: path
+          description: Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref)
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SystemSettingDto"
+      security:
+        - bearer: []
+      tags:
+        - system
+    put:
+      operationId: SystemSettingsController_upsert
+      parameters:
+        - name: key
+          required: true
+          in: path
+          description: Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref)
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertSystemSettingDto"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SystemSettingDto"
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SystemSettingDto"
+      security:
+        - bearer: []
+      tags:
+        - system
+    delete:
+      operationId: SystemSettingsController_delete
+      parameters:
+        - name: key
+          required: true
+          in: path
+          description: Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref)
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      security:
+        - bearer: []
+      tags:
+        - system
 info:
   title: Neriva API
   description: Headless-first CMS REST API. Success responses use a { data, meta }
@@ -924,3 +1057,49 @@ components:
           type:
             - string
             - "null"
+    SystemSettingDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReferenceCode:
+          type: string
+        tenantId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type:
+            - object
+            - "null"
+          format: uuid
+        key:
+          type: string
+          example: site.name
+          description: Unique per tenant, pattern ^[a-z][a-z0-9.-]*$
+        value:
+          type: object
+          description: Any JSON value
+      required:
+        - id
+        - externalReferenceCode
+        - tenantId
+        - createdAt
+        - updatedAt
+        - createdBy
+        - key
+        - value
+    UpsertSystemSettingDto:
+      type: object
+      properties:
+        value:
+          type: object
+          description: Any JSON value (object, array, string, number, boolean)
+      required:
+        - value
