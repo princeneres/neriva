@@ -783,6 +783,332 @@ paths:
         - bearer: []
       tags:
         - blocks
+  /object-definitions:
+    get:
+      operationId: ObjectDefinitionsController_list
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ObjectDefinitionDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      security:
+        - bearer: []
+      tags:
+        - object-definitions
+    post:
+      operationId: ObjectDefinitionsController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateObjectDefinitionDto"
+      responses:
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ObjectDefinitionDto"
+      security:
+        - bearer: []
+      tags:
+        - object-definitions
+  /object-definitions/{id}:
+    get:
+      operationId: ObjectDefinitionsController_get
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ObjectDefinitionDto"
+      security:
+        - bearer: []
+      tags:
+        - object-definitions
+    patch:
+      operationId: ObjectDefinitionsController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateObjectDefinitionDto"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ObjectDefinitionDto"
+      security:
+        - bearer: []
+      tags:
+        - object-definitions
+    delete:
+      operationId: ObjectDefinitionsController_delete
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      security:
+        - bearer: []
+      tags:
+        - object-definitions
+  /object-definitions/{defRef}/records:
+    get:
+      operationId: ObjectRecordsController_list
+      parameters:
+        - name: defRef
+          required: true
+          in: path
+          description: Object definition UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+        - name: sort
+          required: false
+          in: query
+          description: Sort by a definition field key; prefix with '-' for descending. Not
+            combinable with cursor (v1 limitation).
+          schema:
+            example: -createdOn
+            type: string
+        - name: filter
+          required: false
+          in: query
+          style: deepObject
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+          description: Equality filters on definition field keys, e.g.
+            filter[status]=open. Multiple filters are ANDed; values are coerced
+            by the field type; unknown keys are a 400.
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ObjectRecordDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      security:
+        - bearer: []
+      tags:
+        - object-records
+    post:
+      operationId: ObjectRecordsController_create
+      parameters:
+        - name: defRef
+          required: true
+          in: path
+          description: Object definition UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateObjectRecordDto"
+      responses:
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ObjectRecordDto"
+      security:
+        - bearer: []
+      tags:
+        - object-records
+  /object-records/{id}:
+    get:
+      operationId: ObjectRecordsController_get
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ObjectRecordDto"
+      security:
+        - bearer: []
+      tags:
+        - object-records
+    patch:
+      operationId: ObjectRecordsController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateObjectRecordDto"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ObjectRecordDto"
+      security:
+        - bearer: []
+      tags:
+        - object-records
+    delete:
+      operationId: ObjectRecordsController_delete
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      security:
+        - bearer: []
+      tags:
+        - object-records
   /style-books:
     get:
       operationId: StylebookController_list
@@ -1555,6 +1881,176 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BlockSlotDto"
+    ObjectFieldDto:
+      type: object
+      properties:
+        key:
+          type: string
+          pattern: ^[a-z][a-zA-Z0-9]*$
+          example: firstName
+        label:
+          type: string
+          example: First name
+        type:
+          type: string
+          enum:
+            - text
+            - number
+            - boolean
+            - date
+            - picklist
+        required:
+          type: boolean
+        options:
+          description: Allowed values; picklist fields only
+          type: array
+          items:
+            type: string
+      required:
+        - key
+        - label
+        - type
+        - required
+    ObjectDefinitionDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReferenceCode:
+          type: string
+        tenantId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type:
+            - object
+            - "null"
+          format: uuid
+        name:
+          type: string
+        pluralName:
+          type: string
+        description:
+          type:
+            - object
+            - "null"
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/ObjectFieldDto"
+      required:
+        - id
+        - externalReferenceCode
+        - tenantId
+        - createdAt
+        - updatedAt
+        - createdBy
+        - name
+        - pluralName
+        - description
+        - fields
+    CreateObjectDefinitionDto:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        pluralName:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        externalReferenceCode:
+          type: string
+          description: Stable code for idempotent upsert; generated when omitted
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/ObjectFieldDto"
+      required:
+        - name
+        - pluralName
+        - fields
+    UpdateObjectDefinitionDto:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        pluralName:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        fields:
+          description: Replaces the full field list
+          type: array
+          items:
+            $ref: "#/components/schemas/ObjectFieldDto"
+    ObjectRecordDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReferenceCode:
+          type: string
+        tenantId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type:
+            - object
+            - "null"
+          format: uuid
+        objectDefinitionId:
+          type: string
+          format: uuid
+        data:
+          type: object
+          additionalProperties: true
+      required:
+        - id
+        - externalReferenceCode
+        - tenantId
+        - createdAt
+        - updatedAt
+        - createdBy
+        - objectDefinitionId
+        - data
+    CreateObjectRecordDto:
+      type: object
+      properties:
+        externalReferenceCode:
+          type: string
+          description: Stable code for idempotent upsert; generated when omitted
+        data:
+          type: object
+          additionalProperties: true
+          description: Field values keyed by the definition field keys
+      required:
+        - data
+    UpdateObjectRecordDto:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+          description: Replaces the full data payload; validated against the definition
+            fields
     StyleBookDto:
       type: object
       properties:

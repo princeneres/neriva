@@ -260,6 +260,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/object-definitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ObjectDefinitionsController_list"];
+        put?: never;
+        post: operations["ObjectDefinitionsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/object-definitions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ObjectDefinitionsController_get"];
+        put?: never;
+        post?: never;
+        delete: operations["ObjectDefinitionsController_delete"];
+        options?: never;
+        head?: never;
+        patch: operations["ObjectDefinitionsController_update"];
+        trace?: never;
+    };
+    "/object-definitions/{defRef}/records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ObjectRecordsController_list"];
+        put?: never;
+        post: operations["ObjectRecordsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/object-records/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ObjectRecordsController_get"];
+        put?: never;
+        post?: never;
+        delete: operations["ObjectRecordsController_delete"];
+        options?: never;
+        head?: never;
+        patch: operations["ObjectRecordsController_update"];
+        trace?: never;
+    };
     "/style-books": {
         parameters: {
             query?: never;
@@ -583,6 +647,81 @@ export interface components {
             };
             /** @description Replaces the full slot list */
             slots?: components["schemas"]["BlockSlotDto"][];
+        };
+        ObjectFieldDto: {
+            /** @example firstName */
+            key: string;
+            /** @example First name */
+            label: string;
+            /** @enum {string} */
+            type: "text" | "number" | "boolean" | "date" | "picklist";
+            required: boolean;
+            /** @description Allowed values; picklist fields only */
+            options?: string[];
+        };
+        ObjectDefinitionDto: {
+            /** Format: uuid */
+            id: string;
+            externalReferenceCode: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uuid */
+            createdBy: Record<string, never> | null;
+            name: string;
+            pluralName: string;
+            description: Record<string, never> | null;
+            fields: components["schemas"]["ObjectFieldDto"][];
+        };
+        CreateObjectDefinitionDto: {
+            name: string;
+            pluralName: string;
+            description?: string;
+            /** @description Stable code for idempotent upsert; generated when omitted */
+            externalReferenceCode?: string;
+            fields: components["schemas"]["ObjectFieldDto"][];
+        };
+        UpdateObjectDefinitionDto: {
+            name?: string;
+            pluralName?: string;
+            description?: string;
+            /** @description Replaces the full field list */
+            fields?: components["schemas"]["ObjectFieldDto"][];
+        };
+        ObjectRecordDto: {
+            /** Format: uuid */
+            id: string;
+            externalReferenceCode: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uuid */
+            createdBy: Record<string, never> | null;
+            /** Format: uuid */
+            objectDefinitionId: string;
+            data: {
+                [key: string]: unknown;
+            };
+        };
+        CreateObjectRecordDto: {
+            /** @description Stable code for idempotent upsert; generated when omitted */
+            externalReferenceCode?: string;
+            /** @description Field values keyed by the definition field keys */
+            data: {
+                [key: string]: unknown;
+            };
+        };
+        UpdateObjectRecordDto: {
+            /** @description Replaces the full data payload; validated against the definition fields */
+            data?: {
+                [key: string]: unknown;
+            };
         };
         StyleBookDto: {
             /** Format: uuid */
@@ -1353,6 +1492,270 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["BlockDto"];
+                    };
+                };
+            };
+        };
+    };
+    ObjectDefinitionsController_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque cursor from the previous page meta */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ObjectDefinitionDto"][];
+                        meta: {
+                            cursor: string | null;
+                            limit: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    ObjectDefinitionsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateObjectDefinitionDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ObjectDefinitionDto"];
+                    };
+                };
+            };
+        };
+    };
+    ObjectDefinitionsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ObjectDefinitionDto"];
+                    };
+                };
+            };
+        };
+    };
+    ObjectDefinitionsController_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ObjectDefinitionsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateObjectDefinitionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ObjectDefinitionDto"];
+                    };
+                };
+            };
+        };
+    };
+    ObjectRecordsController_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque cursor from the previous page meta */
+                cursor?: string;
+                /** @description Sort by a definition field key; prefix with '-' for descending. Not combinable with cursor (v1 limitation). */
+                sort?: string;
+                /** @description Equality filters on definition field keys, e.g. filter[status]=open. Multiple filters are ANDed; values are coerced by the field type; unknown keys are a 400. */
+                filter?: {
+                    [key: string]: string;
+                };
+            };
+            header?: never;
+            path: {
+                /** @description Object definition UUID or erc:<externalReferenceCode> */
+                defRef: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ObjectRecordDto"][];
+                        meta: {
+                            cursor: string | null;
+                            limit: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    ObjectRecordsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Object definition UUID or erc:<externalReferenceCode> */
+                defRef: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateObjectRecordDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ObjectRecordDto"];
+                    };
+                };
+            };
+        };
+    };
+    ObjectRecordsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ObjectRecordDto"];
+                    };
+                };
+            };
+        };
+    };
+    ObjectRecordsController_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ObjectRecordsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateObjectRecordDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ObjectRecordDto"];
                     };
                 };
             };

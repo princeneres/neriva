@@ -35,6 +35,8 @@ class PoolLifecycle implements OnApplicationShutdown {
     PoolLifecycle,
     SeedService,
   ],
-  exports: [DB],
+  // PG_POOL is exported so the objects module can build its Kysely instance
+  // over the same pool (spec 05).
+  exports: [DB, PG_POOL],
 })
 export class DbModule {}
