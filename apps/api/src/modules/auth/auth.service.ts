@@ -49,11 +49,17 @@ export class AuthService {
       throw new UnauthorizedException({ detail: 'Invalid or expired refresh token' });
     }
 
-    // Rotation: each refresh token is single-use.
-    await this.db
+    // Rotation: each refresh token is single-use. The conditional update is
+    // the atomic claim; a concurrent refresh with the same token loses the
+    // race and is rejected instead of receiving a second pair.
+    const revoked = await this.db
       .update(refreshTokens)
       .set({ revokedAt: new Date() })
-      .where(eq(refreshTokens.id, row.id));
+      .where(and(eq(refreshTokens.id, row.id), isNull(refreshTokens.revokedAt)))
+      .returning({ id: refreshTokens.id });
+    if (revoked.length === 0) {
+      throw new UnauthorizedException({ detail: 'Invalid or expired refresh token' });
+    }
 
     const user = (
       await this.db

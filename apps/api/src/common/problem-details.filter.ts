@@ -1,4 +1,10 @@
-import { type ArgumentsHost, Catch, type ExceptionFilter, HttpException } from '@nestjs/common';
+import {
+  type ArgumentsHost,
+  Catch,
+  type ExceptionFilter,
+  HttpException,
+  Logger,
+} from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { STATUS_CODES } from 'node:http';
 import { InvalidCursorError } from './pagination';
@@ -6,6 +12,8 @@ import { InvalidCursorError } from './pagination';
 // RFC 7807 problem+json for every error response (CLAUDE.md API convention).
 @Catch()
 export class ProblemDetailsFilter implements ExceptionFilter {
+  private readonly logger = new Logger(ProblemDetailsFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const reply = ctx.getResponse<FastifyReply>();
@@ -38,7 +46,17 @@ export class ProblemDetailsFilter implements ExceptionFilter {
       status = 400;
       detail = exception.message;
     } else if (exception instanceof Error) {
+      // This filter replaces Nest's default handler, so unexpected errors
+      // must be logged here or they vanish entirely.
+      this.logger.error(
+        `Unhandled error on ${request.method} ${request.url}: ${exception.message}`,
+        exception.stack,
+      );
       detail = process.env.NODE_ENV === 'production' ? undefined : exception.message;
+    } else {
+      this.logger.error(
+        `Unhandled non-Error thrown on ${request.method} ${request.url}: ${String(exception)}`,
+      );
     }
 
     void reply

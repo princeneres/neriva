@@ -8,7 +8,7 @@ import {
 import type { InferSelectModel } from 'drizzle-orm';
 import { sql, type Selectable } from 'kysely';
 import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
-import { isUniqueViolation } from '../../common/pg-errors';
+import { isInvalidTextRepresentation, isUniqueViolation } from '../../common/pg-errors';
 import { DB, type Database } from '../../db/database';
 import { objectRecords } from '../../db/schema';
 import { TenantScopedRepository, type CursorPage } from '../../db/tenant-scoped.repository';
@@ -157,7 +157,22 @@ export class ObjectRecordsService {
       qb = qb.orderBy('id', 'asc');
     }
 
-    const rows = await qb.limit(limit + 1).execute();
+    let rows;
+    try {
+      rows = await qb.limit(limit + 1).execute();
+    } catch (error) {
+      // Records written before a definition field changed type may hold
+      // values the ::numeric/::boolean casts cannot parse; that is a data
+      // shape problem for the caller, not a server fault.
+      if (isInvalidTextRepresentation(error)) {
+        throw new BadRequestException({
+          detail:
+            'Stored record values are incompatible with the current field types; ' +
+            'remove the filter/sort on the affected field or fix the records',
+        });
+      }
+      throw error;
+    }
     const items = rows.slice(0, limit).map(toRecordRow);
     const last = items[items.length - 1];
     // A cursor is only meaningful with the default id ordering.

@@ -141,6 +141,10 @@ export function validatePageTree(
     let validate = validators.get(node.block);
     if (!validate) {
       try {
+        // Ajv registers $id-bearing schemas process-wide; clear before each
+        // compile so a repeated $id across requests cannot collide (same
+        // guard as block-validation.ts).
+        ajv.removeSchema();
         validate = ajv.compile(definition.propsSchema);
       } catch {
         // Stored propsSchema should always compile (blocks validates it on

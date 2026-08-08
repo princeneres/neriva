@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { isValidIsoDate } from '../../common/iso-date';
 import { OBJECT_FIELD_TYPES, type ObjectFieldDefinition } from '../../db/schema';
 
 export const FIELD_KEY_PATTERN = /^[a-z][a-zA-Z0-9]*$/;
@@ -84,10 +85,12 @@ export function validateRecordData(
         }
         break;
       case 'date':
+        // isValidIsoDate range-checks components; Date.parse would roll
+        // impossible dates (2026-02-30) into the next month.
         if (
           typeof value !== 'string' ||
           !DATE_VALUE_PATTERN.test(value) ||
-          Number.isNaN(Date.parse(value))
+          !isValidIsoDate(value)
         ) {
           bad(`Field "${field.key}" must be a date string (YYYY-MM-DD)`);
         }

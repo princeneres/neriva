@@ -48,19 +48,38 @@ export class RolesService {
       permissions?: PermissionDto[];
     },
   ): Promise<RoleWithPermissions> {
+    const permissions = dedupePermissions(input.permissions ?? []);
     try {
-      // Intermediate variable: tsc cannot apply the excess-property check to
-      // the generic repository parameter and rejects fresh literals here.
-      const values = {
-        name: input.name,
-        description: input.description ?? null,
-        createdBy,
-        // undefined lets the envelope default generate one
-        externalReferenceCode: input.externalReferenceCode,
-      };
-      const role = await this.repo(tenantId).create(values);
-      await this.replacePermissions(tenantId, role.id, input.permissions ?? []);
-      return this.getByRef(tenantId, role.id);
+      // Single transaction: a failure inserting permissions must not leave
+      // an orphaned role behind.
+      const roleId = await this.db.transaction(async (tx) => {
+        const [role] = await tx
+          .insert(roles)
+          .values({
+            tenantId,
+            name: input.name,
+            description: input.description ?? null,
+            createdBy,
+            // undefined lets the envelope default generate one
+            externalReferenceCode: input.externalReferenceCode,
+          })
+          .returning({ id: roles.id });
+        if (!role) {
+          throw new Error('Role insert returned no row');
+        }
+        if (permissions.length > 0) {
+          await tx.insert(rolePermissions).values(
+            permissions.map((p) => ({
+              roleId: role.id,
+              tenantId,
+              resourceType: p.resourceType,
+              action: p.action,
+            })),
+          );
+        }
+        return role.id;
+      });
+      return this.getByRef(tenantId, roleId);
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new ConflictException({ detail: 'A role with this name or ERC already exists' });
@@ -107,8 +126,9 @@ export class RolesService {
   private async replacePermissions(
     tenantId: string,
     roleId: string,
-    permissions: PermissionDto[],
+    input: PermissionDto[],
   ): Promise<void> {
+    const permissions = dedupePermissions(input);
     await this.db.transaction(async (tx) => {
       await tx.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));
       if (permissions.length > 0) {
@@ -144,4 +164,14 @@ export class RolesService {
         .map((g) => ({ resourceType: g.resourceType, action: g.action })),
     }));
   }
+}
+
+// Repeated (resourceType, action) pairs in a payload would trip the unique
+// index and surface as a misleading conflict; collapse them instead.
+function dedupePermissions(permissions: PermissionDto[]): PermissionDto[] {
+  const seen = new Map<string, PermissionDto>();
+  for (const permission of permissions) {
+    seen.set(`${permission.resourceType}:${permission.action}`, permission);
+  }
+  return [...seen.values()];
 }

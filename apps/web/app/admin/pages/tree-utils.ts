@@ -4,10 +4,12 @@
 
 export const PATH_PATTERN = /^\/[a-z0-9/-]*$/;
 
+// props and slots are optional server-side; a headless client may store
+// nodes carrying only "block".
 export interface TreeNode {
   block: string;
-  props: Record<string, unknown>;
-  slots: Record<string, TreeNode[]>;
+  props?: Record<string, unknown>;
+  slots?: Record<string, TreeNode[]>;
 }
 
 export interface PageTree {
@@ -31,13 +33,15 @@ function checkNode(node: unknown, pointer: string): string | null {
   if (typeof node.block !== 'string' || node.block.trim() === '') {
     return `${pointer}: "block" must be a non-empty string (a block ERC).`;
   }
-  if (!isPlainObject(node.props)) {
+  if (node.props !== undefined && !isPlainObject(node.props)) {
     return `${pointer}: "props" must be an object.`;
   }
-  if (!isPlainObject(node.slots)) {
+  if (node.slots !== undefined && !isPlainObject(node.slots)) {
     return `${pointer}: "slots" must be an object mapping slot names to arrays.`;
   }
-  for (const [slotName, children] of Object.entries(node.slots)) {
+  for (const [slotName, children] of Object.entries(
+    (node.slots as Record<string, unknown> | undefined) ?? {},
+  )) {
     if (!Array.isArray(children)) {
       return `${pointer}.slots.${slotName}: slot value must be an array of nodes.`;
     }

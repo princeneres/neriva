@@ -1,3 +1,5 @@
+import { UUID_RE } from './entity-ref';
+
 export const DEFAULT_PAGE_LIMIT = 20;
 export const MAX_PAGE_LIMIT = 100;
 
@@ -26,7 +28,10 @@ export function decodeCursor(cursor: string): { id: string } {
       parsed !== null &&
       typeof parsed === 'object' &&
       'id' in parsed &&
-      typeof (parsed as { id: unknown }).id === 'string'
+      typeof (parsed as { id: unknown }).id === 'string' &&
+      // The id lands in a uuid column comparison; anything else would
+      // surface as a Postgres cast error (500) instead of a clean 400.
+      UUID_RE.test((parsed as { id: string }).id)
     ) {
       return { id: (parsed as { id: string }).id };
     }

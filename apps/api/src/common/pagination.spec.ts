@@ -36,4 +36,10 @@ describe('cursor codec', () => {
       InvalidCursorError,
     );
   });
+
+  it('rejects well-formed cursors whose id is not a UUID', () => {
+    expect(() => decodeCursor(Buffer.from('{"id":"foo"}').toString('base64url'))).toThrow(
+      InvalidCursorError,
+    );
+  });
 });

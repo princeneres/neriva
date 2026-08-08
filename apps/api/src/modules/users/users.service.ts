@@ -48,25 +48,34 @@ export class UsersService {
 
     const passwordHash = await argon2.hash(input.password);
     try {
-      // Intermediate variable: tsc cannot apply the excess-property check to
-      // the generic repository parameter and rejects fresh literals here.
-      const values = {
-        email: input.email,
-        displayName: input.displayName,
-        passwordHash,
-        // Admin-created accounts start with a temporary password.
-        mustChangePassword: true,
-        createdBy,
-        // undefined lets the envelope default generate one
-        externalReferenceCode: input.externalReferenceCode,
-      };
-      const user = await this.repo(tenantId).create(values);
-      if (input.roleIds?.length) {
-        await this.db
-          .insert(userRoles)
-          .values(input.roleIds.map((roleId) => ({ userId: user.id, roleId, tenantId })))
-          .onConflictDoNothing();
-      }
+      // Single transaction: a failure assigning roles must not leave a
+      // half-provisioned account behind.
+      const user = await this.db.transaction(async (tx) => {
+        const [created] = await tx
+          .insert(users)
+          .values({
+            tenantId,
+            email: input.email,
+            displayName: input.displayName,
+            passwordHash,
+            // Admin-created accounts start with a temporary password.
+            mustChangePassword: true,
+            createdBy,
+            // undefined lets the envelope default generate one
+            externalReferenceCode: input.externalReferenceCode,
+          })
+          .returning();
+        if (!created) {
+          throw new Error('User insert returned no row');
+        }
+        if (input.roleIds?.length) {
+          await tx
+            .insert(userRoles)
+            .values(input.roleIds.map((roleId) => ({ userId: created.id, roleId, tenantId })))
+            .onConflictDoNothing();
+        }
+        return created;
+      });
       return toPublicUser(user);
     } catch (error) {
       if (isUniqueViolation(error)) {
@@ -110,14 +119,20 @@ export class UsersService {
       .onConflictDoNothing();
   }
 
-  async unassignRole(tenantId: string, userRef: string, roleId: string): Promise<void> {
+  async unassignRole(tenantId: string, userRef: string, roleRef: string): Promise<void> {
     const user = await this.getByRef(tenantId, userRef);
+    // Resolve the role like every other URL id (UUID or erc:), instead of
+    // feeding the raw segment into a uuid column comparison.
+    const role = await new TenantScopedRepository(this.db, roles, tenantId).findByRef(roleRef);
+    if (!role) {
+      throw new NotFoundException({ detail: `Role ${roleRef} not found` });
+    }
     await this.db
       .delete(userRoles)
       .where(
         and(
           eq(userRoles.userId, user.id),
-          eq(userRoles.roleId, roleId),
+          eq(userRoles.roleId, role.id),
           eq(userRoles.tenantId, tenantId),
         ),
       );
