@@ -15,6 +15,13 @@
       "when": 1786221639509,
       "tag": "0001_puzzling_eternals",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786222157946,
+      "tag": "0002_plain_captain_stacy",
+      "breakpoints": true
     }
   ]
 }

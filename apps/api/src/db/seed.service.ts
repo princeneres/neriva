@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs
 import * as argon2 from 'argon2';
 import { and, eq } from 'drizzle-orm';
 import { DB, type Database } from './database';
-import { roles, tenants, userRoles, users } from './schema';
+import { rolePermissions, roles, tenants, userRoles, users } from './schema';
 
 export const DEFAULT_TENANT_ERC = 'default';
 export const ADMIN_ROLE_ERC = 'administrator';
@@ -65,6 +65,11 @@ export class SeedService implements OnApplicationBootstrap {
       if (!adminRole) {
         throw new Error('Failed to seed Administrator role');
       }
+
+      await tx
+        .insert(rolePermissions)
+        .values({ roleId: adminRole.id, tenantId: tenant.id, resourceType: '*', action: '*' })
+        .onConflictDoNothing();
 
       let adminUser = (
         await tx

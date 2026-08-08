@@ -31,11 +31,11 @@ Status: in progress. This checklist is the gate for Phase B; every box must be c
 
 ## Step 4: Users and Roles modules
 
-- [ ] Users CRUD through the standard envelope
-- [ ] Roles CRUD through the standard envelope
-- [ ] CASL ability factory from DB rows, deny by default
-- [ ] Permission guard + @RequirePermission decorator reusable by feature modules
-- [ ] e2e tests proving non-admin denied, admin allowed
+- [x] Users CRUD through the standard envelope
+- [x] Roles CRUD through the standard envelope
+- [x] CASL ability factory from DB rows, deny by default
+- [x] Permission guard + @RequirePermission decorator reusable by feature modules
+- [x] e2e tests proving non-admin denied, admin allowed
 
 ## Step 5: Contracts and API conventions
 

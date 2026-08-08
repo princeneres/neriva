@@ -7,7 +7,7 @@ import {
   type InferSelectModel,
   type SQL,
 } from 'drizzle-orm';
-import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
+import type { AnyPgColumn, PgTable, PgUpdateSetSource } from 'drizzle-orm/pg-core';
 import { clampLimit, decodeCursor, encodeCursor } from '../common/pagination';
 import type { Database } from './database';
 
@@ -94,6 +94,26 @@ export class TenantScopedRepository<TTable extends EnvelopeTable> {
       .values({ ...values, tenantId: this.tenantId } as InferInsertModel<TTable>)
       .returning();
     return rows[0] as InferSelectModel<TTable>;
+  }
+
+  async updateById(
+    id: string,
+    values: Partial<Omit<InferInsertModel<TTable>, 'id' | 'tenantId'>>,
+  ): Promise<InferSelectModel<TTable> | null> {
+    const rows = (await this.db
+      .update(this.table)
+      .set({ ...values, updatedAt: new Date() } as PgUpdateSetSource<TTable>)
+      .where(this.scoped(eq(this.table.id, id)))
+      .returning()) as InferSelectModel<TTable>[];
+    return rows[0] ?? null;
+  }
+
+  async deleteById(id: string): Promise<boolean> {
+    const rows = await this.db
+      .delete(this.table)
+      .where(this.scoped(eq(this.table.id, id)))
+      .returning();
+    return rows.length > 0;
   }
 
   async upsertByErc(
