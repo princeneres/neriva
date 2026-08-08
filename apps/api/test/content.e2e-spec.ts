@@ -140,7 +140,9 @@ describe('content (e2e)', () => {
         method: 'POST',
         url: '/content-types',
         payload: {
-          name: 'Article',
+          // 'Article' is taken by the demo seed; content type names are
+          // unique per tenant.
+          name: 'News Article',
           description: 'News articles',
           externalReferenceCode: 'article-type',
           fields: ARTICLE_FIELDS,
@@ -238,7 +240,7 @@ describe('content (e2e)', () => {
       const res = await asAdmin({
         method: 'POST',
         url: '/content-types',
-        payload: { name: 'Article', fields: ARTICLE_FIELDS },
+        payload: { name: 'News Article', fields: ARTICLE_FIELDS },
       });
       expect(res.statusCode).toBe(409);
       expect(res.headers['content-type']).toContain('application/problem+json');
