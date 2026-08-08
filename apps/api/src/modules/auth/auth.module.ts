@@ -9,12 +9,17 @@ import { MustChangePasswordGuard } from './must-change-password.guard';
 @Module({
   imports: [
     JwtModule.registerAsync({
-      useFactory: () => ({
-        secret: process.env.JWT_ACCESS_SECRET ?? 'dev-insecure-access-secret',
-        signOptions: {
-          expiresIn: (process.env.JWT_ACCESS_TTL ?? '15m') as JwtSignOptions['expiresIn'],
-        },
-      }),
+      useFactory: () => {
+        if (process.env.NODE_ENV === 'production' && !process.env.JWT_ACCESS_SECRET) {
+          throw new Error('JWT_ACCESS_SECRET must be set in production');
+        }
+        return {
+          secret: process.env.JWT_ACCESS_SECRET ?? 'dev-insecure-access-secret',
+          signOptions: {
+            expiresIn: (process.env.JWT_ACCESS_TTL ?? '15m') as JwtSignOptions['expiresIn'],
+          },
+        };
+      },
     }),
   ],
   controllers: [AuthController],

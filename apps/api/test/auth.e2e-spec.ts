@@ -172,4 +172,24 @@ describe('auth module (e2e)', () => {
       expect(refresh.statusCode).toBe(401);
     });
   });
+
+  // Keep last in the file: it exhausts the per-IP login budget.
+  describe('login rate limiting', () => {
+    it('throttles brute-force login attempts with 429 problem+json', async () => {
+      for (let attempt = 0; attempt < 12; attempt += 1) {
+        const res = await app.inject({
+          method: 'POST',
+          url: '/auth/login',
+          payload: { email: 'admin@neriva.com', password: 'definitely-wrong' },
+        });
+        if (res.statusCode === 429) {
+          expect(res.headers['content-type']).toContain('application/problem+json');
+          expect(res.json()).toMatchObject({ status: 429, title: 'Too Many Requests' });
+          return;
+        }
+        expect(res.statusCode).toBe(401);
+      }
+      throw new Error('Expected a 429 within 12 rapid login attempts');
+    });
+  });
 });

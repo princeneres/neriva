@@ -1,14 +1,10 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import { Pool } from 'pg';
+import { runMigrations } from '../src/db/run-migrations';
 
 // Run from apps/api (pnpm db:migrate); the migrations folder resolves
 // relative to the working directory.
 async function main(): Promise<void> {
   const url = process.env.DATABASE_URL ?? 'postgres://neriva:neriva@localhost:5432/neriva';
-  const pool = new Pool({ connectionString: url });
-  await migrate(drizzle(pool), { migrationsFolder: 'drizzle' });
-  await pool.end();
+  await runMigrations(url);
   console.log('Migrations applied');
 }
 

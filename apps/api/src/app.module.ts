@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { DbModule } from './db/db.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BlocksModule } from './modules/blocks/blocks.module';
@@ -15,6 +17,8 @@ import { UsersModule } from './modules/users/users.module';
   // AuthModule before RolesModule: global guard order is auth, then
   // mustChangePassword, then permissions.
   imports: [
+    // Generous global ceiling; auth endpoints carry stricter @Throttle limits.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
     DbModule,
     AuthModule,
     RolesModule,
@@ -27,5 +31,6 @@ import { UsersModule } from './modules/users/users.module';
     StylebookModule,
     SystemModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

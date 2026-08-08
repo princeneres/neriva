@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { ApiDataResponse } from '../../common/api-envelope.decorators';
 import { CurrentUser, Public, SkipMustChangePassword } from './auth.decorators';
 import { AuthService } from './auth.service';
@@ -21,6 +22,8 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(200)
+  // Brute-force protection: per-IP, in-memory (single-container deploys).
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiDataResponse(AuthTokensDto)
   async login(@Body() dto: LoginDto): Promise<{ data: AuthTokens }> {
     return { data: await this.authService.login(dto.email, dto.password) };
@@ -29,6 +32,7 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(200)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @ApiDataResponse(AuthTokensDto)
   async refresh(@Body() dto: RefreshDto): Promise<{ data: AuthTokens }> {
     return { data: await this.authService.refresh(dto.refreshToken) };
