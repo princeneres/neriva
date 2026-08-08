@@ -1,4 +1,3 @@
-
 # Neriva CMS
 
 Lightweight, headless-first CMS inspired by Liferay DXP's best ideas (pages, fragments, web content, roles/permissions, style book) without its weight or OSGi complexity. Built from scratch. Target: runs comfortably on modest infra (single Node container + PostgreSQL).

@@ -1,4 +1,3 @@
-
 # Neriva: Phase A kickoff prompt
 
 Paste everything below the line into Claude Code, in an empty directory containing only CLAUDE.md. Start in **plan mode** (Shift+Tab) so you approve the plan before any file is written.
