@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { label: 'Objects', href: '/admin/objects' },
   { label: 'Style Book', href: '/admin/style-book' },
   { label: 'Users', href: '/admin/users' },
+  { label: 'Roles', href: '/admin/roles' },
   { label: 'Settings', href: '/admin/settings' },
 ];
 
