@@ -601,6 +601,188 @@ paths:
         - bearer: []
       tags:
         - sites
+  /blocks:
+    get:
+      operationId: BlocksController_list
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+        - name: status
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - DRAFT
+              - PUBLISHED
+              - ARCHIVED
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/BlockDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      security:
+        - bearer: []
+      tags:
+        - blocks
+    post:
+      operationId: BlocksController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBlockDto"
+      responses:
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BlockDto"
+      security:
+        - bearer: []
+      tags:
+        - blocks
+  /blocks/{id}:
+    get:
+      operationId: BlocksController_get
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BlockDto"
+      security:
+        - bearer: []
+      tags:
+        - blocks
+    patch:
+      operationId: BlocksController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBlockDto"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BlockDto"
+      security:
+        - bearer: []
+      tags:
+        - blocks
+    delete:
+      operationId: BlocksController_delete
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      security:
+        - bearer: []
+      tags:
+        - blocks
+  /blocks/{id}/publish:
+    post:
+      operationId: BlocksController_publish
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BlockDto"
+      security:
+        - bearer: []
+      tags:
+        - blocks
   /style-books:
     get:
       operationId: StylebookController_list
@@ -1251,6 +1433,128 @@ components:
           type:
             - string
             - "null"
+    BlockSlotDto:
+      type: object
+      properties:
+        name:
+          type: string
+          example: main
+          description: Unique slot name, ^[a-z][a-z0-9-]*$
+        allowedBlocks:
+          description: Block ERCs allowed in this slot; unrestricted when omitted
+          type: array
+          items:
+            type: string
+      required:
+        - name
+    BlockDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReferenceCode:
+          type: string
+        tenantId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type:
+            - object
+            - "null"
+          format: uuid
+        status:
+          type: string
+          enum:
+            - DRAFT
+            - PUBLISHED
+            - ARCHIVED
+        name:
+          type: string
+        category:
+          type:
+            - object
+            - "null"
+        description:
+          type:
+            - object
+            - "null"
+        propsSchema:
+          type: object
+          additionalProperties: true
+          description: JSON Schema (draft 2020-12) of the configurable props
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/BlockSlotDto"
+      required:
+        - id
+        - externalReferenceCode
+        - tenantId
+        - createdAt
+        - updatedAt
+        - createdBy
+        - status
+        - name
+        - category
+        - description
+        - propsSchema
+        - slots
+    CreateBlockDto:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Hero Banner
+        category:
+          type: string
+          example: content
+        description:
+          type: string
+        propsSchema:
+          type: object
+          additionalProperties: true
+          description: JSON Schema (draft 2020-12) describing the configurable props
+          example:
+            type: object
+            properties:
+              title:
+                type: string
+        slots:
+          description: Named slots, defaults to []
+          type: array
+          items:
+            $ref: "#/components/schemas/BlockSlotDto"
+        externalReferenceCode:
+          type: string
+          description: Stable code for idempotent upsert; generated when omitted
+      required:
+        - name
+        - propsSchema
+    UpdateBlockDto:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+        propsSchema:
+          type: object
+          additionalProperties: true
+          description: JSON Schema (draft 2020-12) describing the configurable props
+        slots:
+          description: Replaces the full slot list
+          type: array
+          items:
+            $ref: "#/components/schemas/BlockSlotDto"
     StyleBookDto:
       type: object
       properties:

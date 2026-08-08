@@ -212,6 +212,54 @@ export interface paths {
         patch: operations["SitesController_update"];
         trace?: never;
     };
+    "/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["BlocksController_list"];
+        put?: never;
+        post: operations["BlocksController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/blocks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["BlocksController_get"];
+        put?: never;
+        post?: never;
+        delete: operations["BlocksController_delete"];
+        options?: never;
+        head?: never;
+        patch: operations["BlocksController_update"];
+        trace?: never;
+    };
+    "/blocks/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["BlocksController_publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/style-books": {
         parameters: {
             query?: never;
@@ -467,6 +515,74 @@ export interface components {
             /** @description Unique per tenant; normalized to lowercase */
             slug?: string;
             description?: string | null;
+        };
+        BlockSlotDto: {
+            /**
+             * @description Unique slot name, ^[a-z][a-z0-9-]*$
+             * @example main
+             */
+            name: string;
+            /** @description Block ERCs allowed in this slot; unrestricted when omitted */
+            allowedBlocks?: string[];
+        };
+        BlockDto: {
+            /** Format: uuid */
+            id: string;
+            externalReferenceCode: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uuid */
+            createdBy: Record<string, never> | null;
+            /** @enum {string} */
+            status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+            name: string;
+            category: Record<string, never> | null;
+            description: Record<string, never> | null;
+            /** @description JSON Schema (draft 2020-12) of the configurable props */
+            propsSchema: {
+                [key: string]: unknown;
+            };
+            slots: components["schemas"]["BlockSlotDto"][];
+        };
+        CreateBlockDto: {
+            /** @example Hero Banner */
+            name: string;
+            /** @example content */
+            category?: string;
+            description?: string;
+            /**
+             * @description JSON Schema (draft 2020-12) describing the configurable props
+             * @example {
+             *       "type": "object",
+             *       "properties": {
+             *         "title": {
+             *           "type": "string"
+             *         }
+             *       }
+             *     }
+             */
+            propsSchema: {
+                [key: string]: unknown;
+            };
+            /** @description Named slots, defaults to [] */
+            slots?: components["schemas"]["BlockSlotDto"][];
+            /** @description Stable code for idempotent upsert; generated when omitted */
+            externalReferenceCode?: string;
+        };
+        UpdateBlockDto: {
+            name?: string;
+            category?: string;
+            description?: string;
+            /** @description JSON Schema (draft 2020-12) describing the configurable props */
+            propsSchema?: {
+                [key: string]: unknown;
+            };
+            /** @description Replaces the full slot list */
+            slots?: components["schemas"]["BlockSlotDto"][];
         };
         StyleBookDto: {
             /** Format: uuid */
@@ -1086,6 +1202,157 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["SiteDto"];
+                    };
+                };
+            };
+        };
+    };
+    BlocksController_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque cursor from the previous page meta */
+                cursor?: string;
+                status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["BlockDto"][];
+                        meta: {
+                            cursor: string | null;
+                            limit: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    BlocksController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBlockDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["BlockDto"];
+                    };
+                };
+            };
+        };
+    };
+    BlocksController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["BlockDto"];
+                    };
+                };
+            };
+        };
+    };
+    BlocksController_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BlocksController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBlockDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["BlockDto"];
+                    };
+                };
+            };
+        };
+    };
+    BlocksController_publish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["BlockDto"];
                     };
                 };
             };

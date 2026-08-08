@@ -43,6 +43,13 @@
       "when": 1786224549612,
       "tag": "0005_melted_terrax",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786224673240,
+      "tag": "0006_small_wonder_man",
+      "breakpoints": true
     }
   ]
 }

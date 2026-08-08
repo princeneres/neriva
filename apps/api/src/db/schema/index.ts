@@ -5,5 +5,6 @@ export * from './roles';
 export * from './refresh-tokens';
 export * from './role-permissions';
 export * from './sites';
+export * from './blocks';
 export * from './style-books';
 export * from './system-settings';
