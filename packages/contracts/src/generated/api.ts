@@ -180,6 +180,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SitesController_list"];
+        put?: never;
+        post: operations["SitesController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sites/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SitesController_get"];
+        put?: never;
+        post?: never;
+        delete: operations["SitesController_delete"];
+        options?: never;
+        head?: never;
+        patch: operations["SitesController_update"];
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -303,6 +335,42 @@ export interface components {
         AssignRoleDto: {
             /** Format: uuid */
             roleId: string;
+        };
+        SiteDto: {
+            /** Format: uuid */
+            id: string;
+            externalReferenceCode: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uuid */
+            createdBy: Record<string, never> | null;
+            name: string;
+            slug: string;
+            description: Record<string, never> | null;
+            customFields: {
+                [key: string]: unknown;
+            };
+        };
+        CreateSiteDto: {
+            name: string;
+            /**
+             * @description Unique per tenant; normalized to lowercase
+             * @example main-site
+             */
+            slug: string;
+            description?: string;
+            /** @description Stable code for idempotent upsert; generated when omitted */
+            externalReferenceCode?: string;
+        };
+        UpdateSiteDto: {
+            name?: string;
+            /** @description Unique per tenant; normalized to lowercase */
+            slug?: string;
+            description?: string | null;
         };
     };
     responses: never;
@@ -724,6 +792,132 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    SitesController_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque cursor from the previous page meta */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SiteDto"][];
+                        meta: {
+                            cursor: string | null;
+                            limit: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    SitesController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSiteDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SiteDto"];
+                    };
+                };
+            };
+        };
+    };
+    SitesController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SiteDto"];
+                    };
+                };
+            };
+        };
+    };
+    SitesController_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SitesController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSiteDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SiteDto"];
+                    };
+                };
             };
         };
     };

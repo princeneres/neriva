@@ -454,6 +454,153 @@ paths:
         - bearer: []
       tags:
         - users
+  /sites:
+    get:
+      operationId: SitesController_list
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SiteDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      security:
+        - bearer: []
+      tags:
+        - sites
+    post:
+      operationId: SitesController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSiteDto"
+      responses:
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SiteDto"
+      security:
+        - bearer: []
+      tags:
+        - sites
+  /sites/{id}:
+    get:
+      operationId: SitesController_get
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SiteDto"
+      security:
+        - bearer: []
+      tags:
+        - sites
+    patch:
+      operationId: SitesController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSiteDto"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SiteDto"
+      security:
+        - bearer: []
+      tags:
+        - sites
+    delete:
+      operationId: SitesController_delete
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      security:
+        - bearer: []
+      tags:
+        - sites
   /health:
     get:
       operationId: HealthController_check
@@ -698,3 +845,82 @@ components:
           format: uuid
       required:
         - roleId
+    SiteDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReferenceCode:
+          type: string
+        tenantId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type:
+            - object
+            - "null"
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type:
+            - object
+            - "null"
+        customFields:
+          type: object
+          additionalProperties: true
+      required:
+        - id
+        - externalReferenceCode
+        - tenantId
+        - createdAt
+        - updatedAt
+        - createdBy
+        - name
+        - slug
+        - description
+        - customFields
+    CreateSiteDto:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        slug:
+          type: string
+          maxLength: 100
+          pattern: ^[a-z0-9]+(-[a-z0-9]+)*$
+          description: Unique per tenant; normalized to lowercase
+          example: main-site
+        description:
+          type: string
+        externalReferenceCode:
+          type: string
+          description: Stable code for idempotent upsert; generated when omitted
+      required:
+        - name
+        - slug
+    UpdateSiteDto:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        slug:
+          type: string
+          maxLength: 100
+          pattern: ^[a-z0-9]+(-[a-z0-9]+)*$
+          description: Unique per tenant; normalized to lowercase
+        description:
+          type:
+            - string
+            - "null"
