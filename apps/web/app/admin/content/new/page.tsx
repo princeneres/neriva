@@ -1,17 +1,18 @@
 'use client';
 
+import { Group, Text, Title } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import type { components } from '@neriva/contracts';
 import { useRouter } from 'next/navigation';
-import { useToast } from '../../../../components/toast';
+import { HelpTip } from '../../../../components/help-tip';
 import { api } from '../../../../lib/api';
 import { ContentTypeForm, type ContentTypeFormValues } from '../content-type-form';
-import type { ContentType } from '../types';
+import { CONTENT_TYPE_HELP, type ContentType } from '../types';
 
 type CreateContentTypeDto = components['schemas']['CreateContentTypeDto'];
 
 export default function NewContentTypePage() {
   const router = useRouter();
-  const toast = useToast();
 
   async function onSubmit(values: ContentTypeFormValues) {
     const body: CreateContentTypeDto = {
@@ -20,15 +21,23 @@ export default function NewContentTypePage() {
       fields: values.fields,
     };
     await api.post<{ data: ContentType }>('/content-types', body);
-    toast.success('Content type created');
+    notifications.show({ color: 'green', message: 'Content type created' });
     router.push('/admin/content');
   }
 
   return (
     <>
-      <div className="nv-toolbar">
-        <h1>New content type</h1>
-      </div>
+      <Group justify="space-between" mb="lg">
+        <div>
+          <Title order={1} fz="h2">
+            New content type
+            <HelpTip label={CONTENT_TYPE_HELP} />
+          </Title>
+          <Text c="slate.5">
+            Name the type and add the fields editors will fill in for each entry.
+          </Text>
+        </div>
+      </Group>
       <ContentTypeForm
         submitLabel="Create content type"
         busyLabel="Creating…"
