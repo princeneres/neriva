@@ -1,30 +1,44 @@
 'use client';
 
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  Group,
+  PasswordInput,
+  Select,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { notifications } from '@mantine/notifications';
 import type { components } from '@neriva/contracts';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, useEffect, useState } from 'react';
-import { Button, Field, FormActions } from '../../../../components/form';
-import { useToast } from '../../../../components/toast';
+import { useEffect, useState } from 'react';
+import { HelpTip } from '../../../../components/help-tip';
 import { ApiError, api, type PublicUser } from '../../../../lib/api';
+import { findFieldError, type Role } from '../shared';
 
-type Role = components['schemas']['RoleDto'];
 type CreateUserDto = components['schemas']['CreateUserDto'];
-
-function fieldError(errors: string[] | undefined, field: string): string | null {
-  return errors?.find((message) => message.toLowerCase().startsWith(field.toLowerCase())) ?? null;
-}
 
 export default function NewUserPage() {
   const router = useRouter();
-  const toast = useToast();
-  const [email, setEmail] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [password, setPassword] = useState('');
-  const [roleId, setRoleId] = useState('');
   const [roles, setRoles] = useState<Role[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<string[]>([]);
+  const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const form = useForm({
+    initialValues: { email: '', displayName: '', password: '', roleId: '' },
+    validate: {
+      email: (value) => (/^\S+@\S+\.\S+$/.test(value) ? null : 'Enter a valid email address'),
+      displayName: (value) => (value.trim() ? null : 'Enter a name'),
+      password: (value) => (value.length >= 8 ? null : 'Use at least 8 characters'),
+    },
+  });
 
   useEffect(() => {
     api
@@ -32,100 +46,114 @@ export default function NewUserPage() {
       .then(({ data }) => setRoles(data))
       .catch((err: unknown) => {
         if (err instanceof ApiError) {
-          toast.error(err.message);
+          notifications.show({
+            color: 'red',
+            title: 'Could not load roles',
+            message: err.message,
+          });
         }
       });
-  }, [toast]);
+  }, []);
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
+  async function onSubmit(values: typeof form.values) {
     setBusy(true);
-    setError(null);
-    setFieldErrors([]);
+    setFormError(null);
     const body: CreateUserDto = {
-      email,
-      displayName,
-      password,
-      ...(roleId ? { roleIds: [roleId] } : {}),
+      email: values.email,
+      displayName: values.displayName,
+      password: values.password,
+      ...(values.roleId ? { roleIds: [values.roleId] } : {}),
     };
     try {
       await api.post<{ data: PublicUser }>('/users', body);
-      toast.success('User created');
+      notifications.show({ color: 'green', message: 'User created' });
       router.push('/admin/users');
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
-        setFieldErrors(err.problem.errors ?? []);
+        const errors = err.problem.errors;
+        let mapped = false;
+        for (const field of ['email', 'displayName', 'password'] as const) {
+          const message = findFieldError(errors, field);
+          if (message) {
+            form.setFieldError(field, message);
+            mapped = true;
+          }
+        }
+        if (!mapped) {
+          setFormError(err.message);
+        }
       } else {
-        setError('User creation failed');
+        setFormError('Creating the user failed. Please try again.');
       }
       setBusy(false);
     }
   }
 
   return (
-    <>
-      <div className="nv-toolbar">
-        <h1>New user</h1>
-      </div>
-      <form className="nv-form" onSubmit={onSubmit}>
-        {error ? <div className="nv-error">{error}</div> : null}
-        <Field label="Email" htmlFor="email" error={fieldError(fieldErrors, 'email')}>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </Field>
-        <Field
-          label="Display name"
-          htmlFor="displayName"
-          error={fieldError(fieldErrors, 'displayName')}
-        >
-          <input
-            id="displayName"
-            type="text"
-            required
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-          />
-        </Field>
-        <Field
-          label="Temporary password (min 8 characters, a change is forced on first login)"
-          htmlFor="password"
-          error={fieldError(fieldErrors, 'password')}
-        >
-          <input
-            id="password"
-            type="password"
-            autoComplete="new-password"
-            minLength={8}
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </Field>
-        <Field label="Role (optional)" htmlFor="roleId">
-          <select id="roleId" value={roleId} onChange={(e) => setRoleId(e.target.value)}>
-            <option value="">No role</option>
-            {roles.map((role) => (
-              <option key={role.id} value={role.id}>
-                {role.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <FormActions>
-          <Button type="submit" disabled={busy}>
-            {busy ? 'Creating…' : 'Create user'}
-          </Button>
-          <Button type="button" variant="secondary" onClick={() => router.push('/admin/users')}>
-            Cancel
-          </Button>
-        </FormActions>
-      </form>
-    </>
+    <Box maw={560}>
+      <Group justify="space-between" mb="lg">
+        <Box>
+          <Title order={1} fz="h2">
+            New user
+          </Title>
+          <Text c="slate.5">Create an account so a teammate can sign in to this admin.</Text>
+        </Box>
+      </Group>
+
+      <Card padding="xl">
+        <form onSubmit={form.onSubmit((values) => void onSubmit(values))}>
+          <Stack gap="md">
+            {formError ? <Alert color="red">{formError}</Alert> : null}
+            <TextInput
+              label="Email"
+              placeholder="teammate@example.com"
+              required
+              {...form.getInputProps('email')}
+            />
+            <TextInput
+              label="Display name"
+              placeholder="Jane Doe"
+              description="How this person appears across the admin"
+              required
+              {...form.getInputProps('displayName')}
+            />
+            <PasswordInput
+              label={
+                <>
+                  Temporary password
+                  <HelpTip label="Share this password with the new user privately. It only works once: they must replace it before doing anything else." />
+                </>
+              }
+              description="The user will be asked to change it on first sign-in"
+              autoComplete="new-password"
+              required
+              {...form.getInputProps('password')}
+            />
+            <Select
+              label={
+                <>
+                  Role
+                  <HelpTip label="Roles decide what this user is allowed to do. Without a role they can sign in but cannot do anything, since Neriva denies everything a role does not grant." />
+                </>
+              }
+              placeholder="No role yet"
+              description="Optional, you can also assign roles later"
+              data={roles.map((role) => ({ value: role.id, label: role.name }))}
+              searchable
+              clearable
+              {...form.getInputProps('roleId')}
+            />
+            <Group mt="xs">
+              <Button type="submit" loading={busy}>
+                Create user
+              </Button>
+              <Button component={Link} href="/admin/users" variant="subtle" color="gray">
+                Cancel
+              </Button>
+            </Group>
+          </Stack>
+        </form>
+      </Card>
+    </Box>
   );
 }
