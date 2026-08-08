@@ -11,6 +11,19 @@ export type ObjectDefinition = Omit<components['schemas']['ObjectDefinitionDto']
   description: string | null;
 };
 
-export const FIELD_TYPES: ObjectFieldType[] = ['text', 'number', 'boolean', 'date', 'picklist'];
+// Friendly names shown in the UI for each field type.
+export const FIELD_TYPE_OPTIONS: { value: ObjectFieldType; label: string }[] = [
+  { value: 'text', label: 'Text' },
+  { value: 'number', label: 'Number' },
+  { value: 'boolean', label: 'Yes/No' },
+  { value: 'date', label: 'Date' },
+  { value: 'picklist', label: 'Choice list' },
+];
+
+export function fieldTypeLabel(type: ObjectFieldType): string {
+  return FIELD_TYPE_OPTIONS.find((option) => option.value === type)?.label ?? type;
+}
 
 export const FIELD_KEY_PATTERN = /^[a-z][a-zA-Z0-9]*$/;
+
+export const OBJECTS_HELP = 'Your own data tables, like Products or Leads, defined without code';

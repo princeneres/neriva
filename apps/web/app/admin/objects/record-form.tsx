@@ -1,14 +1,15 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { type FormEvent, useState } from 'react';
-import { Button, Field, FormActions } from '../../../components/form';
+import { Alert, Button, Group, NumberInput, Select, Stack, Switch, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
+import Link from 'next/link';
+import { useState } from 'react';
 import { ApiError } from '../../../lib/api';
 import type { ObjectDefinition, ObjectField } from './types';
 
-// Input state per field key: booleans stay booleans (checkbox), everything
-// else is the raw input string (numbers are parsed on submit).
-export type RecordFormValues = Record<string, string | boolean>;
+// Input state per field key: booleans are booleans (Switch), numbers are
+// number | '' (NumberInput), everything else is a string.
+export type RecordFormValues = Record<string, string | number | boolean>;
 
 export function initialRecordValues(
   definition: ObjectDefinition,
@@ -19,10 +20,10 @@ export function initialRecordValues(
     const value = data[field.key];
     if (field.type === 'boolean') {
       values[field.key] = value === true;
+    } else if (field.type === 'number') {
+      values[field.key] = typeof value === 'number' ? value : '';
     } else if (typeof value === 'string') {
       values[field.key] = value;
-    } else if (typeof value === 'number') {
-      values[field.key] = String(value);
     } else {
       values[field.key] = '';
     }
@@ -32,161 +33,172 @@ export function initialRecordValues(
 
 // Builds the record `data` payload. Empty optional inputs are omitted so the
 // API does not receive mistyped values; booleans are always sent.
-function buildData(
-  fields: ObjectField[],
-  values: RecordFormValues,
-): { data: Record<string, unknown>; errors: Record<string, string> } {
+function buildData(fields: ObjectField[], values: RecordFormValues): Record<string, unknown> {
   const data: Record<string, unknown> = {};
-  const errors: Record<string, string> = {};
   for (const field of fields) {
     const value = values[field.key];
     if (field.type === 'boolean') {
       data[field.key] = value === true;
       continue;
     }
-    const raw = typeof value === 'string' ? value.trim() : '';
-    if (raw === '') {
-      if (field.required) {
-        errors[field.key] = 'This field is required';
-      }
-      continue;
-    }
     if (field.type === 'number') {
-      const parsed = Number(raw);
-      if (!Number.isFinite(parsed)) {
-        errors[field.key] = 'Enter a valid number';
-        continue;
+      if (typeof value === 'number') {
+        data[field.key] = value;
       }
-      data[field.key] = parsed;
       continue;
     }
-    data[field.key] = raw;
+    const raw = typeof value === 'string' ? value.trim() : '';
+    if (raw !== '') {
+      data[field.key] = raw;
+    }
   }
-  return { data, errors };
+  return data;
 }
 
-function requiredMark(field: ObjectField): string {
-  return field.required ? `${field.label} *` : field.label;
+// The API reports record validation problems as `Field "key" ...` details;
+// map them back to the matching input when possible.
+function detailFieldKey(detail: string, fields: ObjectField[]): string | null {
+  const key = /^Field "([a-zA-Z0-9]+)"/.exec(detail)?.[1];
+  if (key !== undefined && fields.some((field) => field.key === key)) {
+    return key;
+  }
+  return null;
 }
 
 export function RecordForm({
   definition,
   initial,
   submitLabel,
-  busyLabel,
   onSubmit,
 }: {
   definition: ObjectDefinition;
   initial?: RecordFormValues;
   submitLabel: string;
-  busyLabel: string;
   onSubmit: (data: Record<string, unknown>) => Promise<void>;
 }) {
-  const router = useRouter();
-  const [values, setValues] = useState<RecordFormValues>(
-    () => initial ?? initialRecordValues(definition),
-  );
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  function setValue(key: string, value: string | boolean) {
-    setValues((current) => ({ ...current, [key]: value }));
-  }
+  const form = useForm<RecordFormValues>({
+    initialValues: initial ?? initialRecordValues(definition),
+    validate: (values) => {
+      const errors: Record<string, string> = {};
+      for (const field of definition.fields) {
+        if (!field.required || field.type === 'boolean') {
+          continue;
+        }
+        const value = values[field.key];
+        const empty =
+          field.type === 'number'
+            ? typeof value !== 'number'
+            : typeof value !== 'string' || value.trim() === '';
+        if (empty) {
+          errors[field.key] = 'This field is required';
+        }
+      }
+      return errors;
+    },
+  });
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    setError(null);
-    const { data, errors } = buildData(definition.fields, values);
-    setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      return;
-    }
+  async function handleSubmit(values: RecordFormValues) {
+    setFormError(null);
     setBusy(true);
     try {
-      await onSubmit(data);
+      await onSubmit(buildData(definition.fields, values));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Saving the record failed');
+      if (err instanceof ApiError) {
+        const fieldKey = err.problem.detail
+          ? detailFieldKey(err.problem.detail, definition.fields)
+          : null;
+        if (fieldKey) {
+          form.setFieldError(fieldKey, err.message);
+        } else {
+          setFormError(err.message);
+        }
+      } else {
+        setFormError('Saving the record failed. Please try again.');
+      }
       setBusy(false);
     }
   }
 
   return (
-    <form className="nv-form" onSubmit={handleSubmit}>
-      {error ? <div className="nv-error">{error}</div> : null}
-      {definition.fields.map((field) => {
-        const value = values[field.key];
-        const inputId = `field-${field.key}`;
-        const fieldErrorMessage = fieldErrors[field.key] ?? null;
-        if (field.type === 'boolean') {
-          return (
-            <Field key={field.key} label={requiredMark(field)} htmlFor={inputId}>
-              <input
-                id={inputId}
-                type="checkbox"
-                checked={value === true}
-                onChange={(e) => setValue(field.key, e.target.checked)}
-              />
-            </Field>
-          );
-        }
-        const stringValue = typeof value === 'string' ? value : '';
-        if (field.type === 'picklist') {
-          return (
-            <Field
-              key={field.key}
-              label={requiredMark(field)}
-              htmlFor={inputId}
-              error={fieldErrorMessage}
-            >
-              <select
-                id={inputId}
-                required={field.required}
-                value={stringValue}
-                onChange={(e) => setValue(field.key, e.target.value)}
-              >
-                <option value="">Select…</option>
-                {(field.options ?? []).map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          );
-        }
-        const inputType =
-          field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text';
-        return (
-          <Field
-            key={field.key}
-            label={requiredMark(field)}
-            htmlFor={inputId}
-            error={fieldErrorMessage}
+    <form onSubmit={form.onSubmit((values) => void handleSubmit(values))}>
+      <Stack gap="md">
+        {formError ? (
+          <Alert color="red" title="Could not save">
+            {formError}
+          </Alert>
+        ) : null}
+
+        {definition.fields.map((field) => {
+          switch (field.type) {
+            case 'boolean':
+              return (
+                <Switch
+                  key={field.key}
+                  label={field.label}
+                  {...form.getInputProps(field.key, { type: 'checkbox' })}
+                />
+              );
+            case 'number':
+              return (
+                <NumberInput
+                  key={field.key}
+                  label={field.label}
+                  withAsterisk={field.required}
+                  decimalScale={10}
+                  {...form.getInputProps(field.key)}
+                />
+              );
+            case 'picklist':
+              return (
+                <Select
+                  key={field.key}
+                  label={field.label}
+                  withAsterisk={field.required}
+                  placeholder="Pick one"
+                  data={field.options ?? []}
+                  clearable={!field.required}
+                  {...form.getInputProps(field.key)}
+                />
+              );
+            case 'date':
+              return (
+                <TextInput
+                  key={field.key}
+                  type="date"
+                  label={field.label}
+                  withAsterisk={field.required}
+                  {...form.getInputProps(field.key)}
+                />
+              );
+            default:
+              return (
+                <TextInput
+                  key={field.key}
+                  label={field.label}
+                  withAsterisk={field.required}
+                  {...form.getInputProps(field.key)}
+                />
+              );
+          }
+        })}
+
+        <Group mt="sm">
+          <Button type="submit" loading={busy}>
+            {submitLabel}
+          </Button>
+          <Button
+            component={Link}
+            href={`/admin/objects/${definition.id}/records`}
+            variant="subtle"
+            color="gray"
           >
-            <input
-              id={inputId}
-              type={inputType}
-              required={field.required}
-              step={field.type === 'number' ? 'any' : undefined}
-              value={stringValue}
-              onChange={(e) => setValue(field.key, e.target.value)}
-            />
-          </Field>
-        );
-      })}
-      <FormActions>
-        <Button type="submit" disabled={busy}>
-          {busy ? busyLabel : submitLabel}
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => router.push(`/admin/objects/${definition.id}/records`)}
-        >
-          Cancel
-        </Button>
-      </FormActions>
+            Cancel
+          </Button>
+        </Group>
+      </Stack>
     </form>
   );
 }
