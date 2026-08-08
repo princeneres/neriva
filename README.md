@@ -81,12 +81,14 @@ The OpenAPI 3.1 document at [`docs/api/openapi.yaml`](docs/api/openapi.yaml) is 
 ## Roadmap
 
 - [x] Walking skeleton: entity envelope, auth, users, roles and permissions, API conventions, admin shell
-- [ ] Sites and Pages (JSON block trees + rendering runtime)
-- [ ] Blocks (typed components with props and slots)
-- [ ] Content Types and Content Entries
-- [ ] Objects (client-defined entities over JSONB)
-- [ ] Style Book (versioned design tokens)
-- [ ] System settings (SMTP, site metadata) in Admin UI
+- [x] Sites and Pages API (pages as JSON block trees, tree validation, publish flow)
+- [x] Blocks API (typed components: JSON Schema props + named slots)
+- [x] Content Types and Content Entries API
+- [x] Objects API (client-defined entities over JSONB, dynamic filtering)
+- [x] Style Book API (versioned design tokens, CSS endpoint)
+- [x] System settings API (SMTP, site metadata)
+- [ ] Admin UI screens for the feature modules
+- [ ] Page rendering runtime in apps/web
 
 ## Contributing
 
