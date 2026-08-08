@@ -260,6 +260,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sites/{siteRef}/pages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["PagesController_list"];
+        put?: never;
+        post: operations["PagesController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pages/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["PagesController_get"];
+        put?: never;
+        post?: never;
+        delete: operations["PagesController_delete"];
+        options?: never;
+        head?: never;
+        patch: operations["PagesController_update"];
+        trace?: never;
+    };
+    "/pages/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["PagesController_publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/object-definitions": {
         parameters: {
             query?: never;
@@ -647,6 +695,104 @@ export interface components {
             };
             /** @description Replaces the full slot list */
             slots?: components["schemas"]["BlockSlotDto"][];
+        };
+        PageDto: {
+            /** Format: uuid */
+            id: string;
+            externalReferenceCode: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uuid */
+            createdBy: Record<string, never> | null;
+            /** @enum {string} */
+            status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+            /** Format: uuid */
+            siteId: string;
+            title: string;
+            /** @description Unique per site, ^/[a-z0-9/-]*$ */
+            path: string;
+            /** @description Recursive tree of block instances: { blocks: [...] } */
+            tree: {
+                [key: string]: unknown;
+            };
+            customFields: {
+                [key: string]: unknown;
+            };
+        };
+        CreatePageDto: {
+            /** @example Home */
+            title: string;
+            /**
+             * @description Unique per site
+             * @example /home
+             */
+            path: string;
+            /**
+             * @description Recursive tree of block instances: { blocks: [{ block: <block ERC>, props, slots }] }. Validated against each referenced block definition on every write.
+             * @default {
+             *       "blocks": []
+             *     }
+             * @example {
+             *       "blocks": [
+             *         {
+             *           "block": "hero-banner",
+             *           "props": {
+             *             "title": "Welcome"
+             *           },
+             *           "slots": {
+             *             "main": [
+             *               {
+             *                 "block": "text",
+             *                 "props": {
+             *                   "body": "Hello"
+             *                 }
+             *               }
+             *             ]
+             *           }
+             *         }
+             *       ]
+             *     }
+             */
+            tree: {
+                [key: string]: unknown;
+            };
+            /** @description Stable code for idempotent upsert; generated when omitted */
+            externalReferenceCode?: string;
+        };
+        UpdatePageDto: {
+            title?: string;
+            /** @description Unique per site */
+            path?: string;
+            /**
+             * @description Recursive tree of block instances: { blocks: [{ block: <block ERC>, props, slots }] }. Validated against each referenced block definition on every write.
+             * @example {
+             *       "blocks": [
+             *         {
+             *           "block": "hero-banner",
+             *           "props": {
+             *             "title": "Welcome"
+             *           },
+             *           "slots": {
+             *             "main": [
+             *               {
+             *                 "block": "text",
+             *                 "props": {
+             *                   "body": "Hello"
+             *                 }
+             *               }
+             *             ]
+             *           }
+             *         }
+             *       ]
+             *     }
+             */
+            tree?: {
+                [key: string]: unknown;
+            };
         };
         ObjectFieldDto: {
             /** @example firstName */
@@ -1492,6 +1638,162 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["BlockDto"];
+                    };
+                };
+            };
+        };
+    };
+    PagesController_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque cursor from the previous page meta */
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Site UUID or erc:<externalReferenceCode> */
+                siteRef: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PageDto"][];
+                        meta: {
+                            cursor: string | null;
+                            limit: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    PagesController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Site UUID or erc:<externalReferenceCode> */
+                siteRef: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePageDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PageDto"];
+                    };
+                };
+            };
+        };
+    };
+    PagesController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PageDto"];
+                    };
+                };
+            };
+        };
+    };
+    PagesController_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PagesController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePageDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PageDto"];
+                    };
+                };
+            };
+        };
+    };
+    PagesController_publish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PageDto"];
                     };
                 };
             };
