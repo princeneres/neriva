@@ -1,15 +1,12 @@
 @import '@neriva/ui/tokens.css';
 
-* {
-  box-sizing: border-box;
-}
+/* Legacy admin styles below are kept only while sections migrate to the
+   Mantine-based UI v2 (spec 09); do not add new rules here. */
 
 body {
   margin: 0;
-  font-family: var(--nv-font-sans);
-  font-size: var(--nv-text-md);
-  color: var(--nv-color-neutral-900);
-  background: var(--nv-color-neutral-50);
+  font-family: var(--font-body), var(--nv-font-sans);
+  background: #faf9f7;
 }
 
 a {

@@ -1,5 +1,17 @@
 'use client';
 
+import {
+  Alert,
+  Button,
+  Center,
+  Paper,
+  PasswordInput,
+  Stack,
+  Text,
+  ThemeIcon,
+  Title,
+} from '@mantine/core';
+import { IconAlertCircle, IconLockCheck } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { ApiError, changePassword } from '../../lib/api';
@@ -32,51 +44,55 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <main className="nv-auth-page">
-      <form className="nv-auth-card" onSubmit={onSubmit}>
-        <div className="nv-brand">Neriva</div>
-        <h1>Change your password</h1>
-        <p>You must set a new password before continuing.</p>
-        {error ? <div className="nv-error">{error}</div> : null}
-        <div className="nv-field">
-          <label htmlFor="current">Current password</label>
-          <input
-            id="current"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-          />
-        </div>
-        <div className="nv-field">
-          <label htmlFor="new">New password</label>
-          <input
-            id="new"
-            type="password"
-            autoComplete="new-password"
-            minLength={8}
-            required
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-          />
-        </div>
-        <div className="nv-field">
-          <label htmlFor="confirm">Confirm new password</label>
-          <input
-            id="confirm"
-            type="password"
-            autoComplete="new-password"
-            minLength={8}
-            required
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-          />
-        </div>
-        <button className="nv-button" type="submit" disabled={busy}>
-          {busy ? 'Saving…' : 'Save and continue'}
-        </button>
-      </form>
-    </main>
+    <Center mih="100vh" bg="slate.0" p="md">
+      <Paper w="100%" maw={420} p="xl" radius="lg" withBorder>
+        <ThemeIcon size={44} radius="md" variant="light" mb="md">
+          <IconLockCheck size={24} />
+        </ThemeIcon>
+        <Title order={2} fz="h3" mb={4}>
+          Set a new password
+        </Title>
+        <Text c="slate.5" size="sm" mb="xl">
+          For your security, you must replace the temporary password before continuing.
+        </Text>
+
+        <form onSubmit={onSubmit}>
+          <Stack gap="md">
+            {error ? (
+              <Alert color="red" icon={<IconAlertCircle size={16} />} radius="md">
+                {error}
+              </Alert>
+            ) : null}
+            <PasswordInput
+              label="Current password"
+              autoComplete="current-password"
+              required
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.currentTarget.value)}
+            />
+            <PasswordInput
+              label="New password"
+              description="At least 8 characters"
+              autoComplete="new-password"
+              minLength={8}
+              required
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.currentTarget.value)}
+            />
+            <PasswordInput
+              label="Confirm new password"
+              autoComplete="new-password"
+              minLength={8}
+              required
+              value={confirm}
+              onChange={(e) => setConfirm(e.currentTarget.value)}
+            />
+            <Button type="submit" loading={busy} fullWidth mt="xs">
+              Save and continue
+            </Button>
+          </Stack>
+        </form>
+      </Paper>
+    </Center>
   );
 }
