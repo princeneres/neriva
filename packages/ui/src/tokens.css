@@ -1,3 +1,55 @@
+/* Neriva design tokens. Style Book entities will version these values;
+   this file is the default token set. */
 :root {
+  /* Brand */
   --nv-color-primary: #cc3d47;
+  --nv-color-primary-hover: #b53540;
+  --nv-color-primary-soft: #faedee;
+  --nv-color-on-primary: #ffffff;
+
+  /* Minimalist neutral palette */
+  --nv-color-neutral-0: #ffffff;
+  --nv-color-neutral-50: #fafafa;
+  --nv-color-neutral-100: #f4f4f5;
+  --nv-color-neutral-200: #e4e4e7;
+  --nv-color-neutral-300: #d4d4d8;
+  --nv-color-neutral-400: #a1a1aa;
+  --nv-color-neutral-500: #71717a;
+  --nv-color-neutral-600: #52525b;
+  --nv-color-neutral-700: #3f3f46;
+  --nv-color-neutral-800: #27272a;
+  --nv-color-neutral-900: #18181b;
+
+  /* Semantic */
+  --nv-color-danger: #b3261e;
+  --nv-color-danger-soft: #f9e6e5;
+  --nv-color-success: #1e7d3c;
+
+  /* Typography */
+  --nv-font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --nv-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --nv-text-xs: 0.75rem;
+  --nv-text-sm: 0.875rem;
+  --nv-text-md: 1rem;
+  --nv-text-lg: 1.125rem;
+  --nv-text-xl: 1.5rem;
+
+  /* Spacing scale */
+  --nv-space-1: 0.25rem;
+  --nv-space-2: 0.5rem;
+  --nv-space-3: 0.75rem;
+  --nv-space-4: 1rem;
+  --nv-space-5: 1.5rem;
+  --nv-space-6: 2rem;
+  --nv-space-7: 3rem;
+
+  /* Radii */
+  --nv-radius-sm: 4px;
+  --nv-radius-md: 8px;
+  --nv-radius-lg: 12px;
+
+  /* Elevation */
+  --nv-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
+  --nv-shadow-md: 0 4px 12px rgb(0 0 0 / 0.08);
 }

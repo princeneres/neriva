@@ -47,10 +47,10 @@ Status: in progress. This checklist is the gate for Phase B; every box must be c
 
 ## Step 6: Web shell
 
-- [ ] Login screen
-- [ ] Forced password change screen
-- [ ] Empty authenticated admin shell with placeholder sidebar (Sites, Pages, Content, Objects, Style Book, Users, Settings)
-- [ ] Design tokens as CSS variables in packages/ui (primary #cc3d47, minimalist neutral palette)
+- [x] Login screen
+- [x] Forced password change screen
+- [x] Empty authenticated admin shell with placeholder sidebar (Sites, Pages, Content, Objects, Style Book, Users, Settings)
+- [x] Design tokens as CSS variables in packages/ui (primary #cc3d47, minimalist neutral palette)
 
 ## Step 7: README + docs
 
