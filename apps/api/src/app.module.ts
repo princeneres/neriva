@@ -6,6 +6,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { BlocksModule } from './modules/blocks/blocks.module';
 import { ContentModule } from './modules/content/content.module';
 import { DeliveryModule } from './modules/delivery/delivery.module';
+import { MediaModule } from './modules/media/media.module';
 import { ObjectsModule } from './modules/objects/objects.module';
 import { PagesModule } from './modules/pages/pages.module';
 import { RolesModule } from './modules/roles/roles.module';
@@ -29,6 +30,7 @@ import { UsersModule } from './modules/users/users.module';
     BlocksModule,
     ContentModule,
     DeliveryModule,
+    MediaModule,
     ObjectsModule,
     StylebookModule,
     SystemModule,

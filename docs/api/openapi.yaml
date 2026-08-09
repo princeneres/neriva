@@ -1404,6 +1404,331 @@ paths:
                 type: string
       tags:
         - delivery
+  /media/folders:
+    get:
+      operationId: MediaController_listFolders
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+        - name: parent
+          required: false
+          in: query
+          description: 'Parent folder (UUID or erc:<externalReferenceCode>) or "root"
+            (default): children listing'
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/MediaFolderDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      security:
+        - bearer: []
+      tags:
+        - media
+    post:
+      operationId: MediaController_createFolder
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMediaFolderDto"
+      responses:
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/MediaFolderDto"
+      security:
+        - bearer: []
+      tags:
+        - media
+  /media/folders/{id}:
+    patch:
+      operationId: MediaController_updateFolder
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMediaFolderDto"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/MediaFolderDto"
+      security:
+        - bearer: []
+      tags:
+        - media
+    delete:
+      operationId: MediaController_deleteFolder
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      security:
+        - bearer: []
+      tags:
+        - media
+  /media/files:
+    get:
+      operationId: MediaController_listFiles
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+        - name: folder
+          required: false
+          in: query
+          description: 'Folder (UUID or erc:<externalReferenceCode>) or "root" (default):
+            folder content listing'
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/MediaFileDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      security:
+        - bearer: []
+      tags:
+        - media
+    post:
+      operationId: MediaController_uploadFile
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                folderId:
+                  type: string
+                  description: Target folder (UUID or erc:<externalReferenceCode>); omit for the
+                    root
+                site:
+                  type: string
+                  description: Site ref (UUID or erc:<externalReferenceCode>); without folderId
+                    the file lands in that site's default folder Sites/<site
+                    name> (auto-created)
+      responses:
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/MediaFileDto"
+      security:
+        - bearer: []
+      tags:
+        - media
+  /media/files/{id}:
+    get:
+      operationId: MediaController_getFile
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/MediaFileDto"
+      security:
+        - bearer: []
+      tags:
+        - media
+    patch:
+      operationId: MediaController_updateFile
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMediaFileDto"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/MediaFileDto"
+      security:
+        - bearer: []
+      tags:
+        - media
+    delete:
+      operationId: MediaController_deleteFile
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      security:
+        - bearer: []
+      tags:
+        - media
+  /public/media/{id}/{fileName}:
+    get:
+      operationId: MediaPublicController_stream
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: File UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+        - name: fileName
+          required: true
+          in: path
+          description: Cosmetic; any value is accepted
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The file bytes with the stored content type and immutable cache
+            headers
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+      tags:
+        - media
   /object-definitions:
     get:
       operationId: ObjectDefinitionsController_list
@@ -2907,6 +3232,156 @@ components:
         - title
         - path
         - updatedAt
+    MediaFolderDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReferenceCode:
+          type: string
+        tenantId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type:
+            - object
+            - "null"
+          format: uuid
+        name:
+          type: string
+        parentId:
+          type:
+            - object
+            - "null"
+          format: uuid
+          description: null = library root
+        siteId:
+          type:
+            - object
+            - "null"
+          format: uuid
+          description: Set when this is a site default folder
+      required:
+        - id
+        - externalReferenceCode
+        - tenantId
+        - createdAt
+        - updatedAt
+        - createdBy
+        - name
+        - parentId
+        - siteId
+    CreateMediaFolderDto:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        parent:
+          type: string
+          description: Parent folder (UUID or erc:<externalReferenceCode>); omit for the
+            root
+        externalReferenceCode:
+          type: string
+          description: Stable code for idempotent upsert; generated when omitted
+      required:
+        - name
+    UpdateMediaFolderDto:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        parent:
+          type:
+            - object
+            - "null"
+          description: New parent folder (UUID or erc:<externalReferenceCode>); null moves
+            to the root
+    MediaFileDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReferenceCode:
+          type: string
+        tenantId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type:
+            - object
+            - "null"
+          format: uuid
+        folderId:
+          type:
+            - object
+            - "null"
+          format: uuid
+          description: null = library root
+        fileName:
+          type: string
+        contentType:
+          type: string
+        sizeBytes:
+          type: number
+        alt:
+          type:
+            - object
+            - "null"
+          description: Accessibility text for images
+        url:
+          type: string
+          description: "Public content URL: /public/media/<id>/<fileName>"
+        customFields:
+          type: object
+          additionalProperties: true
+      required:
+        - id
+        - externalReferenceCode
+        - tenantId
+        - createdAt
+        - updatedAt
+        - createdBy
+        - folderId
+        - fileName
+        - contentType
+        - sizeBytes
+        - alt
+        - url
+        - customFields
+    UpdateMediaFileDto:
+      type: object
+      properties:
+        fileName:
+          type: string
+          maxLength: 255
+          description: Display name; sanitized on save
+        alt:
+          type:
+            - object
+            - "null"
+          maxLength: 500
+        folderId:
+          type:
+            - object
+            - "null"
+          description: Target folder (UUID or erc:<externalReferenceCode>); null moves to
+            the root
     ObjectFieldDto:
       type: object
       properties:

@@ -13,3 +13,5 @@ export * from './content-types';
 export * from './content-entries';
 export * from './style-books';
 export * from './system-settings';
+export * from './media-folders';
+export * from './media-files';
