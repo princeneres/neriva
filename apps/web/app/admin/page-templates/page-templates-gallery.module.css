@@ -1,0 +1,28 @@
+.card {
+  position: relative;
+  transition: border-color 120ms ease;
+}
+
+.card:hover {
+  border-color: var(--mantine-color-neriva-5);
+}
+
+/* Stretched link: the template name is the anchor, its ::after covers the card */
+.nameLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.nameLink::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+/* Sits above the stretched link so the menu stays clickable */
+.menu {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+}
