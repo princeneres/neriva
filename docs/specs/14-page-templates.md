@@ -6,12 +6,12 @@ Status: approved for implementation. Liferay equivalent: Page Templates + Master
 
 New table `page_templates` (standard envelope, no status/customFields):
 
-| Column | Type                                            | Rules                                                                                              |
-| ------ | ----------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| name   | varchar(255)                                    | required, unique per tenant                                                                        |
-| kind   | enum `page_template_kind`: `MASTER`, `STANDARD` | required                                                                                           |
-| siteId | uuid                                            | nullable FK sites.id (set null); null = available to every site, set = offered only for that site  |
-| tree   | jsonb                                           | same `PageTree` shape as `pages.tree` (spec 03, spec 12 styles included); default `{ blocks: [] }` |
+| Column | Type                                            | Rules                                                                                             |
+| ------ | ----------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| name   | varchar(255)                                    | required, unique per tenant                                                                       |
+| kind   | enum `page_template_kind`: `MASTER`, `STANDARD` | required                                                                                          |
+| siteId | uuid                                            | nullable FK sites.id (set null); null = available to every site, set = offered only for that site |
+| tree   | jsonb                                           | same `PageTree` shape as `pages.tree` (spec 03); default `{ blocks: [] }`                         |
 
 Unique: `(tenant_id, external_reference_code)`.
 
@@ -22,11 +22,11 @@ A reserved pseudo-block ERC `__page_content__` marks where a page's own content 
 - A `MASTER` template's tree must contain the drop zone node (`{ "block": "__page_content__" }`) exactly once, anywhere in the tree (root or nested in a slot). Zero or more than one occurrence: 400 `"a master page must contain exactly one page-content drop zone"`.
 - A `STANDARD` template's tree must NOT contain the drop zone: 400 if it does.
 - The drop zone node accepts no `props`/`slots`/`styles`; violations 400.
-- Every other node in a MASTER or STANDARD tree is validated exactly like a page tree (spec 03/12: block exists, props match schema, slots declared, styles whitelisted) except the drop zone exception above.
+- Every other node in a MASTER or STANDARD tree is validated exactly like a page tree (spec 03: block exists, props match schema, slots declared) except the drop zone exception above.
 
 ### Pages gain a master
 
-`pages` table: nullable `masterPageTemplateId` (uuid, FK `page_templates.id`, set null on template delete). Resolution order when rendering or publishing: page's own `masterPageTemplateId` -> tenant setting `page.defaultMasterTemplate` (an ERC, new well-known system setting) -> the single MASTER template with the lowest `createdAt` -> no master (page tree renders standalone, unchanged v1 behavior). Setting a page's master to a non-MASTER template, or to a template scoped to a different site, is 400.
+`pages` table: nullable `masterPageTemplateId` (uuid, FK `page_templates.id`, set null on template delete). Resolution order when rendering or publishing: page's own `masterPageTemplateId` -> tenant setting `page.default-master-template` (an ERC, new well-known system setting; kebab-cased to satisfy spec 07's key pattern `^[a-z][a-z0-9.-]*$`) -> the single MASTER template with the lowest `createdAt` -> no master (page tree renders standalone, unchanged v1 behavior). Setting a page's master to a non-MASTER template, or to a template scoped to a different site, is 400.
 
 ### Composition
 
@@ -52,19 +52,21 @@ Pages API additions (spec 03 amendment):
 
 ## 3. Seed
 
-Extend the native seed (new `NativeMasterPageSeedService` or fold into the existing native blocks seed, registered after it in `DbModule`, idempotent by ERC, gated by `SEED_NATIVE_BLOCKS !== 'false'`):
+Extend the native seed (`NativeMasterPageSeedService`, registered in `DbModule`, idempotent by ERC, gated by `SEED_NATIVE_BLOCKS !== 'false'`):
 
 - MASTER template erc `master-default`, name "Default Master": header (`nv-container` with an `nv-heading` reading the tenant name placeholder "Your Site" and an `nv-paragraph` byline), the drop zone, footer (`nv-container` with an `nv-paragraph` "© <year> · Built with Neriva"). Real, presentable output, not a stub.
 - STANDARD template erc `template-blank`, name "Blank page": empty tree.
-- System setting `page.defaultMasterTemplate` = `master-default` seeded alongside (idempotent upsert-if-absent).
+- System setting `page.default-master-template` = `master-default` seeded alongside (idempotent upsert-if-absent).
+
+The three chrome blocks the default master references (`nv-container`, `nv-heading`, `nv-paragraph`) are seeded by this same service so the default master seeds independently of any other block catalog.
 
 ## 4. Web (admin)
 
 New section **Page Templates** (Design group, after Style Book) at `/admin/page-templates`:
 
-- Gallery like Blocks (spec 12 UI precedent): cards grouped by kind (Masters first, then Templates), name, block-count summary, a "Master" badge on MASTER cards, Edit/Duplicate/Delete actions (delete blocked with the API's 409 detail shown when in use).
-- Editor screen: reuse the pure tree-editing primitives from `apps/web/app/admin/pages/` (`editor-state.ts`, `editor-canvas.tsx`, `studio-palette.tsx`, `prop-fields.tsx`) rather than rebuilding them — this is a lighter editor than the full Page Studio (no Publish/View/device-preview toolbar, no per-page settings): a canvas + palette + inspector for props/styles, a Save button, and for MASTER kind the drop zone renders as a fixed, non-removable, dashed placeholder card ("Page content renders here") that can be reordered among its siblings but never deleted and never expanded for editing; the palette gets an extra always-visible "Page content" item (only insertable once; disabled/hidden once already present) so authors can place it.
-- Page settings screen (`/admin/pages/[id]` per spec 09's split) gains a "Master page" Select (options from `GET /page-templates?kind=MASTER`, plus "Use the site default"); new-page creation form gains an optional "Start from a template" Select (`GET /page-templates?kind=STANDARD`).
+- Gallery like Blocks (spec 02 UI precedent): cards grouped by kind (Masters first, then Templates), name, block-count summary, a "Master" badge on MASTER cards, Edit/Duplicate/Delete actions (delete blocked with the API's 409 detail shown when in use).
+- Editor screen: reuse the pure tree-editing primitives from `apps/web/app/admin/pages/` rather than rebuilding them — this is a lighter editor than the full Page Studio (no Publish/View/device-preview toolbar, no per-page settings): a canvas + palette + inspector for props, a Save button, and for MASTER kind the drop zone renders as a fixed, non-removable, dashed placeholder card ("Page content renders here") that can be reordered among its siblings but never deleted and never expanded for editing; the palette gets an extra always-visible "Page content" item (only insertable once; disabled/hidden once already present) so authors can place it.
+- Page settings screen gains a "Master page" Select (options from `GET /page-templates?kind=MASTER`, plus "Use the site default"); new-page creation form gains an optional "Start from a template" Select (`GET /page-templates?kind=STANDARD`).
 
 ## Tests
 

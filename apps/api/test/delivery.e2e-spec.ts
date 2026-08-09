@@ -1,6 +1,9 @@
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DEMO_PAGE_ERC, DEMO_PAGE_TREE, DEMO_SITE_ERC } from '../src/db/demo-seed.service';
+import { MASTER_DEFAULT_ERC } from '../src/db/native-master-page-seed.service';
+import type { PageTree } from '../src/db/schema';
+import { composePageTree } from '../src/modules/pages/page-composition';
 import { collectBlockRefs } from '../src/modules/pages/page-tree.validation';
 import { createTestApp } from './utils/test-app';
 import { startTestDb, type TestDb } from './utils/test-db';
@@ -36,6 +39,7 @@ describe('public delivery API (e2e)', () => {
   let testDb: TestDb;
   let app: NestFastifyApplication;
   let adminToken: string;
+  let defaultMasterTree: PageTree;
 
   async function login(email: string, password: string): Promise<Tokens> {
     const res = await app.inject({
@@ -78,6 +82,16 @@ describe('public delivery API (e2e)', () => {
     });
     expect(draft.statusCode).toBe(201);
     expect((draft.json() as { data: { status: string } }).data.status).toBe('DRAFT');
+
+    // The seeded default master (spec 14); no page in this suite sets its
+    // own masterPageTemplateId, so every published page composes with it.
+    const master = await app.inject({
+      method: 'GET',
+      url: `/page-templates/erc:${MASTER_DEFAULT_ERC}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    expect(master.statusCode).toBe(200);
+    defaultMasterTree = (master.json() as { data: { tree: PageTree } }).data.tree;
   });
 
   afterAll(async () => {
@@ -85,23 +99,27 @@ describe('public delivery API (e2e)', () => {
     await testDb.stop();
   });
 
-  it('serves the published demo page without a token', async () => {
+  it('serves the published demo page composed with the resolved default master (spec 14)', async () => {
     const res = await app.inject({ method: 'GET', url: '/public/sites/demo/page' });
     expect(res.statusCode).toBe(200);
     const body = res.json() as DeliveredPageBody;
     expect(body.data.site).toEqual({ name: 'Demo Site', slug: 'demo' });
     expect(body.data.page.title).toBe('Welcome to Neriva');
     expect(body.data.page.path).toBe('/');
-    expect(body.data.page.tree).toEqual(DEMO_PAGE_TREE);
+    expect(body.data.page.tree).toEqual(composePageTree(defaultMasterTree, DEMO_PAGE_TREE));
+    // Sanity: the demo page's own tree is unchanged by delivery, it is only
+    // the response that is composed.
+    expect(body.data.page.tree).not.toEqual(DEMO_PAGE_TREE);
     expect(typeof body.data.page.updatedAt).toBe('string');
   });
 
-  it('maps every block ERC referenced in the tree, without propsSchema', async () => {
+  it('maps every block ERC referenced in the composed tree, without propsSchema', async () => {
     const res = await app.inject({ method: 'GET', url: '/public/sites/demo/page' });
     expect(res.statusCode).toBe(200);
     const blocks = (res.json() as DeliveredPageBody).data.blocks;
 
-    const refs = collectBlockRefs(DEMO_PAGE_TREE);
+    const composedTree = composePageTree(defaultMasterTree, DEMO_PAGE_TREE);
+    const refs = collectBlockRefs(composedTree);
     expect(refs.length).toBeGreaterThan(0);
     for (const erc of refs) {
       expect(blocks[erc]).toBeDefined();
@@ -111,6 +129,14 @@ describe('public delivery API (e2e)', () => {
     }
     expect(blocks.hero).toMatchObject({ name: 'Hero', category: 'content', slots: [] });
     expect(blocks['two-columns']?.slots).toEqual([{ name: 'left' }, { name: 'right' }]);
+    // The master's chrome blocks are unioned in too.
+    expect(blocks['nv-container']).toEqual({
+      name: 'Container',
+      category: 'layout',
+      slots: [{ name: 'content' }],
+    });
+    expect(blocks['nv-heading']).toBeDefined();
+    expect(blocks['nv-paragraph']).toBeDefined();
   });
 
   it('exposes the demo block templates (html and css, spec 12)', async () => {

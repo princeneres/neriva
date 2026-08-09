@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PageTree } from '../../db/schema';
 import {
   collectBlockRefs,
+  countDropZoneNodes,
   parsePageTree,
   validatePageTree,
   type BlockDefinition,
@@ -112,6 +113,26 @@ describe('collectBlockRefs', () => {
     };
     expect(collectBlockRefs(tree).sort()).toEqual(['footer', 'hero', 'text']);
   });
+
+  it('excludes the reserved drop-zone ERC, it is never a real block', () => {
+    const tree: PageTree = { blocks: [{ block: 'header' }, { block: '__page_content__' }] };
+    expect(collectBlockRefs(tree)).toEqual(['header']);
+  });
+});
+
+describe('countDropZoneNodes', () => {
+  it('counts zero, one and multiple occurrences anywhere in the tree', () => {
+    expect(countDropZoneNodes({ blocks: [{ block: 'hero' }] })).toBe(0);
+    expect(countDropZoneNodes({ blocks: [{ block: '__page_content__' }] })).toBe(1);
+    expect(
+      countDropZoneNodes({
+        blocks: [
+          { block: '__page_content__' },
+          { block: 'layout', slots: { main: [{ block: '__page_content__' }] } },
+        ],
+      }),
+    ).toBe(2);
+  });
 });
 
 describe('validatePageTree', () => {
@@ -200,6 +221,39 @@ describe('validatePageTree', () => {
     expect(validatePageTree(tree, blocksByErc)).toEqual({
       pointer: 'blocks[0].slots.main[2]',
       message: 'unknown block "nope"',
+    });
+  });
+
+  it('rejects the drop zone as an unknown block when allowDropZone is not set (pages)', () => {
+    const tree: PageTree = { blocks: [{ block: '__page_content__' }] };
+    expect(validatePageTree(tree, defs(definition()))).toEqual({
+      pointer: 'blocks[0]',
+      message: 'unknown block "__page_content__"',
+    });
+  });
+
+  it('accepts a bare drop zone anywhere in the tree when allowDropZone is set', () => {
+    const tree: PageTree = {
+      blocks: [
+        { block: 'hero', props: { title: 'x' }, slots: { main: [{ block: '__page_content__' }] } },
+      ],
+    };
+    expect(validatePageTree(tree, defs(definition()), { allowDropZone: true })).toBeNull();
+  });
+
+  it('rejects a drop zone carrying props even when allowDropZone is set', () => {
+    const tree: PageTree = { blocks: [{ block: '__page_content__', props: { x: 1 } }] };
+    expect(validatePageTree(tree, defs(definition()), { allowDropZone: true })).toEqual({
+      pointer: 'blocks[0]',
+      message: 'the page-content drop zone accepts no props',
+    });
+  });
+
+  it('rejects a drop zone carrying slots even when allowDropZone is set', () => {
+    const tree: PageTree = { blocks: [{ block: '__page_content__', slots: { main: [] } }] };
+    expect(validatePageTree(tree, defs(definition()), { allowDropZone: true })).toEqual({
+      pointer: 'blocks[0]',
+      message: 'the page-content drop zone accepts no slots',
     });
   });
 });

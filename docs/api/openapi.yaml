@@ -601,6 +601,303 @@ paths:
         - bearer: []
       tags:
         - sites
+  /page-templates:
+    get:
+      operationId: PageTemplatesController_list
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+        - name: kind
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - MASTER
+              - STANDARD
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PageTemplateDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      security:
+        - bearer: []
+      tags:
+        - page-templates
+    post:
+      operationId: PageTemplatesController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePageTemplateDto"
+      responses:
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PageTemplateDto"
+      security:
+        - bearer: []
+      tags:
+        - page-templates
+  /page-templates/{id}:
+    get:
+      operationId: PageTemplatesController_get
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PageTemplateDto"
+      security:
+        - bearer: []
+      tags:
+        - page-templates
+    patch:
+      operationId: PageTemplatesController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePageTemplateDto"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PageTemplateDto"
+      security:
+        - bearer: []
+      tags:
+        - page-templates
+    delete:
+      operationId: PageTemplatesController_delete
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      security:
+        - bearer: []
+      tags:
+        - page-templates
+  /health:
+    get:
+      operationId: HealthController_check
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags:
+        - Health
+  /system/settings:
+    get:
+      operationId: SystemSettingsController_list
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SystemSettingDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      security:
+        - bearer: []
+      tags:
+        - system
+  /system/settings/{key}:
+    get:
+      operationId: SystemSettingsController_get
+      parameters:
+        - name: key
+          required: true
+          in: path
+          description: Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref)
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SystemSettingDto"
+      security:
+        - bearer: []
+      tags:
+        - system
+    put:
+      operationId: SystemSettingsController_upsert
+      parameters:
+        - name: key
+          required: true
+          in: path
+          description: Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref)
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertSystemSettingDto"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SystemSettingDto"
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SystemSettingDto"
+      security:
+        - bearer: []
+      tags:
+        - system
+    delete:
+      operationId: SystemSettingsController_delete
+      parameters:
+        - name: key
+          required: true
+          in: path
+          description: Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref)
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      security:
+        - bearer: []
+      tags:
+        - system
   /sites/{siteRef}/pages:
     get:
       operationId: PagesController_list
@@ -1422,148 +1719,6 @@ paths:
                 type: string
       tags:
         - delivery
-  /health:
-    get:
-      operationId: HealthController_check
-      parameters: []
-      responses:
-        "200":
-          description: ""
-      tags:
-        - Health
-  /system/settings:
-    get:
-      operationId: SystemSettingsController_list
-      parameters:
-        - name: limit
-          required: false
-          in: query
-          schema:
-            minimum: 1
-            maximum: 100
-            default: 20
-            type: number
-        - name: cursor
-          required: false
-          in: query
-          description: Opaque cursor from the previous page meta
-          schema:
-            type: string
-      responses:
-        "200":
-          description: ""
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - data
-                  - meta
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/SystemSettingDto"
-                  meta:
-                    type: object
-                    required:
-                      - cursor
-                      - limit
-                    properties:
-                      cursor:
-                        type:
-                          - string
-                          - "null"
-                      limit:
-                        type: number
-      security:
-        - bearer: []
-      tags:
-        - system
-  /system/settings/{key}:
-    get:
-      operationId: SystemSettingsController_get
-      parameters:
-        - name: key
-          required: true
-          in: path
-          description: Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref)
-          schema:
-            type: string
-      responses:
-        "200":
-          description: ""
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - data
-                properties:
-                  data:
-                    $ref: "#/components/schemas/SystemSettingDto"
-      security:
-        - bearer: []
-      tags:
-        - system
-    put:
-      operationId: SystemSettingsController_upsert
-      parameters:
-        - name: key
-          required: true
-          in: path
-          description: Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref)
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpsertSystemSettingDto"
-      responses:
-        "200":
-          description: ""
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - data
-                properties:
-                  data:
-                    $ref: "#/components/schemas/SystemSettingDto"
-        "201":
-          description: ""
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - data
-                properties:
-                  data:
-                    $ref: "#/components/schemas/SystemSettingDto"
-      security:
-        - bearer: []
-      tags:
-        - system
-    delete:
-      operationId: SystemSettingsController_delete
-      parameters:
-        - name: key
-          required: true
-          in: path
-          description: Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref)
-          schema:
-            type: string
-      responses:
-        "204":
-          description: ""
-      security:
-        - bearer: []
-      tags:
-        - system
   /media/folders:
     get:
       operationId: MediaController_listFolders
@@ -2723,6 +2878,145 @@ components:
           type:
             - string
             - "null"
+    PageTemplateDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReferenceCode:
+          type: string
+        tenantId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type:
+            - object
+            - "null"
+          format: uuid
+        name:
+          type: string
+        kind:
+          type: string
+          enum:
+            - MASTER
+            - STANDARD
+        siteId:
+          type:
+            - object
+            - "null"
+          format: uuid
+          description: null = available to every site
+        tree:
+          type: object
+          additionalProperties: true
+          description: "Recursive tree of block instances: { blocks: [...] }"
+      required:
+        - id
+        - externalReferenceCode
+        - tenantId
+        - createdAt
+        - updatedAt
+        - createdBy
+        - name
+        - kind
+        - siteId
+        - tree
+    CreatePageTemplateDto:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          example: Default Master
+        kind:
+          type: string
+          enum:
+            - MASTER
+            - STANDARD
+        site:
+          type: string
+          description: "Site reference: UUID or erc:<externalReferenceCode>; omitted =
+            available to every site"
+        tree:
+          type: object
+          additionalProperties: true
+          description: 'Recursive tree of block instances, same shape as a page tree. A
+            MASTER tree must contain the reserved drop zone { "block":
+            "__page_content__" } exactly once; a STANDARD tree must not contain
+            it.'
+          default: default drop zone for MASTER, empty for STANDARD
+        externalReferenceCode:
+          type: string
+          description: Stable code for idempotent upsert; generated when omitted
+      required:
+        - name
+        - kind
+    UpdatePageTemplateDto:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        tree:
+          type: object
+          additionalProperties: true
+          description: 'Recursive tree of block instances, same shape as a page tree. A
+            MASTER tree must contain the reserved drop zone { "block":
+            "__page_content__" } exactly once; a STANDARD tree must not contain
+            it.'
+    SystemSettingDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReferenceCode:
+          type: string
+        tenantId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type:
+            - object
+            - "null"
+          format: uuid
+        key:
+          type: string
+          example: site.name
+          description: Unique per tenant, pattern ^[a-z][a-z0-9.-]*$
+        value:
+          type: object
+          description: Any JSON value
+      required:
+        - id
+        - externalReferenceCode
+        - tenantId
+        - createdAt
+        - updatedAt
+        - createdBy
+        - key
+        - value
+    UpsertSystemSettingDto:
+      type: object
+      properties:
+        value:
+          type: object
+          description: Any JSON value (object, array, string, number, boolean)
+      required:
+        - value
     PageDto:
       type: object
       properties:
@@ -2763,6 +3057,14 @@ components:
           type: object
           additionalProperties: true
           description: "Recursive tree of block instances: { blocks: [...] }"
+        masterPageTemplateId:
+          type:
+            - object
+            - "null"
+          format: uuid
+          description: The page's own value, or null when it falls back to the tenant
+            default (spec 14); the client resolves the default separately via
+            GET /page-templates?kind=MASTER
         customFields:
           type: object
           additionalProperties: true
@@ -2778,6 +3080,7 @@ components:
         - title
         - path
         - tree
+        - masterPageTemplateId
         - customFields
     CreatePageDto:
       type: object
@@ -2810,6 +3113,16 @@ components:
                         body: Hello
           default:
             blocks: []
+        masterPageTemplateId:
+          type: string
+          description: "Master page template reference (MASTER kind): UUID or
+            erc:<externalReferenceCode>"
+        templateId:
+          type: string
+          description: "Page template reference (STANDARD kind): UUID or
+            erc:<externalReferenceCode>. Its tree is copied once as the initial
+            tree on create; ignored when tree is also given. Not persisted as an
+            ongoing relationship."
         externalReferenceCode:
           type: string
           description: Stable code for idempotent upsert; generated when omitted
@@ -2843,6 +3156,13 @@ components:
                     - block: text
                       props:
                         body: Hello
+        masterPageTemplateId:
+          type:
+            - object
+            - "null"
+          description: "Master page template reference (MASTER kind): UUID or
+            erc:<externalReferenceCode>; null reverts to the tenant default
+            resolution"
     BlockSlotDto:
       type: object
       properties:
@@ -3297,52 +3617,6 @@ components:
         - title
         - path
         - updatedAt
-    SystemSettingDto:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        externalReferenceCode:
-          type: string
-        tenantId:
-          type: string
-          format: uuid
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-        createdBy:
-          type:
-            - object
-            - "null"
-          format: uuid
-        key:
-          type: string
-          example: site.name
-          description: Unique per tenant, pattern ^[a-z][a-z0-9.-]*$
-        value:
-          type: object
-          description: Any JSON value
-      required:
-        - id
-        - externalReferenceCode
-        - tenantId
-        - createdAt
-        - updatedAt
-        - createdBy
-        - key
-        - value
-    UpsertSystemSettingDto:
-      type: object
-      properties:
-        value:
-          type: object
-          description: Any JSON value (object, array, string, number, boolean)
-      required:
-        - value
     MediaFolderDto:
       type: object
       properties:

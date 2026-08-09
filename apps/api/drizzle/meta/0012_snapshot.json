@@ -1,6 +1,6 @@
 {
-  "id": "81555132-3018-44b1-9832-2d054aaff129",
-  "prevId": "904a25d5-7484-4f43-92b8-ca56df392c57",
+  "id": "6b9bce1b-a795-4692-a547-888936db5594",
+  "prevId": "680239c7-6fcb-49b8-b428-9b32660361e7",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -795,6 +795,18 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'[]'::jsonb"
+        },
+        "html": {
+          "name": "html",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "css": {
+          "name": "css",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -832,6 +844,153 @@
             "id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.page_templates": {
+      "name": "page_templates",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "external_reference_code": {
+          "name": "external_reference_code",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "page_template_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "site_id": {
+          "name": "site_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tree": {
+          "name": "tree",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{\"blocks\":[]}'::jsonb"
+        }
+      },
+      "indexes": {
+        "page_templates_tenant_erc_uq": {
+          "name": "page_templates_tenant_erc_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "external_reference_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "page_templates_tenant_name_uq": {
+          "name": "page_templates_tenant_name_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "page_templates_tenant_fk": {
+          "name": "page_templates_tenant_fk",
+          "tableFrom": "page_templates",
+          "tableTo": "tenants",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "page_templates_site_fk": {
+          "name": "page_templates_site_fk",
+          "tableFrom": "page_templates",
+          "tableTo": "sites",
+          "columnsFrom": [
+            "site_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -922,6 +1081,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{\"blocks\":[]}'::jsonb"
+        },
+        "master_page_template_id": {
+          "name": "master_page_template_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -993,6 +1158,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "pages_master_page_template_fk": {
+          "name": "pages_master_page_template_fk",
+          "tableFrom": "pages",
+          "tableTo": "page_templates",
+          "columnsFrom": [
+            "master_page_template_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -2164,6 +2342,14 @@
         "DRAFT",
         "PUBLISHED",
         "ARCHIVED"
+      ]
+    },
+    "public.page_template_kind": {
+      "name": "page_template_kind",
+      "schema": "public",
+      "values": [
+        "MASTER",
+        "STANDARD"
       ]
     }
   },

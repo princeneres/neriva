@@ -6,6 +6,7 @@ export * from './refresh-tokens';
 export * from './role-permissions';
 export * from './sites';
 export * from './blocks';
+export * from './page-templates';
 export * from './pages';
 export * from './object-definitions';
 export * from './object-records';

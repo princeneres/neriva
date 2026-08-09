@@ -8,12 +8,13 @@ A Page is data: a JSON tree of Block instances (block ref + prop values + slot c
 
 Table `pages` (standard envelope + status + customFields):
 
-| Column | Type         | Rules                                       |
-| ------ | ------------ | ------------------------------------------- |
-| siteId | uuid         | required, FK sites.id (cascade delete)      |
-| title  | varchar(255) | required                                    |
-| path   | varchar(255) | required, unique per site, `^/[a-z0-9/-]*$` |
-| tree   | jsonb        | required, default `{ "blocks": [] }`        |
+| Column               | Type         | Rules                                                  |
+| -------------------- | ------------ | ------------------------------------------------------ |
+| siteId               | uuid         | required, FK sites.id (cascade delete)                 |
+| title                | varchar(255) | required                                               |
+| path                 | varchar(255) | required, unique per site, `^/[a-z0-9/-]*$`            |
+| tree                 | jsonb        | required, default `{ "blocks": [] }`                   |
+| masterPageTemplateId | uuid         | nullable, FK page_templates.id (set null), see spec 14 |
 
 Tree shape (recursive):
 
@@ -38,14 +39,16 @@ Unique indexes: `(tenant_id, external_reference_code)`, `(site_id, path)`.
 
 Permission resource: `page`.
 
-| Method | Path                  | Permission   | Notes                                    |
-| ------ | --------------------- | ------------ | ---------------------------------------- |
-| GET    | /sites/:siteRef/pages | page:read    | pages of a site, cursor pagination       |
-| POST   | /sites/:siteRef/pages | page:create  | 201                                      |
-| GET    | /pages/:id            | page:read    | returns the full tree                    |
-| PATCH  | /pages/:id            | page:update  | title, path, tree                        |
-| DELETE | /pages/:id            | page:delete  | 204                                      |
-| POST   | /pages/:id/publish    | page:publish | validates the whole tree, sets PUBLISHED |
+| Method | Path                  | Permission   | Notes                                                             |
+| ------ | --------------------- | ------------ | ----------------------------------------------------------------- |
+| GET    | /sites/:siteRef/pages | page:read    | pages of a site, cursor pagination                                |
+| POST   | /sites/:siteRef/pages | page:create  | 201; accepts `templateId` and `masterPageTemplateId`, see spec 14 |
+| GET    | /pages/:id            | page:read    | returns the full tree and the page's own `masterPageTemplateId`   |
+| PATCH  | /pages/:id            | page:update  | title, path, tree, `masterPageTemplateId`                         |
+| DELETE | /pages/:id            | page:delete  | 204                                                               |
+| POST   | /pages/:id/publish    | page:publish | validates the whole tree, sets PUBLISHED                          |
+
+Spec 14 amendment: `POST /sites/:siteRef/pages` also accepts an optional create-only `templateId` (a STANDARD page template ref whose tree is copied once as the initial tree) and an optional `masterPageTemplateId` (a MASTER page template ref, PATCH-able afterwards). `GET /pages/:id` returns the page's own `masterPageTemplateId`, or null when it relies on the tenant default; delivery composes the effective master separately (spec 10, spec 14).
 
 ## Validation
 

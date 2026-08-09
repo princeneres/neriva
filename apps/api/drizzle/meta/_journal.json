@@ -85,6 +85,13 @@
       "when": 1786295918865,
       "tag": "0011_lying_wildside",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786308413006,
+      "tag": "0012_fearless_quasar",
+      "breakpoints": true
     }
   ]
 }

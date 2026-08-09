@@ -12,6 +12,10 @@ import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination'
 import { DB, type Database } from '../../db/database';
 import { blocks, pages, type PageTree } from '../../db/schema';
 import { TenantScopedRepository, type CursorPage } from '../../db/tenant-scoped.repository';
+import {
+  PageTemplatesService,
+  type PageTemplateRow,
+} from '../page-templates/page-templates.service';
 import { SitesService } from '../sites/sites.service';
 import {
   collectBlockRefs,
@@ -31,6 +35,7 @@ export class PagesService {
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly sitesService: SitesService,
+    private readonly pageTemplatesService: PageTemplatesService,
   ) {}
 
   private repo(tenantId: string): TenantScopedRepository<typeof pages> {
@@ -79,12 +84,19 @@ export class PagesService {
       title: string;
       path: string;
       tree?: Record<string, unknown>;
+      templateId?: string;
+      masterPageTemplateId?: string;
       externalReferenceCode?: string;
     },
   ): Promise<PageRow> {
     const site = await this.sitesService.getByRef(tenantId, siteRef);
+    const initialTree = await this.resolveInitialTree(tenantId, input);
     const tree =
-      input.tree === undefined ? EMPTY_TREE : await this.assertValidTree(tenantId, input.tree);
+      initialTree === undefined ? EMPTY_TREE : await this.assertValidTree(tenantId, initialTree);
+    const masterPageTemplateId =
+      input.masterPageTemplateId !== undefined
+        ? (await this.resolveMasterRef(tenantId, site.id, input.masterPageTemplateId)).id
+        : null;
     try {
       // Intermediate variable: tsc cannot apply the excess-property check to
       // the generic repository parameter and rejects fresh literals here.
@@ -93,6 +105,7 @@ export class PagesService {
         title: input.title,
         path: input.path,
         tree,
+        masterPageTemplateId,
         createdBy,
         // undefined lets the envelope default generate one
         externalReferenceCode: input.externalReferenceCode,
@@ -109,10 +122,20 @@ export class PagesService {
   async update(
     tenantId: string,
     ref: string,
-    input: { title?: string; path?: string; tree?: Record<string, unknown> },
+    input: {
+      title?: string;
+      path?: string;
+      tree?: Record<string, unknown>;
+      masterPageTemplateId?: string | null;
+    },
   ): Promise<PageRow> {
     const existing = await this.getByRef(tenantId, ref);
-    const values: Partial<{ title: string; path: string; tree: PageTree }> = {};
+    const values: Partial<{
+      title: string;
+      path: string;
+      tree: PageTree;
+      masterPageTemplateId: string | null;
+    }> = {};
     if (input.title !== undefined) {
       values.title = input.title;
     }
@@ -121,6 +144,12 @@ export class PagesService {
     }
     if (input.tree !== undefined) {
       values.tree = await this.assertValidTree(tenantId, input.tree);
+    }
+    if (input.masterPageTemplateId !== undefined) {
+      values.masterPageTemplateId =
+        input.masterPageTemplateId === null
+          ? null
+          : (await this.resolveMasterRef(tenantId, existing.siteId, input.masterPageTemplateId)).id;
     }
     if (Object.keys(values).length === 0) {
       return existing;
@@ -135,6 +164,47 @@ export class PagesService {
       }
       throw error;
     }
+  }
+
+  // Create-only: a STANDARD template ref whose tree is copied once as the
+  // initial tree, not persisted as an ongoing relationship (spec 14). An
+  // explicit tree wins over templateId when both are given.
+  private async resolveInitialTree(
+    tenantId: string,
+    input: { tree?: Record<string, unknown>; templateId?: string },
+  ): Promise<unknown> {
+    if (input.tree !== undefined) {
+      return input.tree;
+    }
+    if (input.templateId === undefined) {
+      return undefined;
+    }
+    const template = await this.pageTemplatesService.getByRef(tenantId, input.templateId);
+    if (template.kind !== 'STANDARD') {
+      throw new BadRequestException({
+        detail: `Page template ${input.templateId} is not a STANDARD template`,
+      });
+    }
+    return template.tree;
+  }
+
+  // A referenced master must be MASTER-kind and either siteless or scoped
+  // to the page's own site (spec 14).
+  private async resolveMasterRef(
+    tenantId: string,
+    siteId: string,
+    ref: string,
+  ): Promise<PageTemplateRow> {
+    const template = await this.pageTemplatesService.getByRef(tenantId, ref);
+    if (template.kind !== 'MASTER') {
+      throw new BadRequestException({ detail: `Page template ${ref} is not a MASTER template` });
+    }
+    if (template.siteId !== null && template.siteId !== siteId) {
+      throw new BadRequestException({
+        detail: `Page template ${ref} is scoped to a different site`,
+      });
+    }
+    return template;
   }
 
   async delete(tenantId: string, ref: string): Promise<void> {

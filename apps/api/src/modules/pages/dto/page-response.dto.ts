@@ -41,6 +41,15 @@ export class PageDto {
   })
   tree!: Record<string, unknown>;
 
+  @ApiProperty({
+    format: 'uuid',
+    nullable: true,
+    description:
+      "The page's own value, or null when it falls back to the tenant default (spec 14); " +
+      'the client resolves the default separately via GET /page-templates?kind=MASTER',
+  })
+  masterPageTemplateId!: string | null;
+
   @ApiProperty({ type: 'object', additionalProperties: true })
   customFields!: Record<string, unknown>;
 }

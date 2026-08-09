@@ -45,6 +45,11 @@ export const NODE_STYLE_KEYS = new Set([
 
 const NODE_STYLE_VALUE_MAX_LENGTH = 100;
 
+// Reserved pseudo-block ERC marking where a page's own content renders
+// inside a MASTER template (spec 14). It is never a row in `blocks`; the
+// validator and the composition function special-case it.
+export const DROP_ZONE_BLOCK = '__page_content__';
+
 interface StructuralNode {
   node: PageTreeNode;
   pointer: string;
@@ -149,12 +154,15 @@ function checkNodeStyles(styles: unknown, pointer: string): TreeValidationError 
 }
 
 // Every block ERC referenced anywhere in the tree, for a single batched
-// database lookup by the caller.
+// database lookup by the caller. The drop zone is not a real block and
+// never needs a lookup, so it is excluded here.
 export function collectBlockRefs(tree: PageTree): string[] {
   const refs = new Set<string>();
   const visit = (nodes: PageTreeNode[]): void => {
     for (const node of nodes) {
-      refs.add(node.block);
+      if (node.block !== DROP_ZONE_BLOCK) {
+        refs.add(node.block);
+      }
       for (const children of Object.values(node.slots ?? {})) {
         visit(children);
       }
@@ -164,12 +172,35 @@ export function collectBlockRefs(tree: PageTree): string[] {
   return [...refs];
 }
 
+// Number of drop-zone nodes anywhere in the tree (root or nested in a
+// slot), for the MASTER-exactly-one check (spec 14). Pure structural count,
+// independent of block definitions.
+export function countDropZoneNodes(tree: PageTree): number {
+  let count = 0;
+  const visit = (nodes: PageTreeNode[]): void => {
+    for (const node of nodes) {
+      if (node.block === DROP_ZONE_BLOCK) {
+        count += 1;
+      }
+      for (const children of Object.values(node.slots ?? {})) {
+        visit(children);
+      }
+    }
+  };
+  visit(tree.blocks);
+  return count;
+}
+
 // Validates a structurally sound tree against the tenant's block
-// definitions. Returns the first violation or null.
+// definitions. Returns the first violation or null. `allowDropZone` is only
+// set by the page-templates module for a MASTER template's tree; pages and
+// STANDARD templates leave it unset, so a drop-zone node falls through to
+// the unknown-block branch below (the drop zone is reserved, not a row in
+// `blocks`).
 export function validatePageTree(
   tree: PageTree,
   blocksByErc: ReadonlyMap<string, BlockDefinition>,
-  options: { requirePublished?: boolean } = {},
+  options: { requirePublished?: boolean; allowDropZone?: boolean } = {},
 ): TreeValidationError | null {
   const validators = new Map<string, ValidateFunction>();
   const stack: StructuralNode[] = tree.blocks
@@ -179,6 +210,17 @@ export function validatePageTree(
   while (stack.length > 0) {
     // Non-null: length was just checked.
     const { node, pointer } = stack.pop() as StructuralNode;
+
+    if (node.block === DROP_ZONE_BLOCK && options.allowDropZone) {
+      if (node.props !== undefined && Object.keys(node.props).length > 0) {
+        return { pointer, message: 'the page-content drop zone accepts no props' };
+      }
+      if (node.slots !== undefined && Object.keys(node.slots).length > 0) {
+        return { pointer, message: 'the page-content drop zone accepts no slots' };
+      }
+      continue;
+    }
+
     const definition = blocksByErc.get(node.block);
     if (!definition) {
       return { pointer, message: `unknown block "${node.block}"` };

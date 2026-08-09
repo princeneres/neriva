@@ -1,5 +1,6 @@
 import { foreignKey, jsonb, pgTable, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
 import { customFieldsColumn, envelopeColumns, statusColumn } from './envelope';
+import { pageTemplates } from './page-templates';
 import { sites } from './sites';
 import { tenants } from './tenants';
 
@@ -28,6 +29,9 @@ export const pages = pgTable(
     title: varchar('title', { length: 255 }).notNull(),
     path: varchar('path', { length: 255 }).notNull(),
     tree: jsonb('tree').$type<PageTree>().notNull().default({ blocks: [] }),
+    // Resolution order when none is set (spec 14): tenant setting
+    // page.defaultMasterTemplate -> oldest MASTER template -> no master.
+    masterPageTemplateId: uuid('master_page_template_id'),
   },
   (t) => [
     uniqueIndex('pages_tenant_erc_uq').on(t.tenantId, t.externalReferenceCode),
@@ -38,5 +42,10 @@ export const pages = pgTable(
       foreignColumns: [sites.id],
       name: 'pages_site_fk',
     }).onDelete('cascade'),
+    foreignKey({
+      columns: [t.masterPageTemplateId],
+      foreignColumns: [pageTemplates.id],
+      name: 'pages_master_page_template_fk',
+    }).onDelete('set null'),
   ],
 );

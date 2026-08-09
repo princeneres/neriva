@@ -8,6 +8,7 @@ import { ContentModule } from './modules/content/content.module';
 import { DeliveryModule } from './modules/delivery/delivery.module';
 import { MediaModule } from './modules/media/media.module';
 import { ObjectsModule } from './modules/objects/objects.module';
+import { PageTemplatesModule } from './modules/page-templates/page-templates.module';
 import { PagesModule } from './modules/pages/pages.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { SitesModule } from './modules/sites/sites.module';
@@ -26,6 +27,7 @@ import { UsersModule } from './modules/users/users.module';
     RolesModule,
     UsersModule,
     SitesModule,
+    PageTemplatesModule,
     PagesModule,
     BlocksModule,
     ContentModule,
