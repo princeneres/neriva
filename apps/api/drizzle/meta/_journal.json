@@ -71,6 +71,13 @@
       "when": 1786225675875,
       "tag": "0009_vengeful_wendell_rand",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786247428317,
+      "tag": "0010_chubby_jane_foster",
+      "breakpoints": true
     }
   ]
 }

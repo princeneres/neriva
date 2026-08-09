@@ -436,6 +436,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/media/folders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["MediaController_listFolders"];
+        put?: never;
+        post: operations["MediaController_createFolder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/media/folders/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["MediaController_deleteFolder"];
+        options?: never;
+        head?: never;
+        patch: operations["MediaController_updateFolder"];
+        trace?: never;
+    };
+    "/media/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["MediaController_listFiles"];
+        put?: never;
+        post: operations["MediaController_uploadFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/media/files/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["MediaController_getFile"];
+        put?: never;
+        post?: never;
+        delete: operations["MediaController_deleteFile"];
+        options?: never;
+        head?: never;
+        patch: operations["MediaController_updateFile"];
+        trace?: never;
+    };
+    "/public/media/{id}/{fileName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["MediaPublicController_stream"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/object-definitions": {
         parameters: {
             query?: never;
@@ -1048,6 +1128,77 @@ export interface components {
             path: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        MediaFolderDto: {
+            /** Format: uuid */
+            id: string;
+            externalReferenceCode: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uuid */
+            createdBy: Record<string, never> | null;
+            name: string;
+            /**
+             * Format: uuid
+             * @description null = library root
+             */
+            parentId: Record<string, never> | null;
+            /**
+             * Format: uuid
+             * @description Set when this is a site default folder
+             */
+            siteId: Record<string, never> | null;
+        };
+        CreateMediaFolderDto: {
+            name: string;
+            /** @description Parent folder (UUID or erc:<externalReferenceCode>); omit for the root */
+            parent?: string;
+            /** @description Stable code for idempotent upsert; generated when omitted */
+            externalReferenceCode?: string;
+        };
+        UpdateMediaFolderDto: {
+            name?: string;
+            /** @description New parent folder (UUID or erc:<externalReferenceCode>); null moves to the root */
+            parent?: Record<string, never> | null;
+        };
+        MediaFileDto: {
+            /** Format: uuid */
+            id: string;
+            externalReferenceCode: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uuid */
+            createdBy: Record<string, never> | null;
+            /**
+             * Format: uuid
+             * @description null = library root
+             */
+            folderId: Record<string, never> | null;
+            fileName: string;
+            contentType: string;
+            sizeBytes: number;
+            /** @description Accessibility text for images */
+            alt: Record<string, never> | null;
+            /** @description Public content URL: /public/media/<id>/<fileName> */
+            url: string;
+            customFields: {
+                [key: string]: unknown;
+            };
+        };
+        UpdateMediaFileDto: {
+            /** @description Display name; sanitized on save */
+            fileName?: string;
+            alt?: Record<string, never> | null;
+            /** @description Target folder (UUID or erc:<externalReferenceCode>); null moves to the root */
+            folderId?: Record<string, never> | null;
         };
         ObjectFieldDto: {
             /** @example firstName */
@@ -2412,6 +2563,270 @@ export interface operations {
                 };
                 content: {
                     "text/css": string;
+                };
+            };
+        };
+    };
+    MediaController_listFolders: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque cursor from the previous page meta */
+                cursor?: string;
+                /** @description Parent folder (UUID or erc:<externalReferenceCode>) or "root" (default): children listing */
+                parent?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaFolderDto"][];
+                        meta: {
+                            cursor: string | null;
+                            limit: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    MediaController_createFolder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMediaFolderDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaFolderDto"];
+                    };
+                };
+            };
+        };
+    };
+    MediaController_deleteFolder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MediaController_updateFolder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMediaFolderDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaFolderDto"];
+                    };
+                };
+            };
+        };
+    };
+    MediaController_listFiles: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque cursor from the previous page meta */
+                cursor?: string;
+                /** @description Folder (UUID or erc:<externalReferenceCode>) or "root" (default): folder content listing */
+                folder?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaFileDto"][];
+                        meta: {
+                            cursor: string | null;
+                            limit: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    MediaController_uploadFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                    /** @description Target folder (UUID or erc:<externalReferenceCode>); omit for the root */
+                    folderId?: string;
+                    /** @description Site ref (UUID or erc:<externalReferenceCode>); without folderId the file lands in that site's default folder Sites/<site name> (auto-created) */
+                    site?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaFileDto"];
+                    };
+                };
+            };
+        };
+    };
+    MediaController_getFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaFileDto"];
+                    };
+                };
+            };
+        };
+    };
+    MediaController_deleteFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MediaController_updateFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMediaFileDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaFileDto"];
+                    };
+                };
+            };
+        };
+    };
+    MediaPublicController_stream: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description File UUID or erc:<externalReferenceCode> */
+                id: string;
+                /** @description Cosmetic; any value is accepted */
+                fileName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file bytes with the stored content type and immutable cache headers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
                 };
             };
         };

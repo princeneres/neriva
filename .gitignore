@@ -15,6 +15,9 @@ out/
 # Test artifacts
 coverage/
 
+# Uploaded media (documents and media library)
+uploads/
+
 # Logs
 *.log
 npm-debug.log*
