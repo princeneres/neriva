@@ -17,7 +17,7 @@ export default function NewBlockPage() {
   }
 
   return (
-    <Box maw={760}>
+    <Box maw={1240}>
       <Group justify="space-between" mb="lg">
         <div>
           <Title order={1} fz="h2">

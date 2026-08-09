@@ -61,7 +61,7 @@ export default function EditBlockPage() {
   }
 
   return (
-    <Box maw={760}>
+    <Box maw={1240}>
       <Group justify="space-between" mb="lg">
         <div>
           <Title order={1} fz="h2">
