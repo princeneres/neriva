@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import { api } from './api';
+import { apiUrl } from './api-url';
 
 export interface SiteSummary {
   id: string;
@@ -22,6 +23,9 @@ interface SiteContextValue {
   loading: boolean;
   // The globally selected site every site-scoped screen works against.
   current: SiteSummary | null;
+  // Slug of the default site the web root serves (spec 13); null until
+  // known or when no site exists.
+  defaultSlug: string | null;
   select: (id: string | null) => void;
   refresh: () => Promise<void>;
 }
@@ -33,6 +37,21 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   const [sites, setSites] = useState<SiteSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentId, setCurrentId] = useState<string | null>(null);
+  const [defaultSlug, setDefaultSlug] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Anonymous delivery endpoint, fetched once; the Visit link falls back
+    // to /s/<slug> while (or if) this is unknown.
+    fetch(apiUrl('/public/site'))
+      .then(async (res) => {
+        if (!res.ok) {
+          return;
+        }
+        const body = (await res.json()) as { data: { slug: string } };
+        setDefaultSlug(body.data.slug);
+      })
+      .catch(() => undefined);
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -68,10 +87,11 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       sites,
       loading,
       current: sites.find((s) => s.id === currentId) ?? null,
+      defaultSlug,
       select,
       refresh,
     }),
-    [sites, loading, currentId, select, refresh],
+    [sites, loading, currentId, defaultSlug, select, refresh],
   );
 
   return <SiteContext.Provider value={value}>{children}</SiteContext.Provider>;
@@ -88,4 +108,10 @@ export function useSite(): SiteContextValue {
 // Public URL of a page served by the delivery runtime.
 export function publicPageUrl(siteSlug: string, path: string): string {
   return `/s/${siteSlug}${path === '/' ? '' : path}`;
+}
+
+// The default site lives at the web root (spec 13); other sites keep
+// their explicit /s/<slug> address.
+export function visitSiteUrl(siteSlug: string, defaultSlug: string | null): string {
+  return siteSlug === defaultSlug ? '/' : publicPageUrl(siteSlug, '/');
 }

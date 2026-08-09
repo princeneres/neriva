@@ -4,6 +4,7 @@ import { Box, Card, Group, SimpleGrid, Text, ThemeIcon, Timeline, Title } from '
 import {
   IconArrowUpRight,
   IconCube,
+  IconExternalLink,
   IconFilePlus,
   IconFileText,
   IconPalette,
@@ -12,7 +13,13 @@ import {
 import Link from 'next/link';
 import { HelpTip } from '../../components/help-tip';
 
-const QUICK_ACTIONS = [
+const QUICK_ACTIONS: {
+  title: string;
+  description: string;
+  href: string;
+  icon: typeof IconWorld;
+  external?: boolean;
+}[] = [
   {
     title: 'Create a site',
     description: 'A site groups your pages under one address.',
@@ -37,6 +44,13 @@ const QUICK_ACTIONS = [
     href: '/admin/content',
     icon: IconFileText,
   },
+  {
+    title: 'View your site',
+    description: 'Open your default site the way visitors see it.',
+    href: '/',
+    icon: IconExternalLink,
+    external: true,
+  },
 ];
 
 export default function AdminHomePage() {
@@ -52,7 +66,13 @@ export default function AdminHomePage() {
 
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md" mb="xl">
         {QUICK_ACTIONS.map((action) => (
-          <Card key={action.href} component={Link} href={action.href} padding="lg">
+          <Card
+            key={action.href}
+            component={Link}
+            href={action.href}
+            target={action.external ? '_blank' : undefined}
+            padding="lg"
+          >
             <Group justify="space-between" mb="sm">
               <ThemeIcon size={38} radius="md" variant="light">
                 <action.icon size={20} stroke={1.7} />

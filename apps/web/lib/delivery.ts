@@ -30,6 +30,22 @@ export interface PublicPageData {
   blocks: Record<string, DeliveryBlockInfo>;
 }
 
+// Default site the root URL serves (spec 13); null when none exists yet.
+export async function fetchDefaultSite(): Promise<DeliverySite | null> {
+  const url = `${deliveryBase()}/public/site`;
+  try {
+    const response = await fetch(url, { next: { revalidate: 60 } });
+    if (!response.ok) {
+      return null;
+    }
+    const body = (await response.json()) as { data: DeliverySite };
+    return body.data;
+  } catch {
+    // API unreachable (e.g. build time): treat as not configured.
+    return null;
+  }
+}
+
 export async function fetchPublicPage(
   siteSlug: string,
   path: string,
