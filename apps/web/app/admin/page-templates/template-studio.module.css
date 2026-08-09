@@ -1,0 +1,39 @@
+/* Template Studio: a lighter cut of the page studio's three-zone layout
+   (no device toolbar, no publish/view actions). See pages/studio.module.css
+   for the palette/canvas internals, which this screen reuses unmodified. */
+.studio {
+  margin: calc(var(--app-shell-padding, var(--mantine-spacing-xl)) * -1);
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--mantine-color-slate-1);
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-sm);
+  padding: 8px var(--mantine-spacing-md);
+  background: white;
+  border-bottom: 1px solid var(--mantine-color-slate-2);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.inspector {
+  width: 300px;
+  flex-shrink: 0;
+  background: white;
+  border-left: 1px solid var(--mantine-color-slate-2);
+  overflow-y: auto;
+  min-height: 0;
+}
