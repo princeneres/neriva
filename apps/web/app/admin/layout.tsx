@@ -128,6 +128,7 @@ const WIDTH_KEY = 'neriva.navWidth';
 const COLLAPSED_KEY = 'neriva.navCollapsed';
 
 function SiteSwitcher({ collapsed }: { collapsed: boolean }) {
+  const router = useRouter();
   const { sites, current, select, defaultSlug } = useSite();
   if (sites.length === 0) {
     return null;
@@ -151,7 +152,18 @@ function SiteSwitcher({ collapsed }: { collapsed: boolean }) {
         flex={1}
         data={sites.map((s) => ({ value: s.id, label: s.name }))}
         value={current?.id ?? null}
-        onChange={select}
+        onChange={(value) => {
+          // Picking a different site lands on that site's public home; the
+          // same value is a no-op.
+          if (value === null || value === current?.id) {
+            return;
+          }
+          select(value);
+          const slug = sites.find((s) => s.id === value)?.slug;
+          if (slug !== undefined) {
+            router.push(visitSiteUrl(slug, defaultSlug));
+          }
+        }}
         allowDeselect={false}
         leftSection={<IconWorld size={14} />}
         comboboxProps={{ withinPortal: true }}

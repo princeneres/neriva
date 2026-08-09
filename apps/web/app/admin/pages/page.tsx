@@ -20,11 +20,11 @@ import {
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import {
+  IconBrush,
   IconExternalLink,
   IconFile,
   IconFiles,
   IconListTree,
-  IconPencil,
   IconPlus,
   IconRocket,
   IconTable,
@@ -32,7 +32,8 @@ import {
   IconWorld,
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import { type ReactNode, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { useCursorList } from '../../../components/data-table';
 import { HelpTip } from '../../../components/help-tip';
 import { ApiError, api } from '../../../lib/api';
@@ -106,16 +107,18 @@ function PageRowActions({
   onDelete: (page: Page) => void;
 }) {
   return (
-    <Group gap={4} justify="flex-end" wrap="nowrap">
-      <Tooltip label="Edit">
+    // Rows navigate to the page settings on click; actions must not bubble
+    // into that navigation.
+    <Group gap={4} justify="flex-end" wrap="nowrap" onClick={(event) => event.stopPropagation()}>
+      <Tooltip label="Design the page content">
         <ActionIcon
           variant="subtle"
           color="slate"
           component={Link}
-          href={`/admin/pages/${page.id}`}
-          aria-label={`Edit ${page.title}`}
+          href={`/admin/pages/${page.id}/design`}
+          aria-label={`Design ${page.title}`}
         >
-          <IconPencil size={16} />
+          <IconBrush size={16} />
         </ActionIcon>
       </Tooltip>
       <ViewPageAction page={page} siteSlug={siteSlug} />
@@ -178,10 +181,16 @@ function TreeRow({
   onPublish: (page: Page) => void;
   onDelete: (page: Page) => void;
 }) {
+  const router = useRouter();
   const page = node.page;
   return (
     <>
-      <div className={classes.treeRow} style={{ paddingLeft: depth * 24 + 10 }}>
+      <div
+        className={classes.treeRow}
+        style={{ paddingLeft: depth * 24 + 10, cursor: page ? 'pointer' : undefined }}
+        title={page ? 'Open the page settings' : undefined}
+        onClick={page ? () => router.push(`/admin/pages/${page.id}`) : undefined}
+      >
         <IconFile
           size={15}
           stroke={1.7}
@@ -227,6 +236,7 @@ function TreeRow({
 }
 
 function SitePages({ site, view }: { site: SiteSummary; view: 'tree' | 'table' }) {
+  const router = useRouter();
   const { items, loading, hasMore, refresh, loadMore } = useCursorList<Page>(
     `/sites/${site.id}/pages?limit=100`,
     (error) =>
@@ -362,7 +372,12 @@ function SitePages({ site, view }: { site: SiteSummary; view: 'tree' | 'table' }
                 ))
               : null}
             {items.map((page) => (
-              <Table.Tr key={page.id}>
+              <Table.Tr
+                key={page.id}
+                style={{ cursor: 'pointer' }}
+                title="Open the page settings"
+                onClick={() => router.push(`/admin/pages/${page.id}`)}
+              >
                 <Table.Td fw={500}>{page.title}</Table.Td>
                 <Table.Td>
                   <Code>{page.path}</Code>
@@ -405,6 +420,21 @@ function SitePages({ site, view }: { site: SiteSummary; view: 'tree' | 'table' }
 export default function PagesListPage() {
   const { current, loading } = useSite();
   const [view, setView] = useState<'tree' | 'table'>('tree');
+
+  // The admin pill on public pages lands here with ?notfound=1 when it could
+  // not match the page it was on. Read from window to avoid the Suspense
+  // boundary useSearchParams would require.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('notfound') === '1') {
+      notifications.show({
+        color: 'yellow',
+        title: 'Page not found',
+        message: 'The page you were viewing could not be matched here. Pick it from the list.',
+      });
+      window.history.replaceState(null, '', '/admin/pages');
+    }
+  }, []);
 
   return (
     <Box maw={960}>

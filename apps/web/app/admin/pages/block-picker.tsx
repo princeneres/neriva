@@ -14,6 +14,7 @@ import {
 } from '@mantine/core';
 import { IconCube, IconSearch } from '@tabler/icons-react';
 import { useState } from 'react';
+import { blockIconFor } from '../../../components/block-icon';
 import { type Block, statusColor } from './types';
 
 // Searchable picker used by every "Add block" button in the canvas.
@@ -77,38 +78,44 @@ export function BlockPickerModal({
       ) : (
         <ScrollArea.Autosize mah={420} type="auto">
           <Stack gap="sm">
-            {filtered.map((block) => (
-              <Card
-                key={block.id}
-                padding="md"
-                onClick={() => onPick(block)}
-                style={{ cursor: 'pointer' }}
-              >
-                <Group justify="space-between" wrap="nowrap" mb={2}>
-                  <Group gap="xs" wrap="nowrap" miw={0}>
-                    <Text fw={600} truncate>
-                      {block.name}
-                    </Text>
-                    {block.category !== null && block.category !== '' ? (
-                      <Badge color="slate" variant="outline">
-                        {block.category}
-                      </Badge>
-                    ) : null}
+            {filtered.map((block) => {
+              const BlockIcon = blockIconFor(block.externalReferenceCode, block.category);
+              return (
+                <Card
+                  key={block.id}
+                  padding="md"
+                  onClick={() => onPick(block)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <Group justify="space-between" wrap="nowrap" mb={2}>
+                    <Group gap="xs" wrap="nowrap" miw={0}>
+                      <ThemeIcon variant="light" size="sm" radius="sm" style={{ flexShrink: 0 }}>
+                        <BlockIcon size={14} stroke={1.7} />
+                      </ThemeIcon>
+                      <Text fw={600} truncate>
+                        {block.name}
+                      </Text>
+                      {block.category !== null && block.category !== '' ? (
+                        <Badge color="slate" variant="outline">
+                          {block.category}
+                        </Badge>
+                      ) : null}
+                    </Group>
+                    <Badge color={statusColor(block.status)}>{block.status}</Badge>
                   </Group>
-                  <Badge color={statusColor(block.status)}>{block.status}</Badge>
-                </Group>
-                {block.description !== null && block.description !== '' ? (
-                  <Text size="sm" c="slate.5" lineClamp={2}>
-                    {block.description}
+                  {block.description !== null && block.description !== '' ? (
+                    <Text size="sm" c="slate.5" lineClamp={2}>
+                      {block.description}
+                    </Text>
+                  ) : null}
+                  <Text size="xs" c="slate.4" mt={4}>
+                    {block.slots.length > 0
+                      ? `Has spaces for nested blocks: ${block.slots.map((slot) => slot.name).join(', ')}`
+                      : 'Does not nest other blocks'}
                   </Text>
-                ) : null}
-                <Text size="xs" c="slate.4" mt={4}>
-                  {block.slots.length > 0
-                    ? `Has spaces for nested blocks: ${block.slots.map((slot) => slot.name).join(', ')}`
-                    : 'Does not nest other blocks'}
-                </Text>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </Stack>
         </ScrollArea.Autosize>
       )}

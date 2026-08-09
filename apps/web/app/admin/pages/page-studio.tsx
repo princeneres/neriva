@@ -75,7 +75,7 @@ import {
 import { type PageMeta, StudioInspector } from './studio-inspector';
 import { PALETTE_ID_PREFIX, StudioPalette } from './studio-palette';
 import classes from './studio.module.css';
-import { type PageTree, parseTree, PATH_PATTERN, stringifyTree } from './tree-utils';
+import { type PageTree, parseTree, stringifyTree } from './tree-utils';
 import { type Block, type EntityStatus, statusColor } from './types';
 
 export interface PageStudioValues {
@@ -84,49 +84,46 @@ export interface PageStudioValues {
   tree: PageTree;
 }
 
-const PATH_ERROR =
-  'The path must start with "/" and use only lowercase letters, digits, "/" and "-".';
-
 type StyleBook = components['schemas']['StyleBookDto'];
 
 // The Page Studio: a WYSIWYG editor where the rendered page is the canvas.
 // Left palette inserts blocks, clicking a block on the page selects it, the
-// right inspector edits it live. Used by both the new-page and edit routes;
-// all API calls stay in the routes and flow in via onSave/onPublish.
+// right inspector edits it live. This is edit mode only; page configuration
+// (title, path, publishing) lives in the settings screen at settingsHref.
+// All API calls stay in the route and flow in via onSave/onPublish.
 export function PageStudio({
   initial,
   status,
   pageMeta,
+  settingsHref,
   siteSlug,
   busy,
   serverError,
-  saveLabel,
   viewUrl,
   onSave,
   onPublish,
 }: {
-  initial?: { title: string; path: string; tree: PageTree };
-  status: EntityStatus | null;
-  pageMeta: PageMeta | null;
+  initial: { title: string; path: string; tree: PageTree };
+  status: EntityStatus;
+  pageMeta: PageMeta;
+  settingsHref: string;
   siteSlug: string | null;
   busy: boolean;
   serverError: ApiError | null;
-  saveLabel: string;
   viewUrl: string | null;
   onSave: (values: PageStudioValues) => void;
-  onPublish?: () => void;
+  onPublish: () => void;
 }) {
-  const [nodes, setNodes] = useState<EditorNode[]>(() =>
-    treeToState(initial?.tree ?? { blocks: [] }),
-  );
+  const [nodes, setNodes] = useState<EditorNode[]>(() => treeToState(initial.tree));
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [device, setDevice] = useState<CanvasDevice>('desktop');
   const [paletteCollapsed, setPaletteCollapsed] = useState(false);
 
-  const [title, setTitle] = useState(initial?.title ?? '');
-  const [path, setPath] = useState(initial?.path ?? '/');
+  const [title, setTitle] = useState(initial.title);
+  // The path is configured in the page settings; the studio only echoes it
+  // back on save so PATCH payloads stay whole.
+  const path = initial.path;
   const [titleError, setTitleError] = useState<string | null>(null);
-  const [pathError, setPathError] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
 
   const [insertTarget, setInsertTarget] = useState<InsertTarget | null>(null);
@@ -184,17 +181,15 @@ export function PageStudio({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  // Map field-level validation messages from the server onto the page inputs.
+  // Map title validation messages from the server onto the top bar input;
+  // everything else renders in the inspector Alert.
   useEffect(() => {
     if (!serverError) {
       return;
     }
     for (const message of serverError.problem.errors ?? []) {
-      const lower = message.toLowerCase();
-      if (lower.startsWith('title')) {
+      if (message.toLowerCase().startsWith('title')) {
         setTitleError(message);
-      } else if (lower.startsWith('path')) {
-        setPathError(message);
       }
     }
   }, [serverError]);
@@ -210,15 +205,12 @@ export function PageStudio({
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   function handleSave() {
-    const nextTitleError = title.trim() === '' ? 'Give the page a title.' : null;
-    const nextPathError = PATH_PATTERN.test(path) ? null : PATH_ERROR;
-    setTitleError(nextTitleError);
-    setPathError(nextPathError);
-    if (nextTitleError !== null || nextPathError !== null) {
-      setSelectedKey(null);
+    if (title.trim() === '') {
+      setTitleError('Give the page a title.');
+      setEditingTitle(true);
       notifications.show({
         color: 'red',
-        message: 'Fill in the page details in the panel on the right first.',
+        message: 'Give the page a title in the top bar first.',
       });
       return;
     }
@@ -226,9 +218,6 @@ export function PageStudio({
   }
 
   function confirmPublish() {
-    if (!onPublish) {
-      return;
-    }
     modals.openConfirmModal({
       title: 'Publish page',
       children: (
@@ -411,13 +400,13 @@ export function PageStudio({
     <div className={classes.studio}>
       <div className={classes.topBar}>
         <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-          <Tooltip label="Back to pages">
+          <Tooltip label="Back to page settings">
             <ActionIcon
               variant="subtle"
               color="slate"
               component={Link}
-              href="/admin/pages"
-              aria-label="Back to the pages list"
+              href={settingsHref}
+              aria-label="Back to the page settings"
             >
               <IconArrowLeft size={18} />
             </ActionIcon>
@@ -429,6 +418,7 @@ export function PageStudio({
               value={title}
               placeholder="Untitled page"
               aria-label="Page title"
+              error={titleError}
               data-autofocus
               autoFocus
               onChange={(event) => {
@@ -455,8 +445,8 @@ export function PageStudio({
               </UnstyledButton>
             </Tooltip>
           )}
-          <Badge color={statusColor(status ?? 'DRAFT')} style={{ flexShrink: 0 }}>
-            {status ?? 'DRAFT'}
+          <Badge color={statusColor(status)} style={{ flexShrink: 0 }}>
+            {status}
           </Badge>
         </Group>
 
@@ -496,19 +486,17 @@ export function PageStudio({
 
         <Group gap="xs" wrap="nowrap" justify="flex-end" style={{ flex: 1 }}>
           <Button size="xs" loading={busy} onClick={handleSave}>
-            {saveLabel}
+            Save
           </Button>
-          {onPublish ? (
-            <Button
-              size="xs"
-              variant="light"
-              leftSection={<IconRocket size={15} />}
-              disabled={busy}
-              onClick={confirmPublish}
-            >
-              Publish
-            </Button>
-          ) : null}
+          <Button
+            size="xs"
+            variant="light"
+            leftSection={<IconRocket size={15} />}
+            disabled={busy}
+            onClick={confirmPublish}
+          >
+            Publish
+          </Button>
           {viewUrl !== null ? (
             <Tooltip label="View the live page in a new tab">
               <ActionIcon
@@ -570,18 +558,7 @@ export function PageStudio({
           />
           <StudioInspector
             serverError={serverError}
-            title={title}
-            path={path}
-            titleError={titleError}
-            pathError={pathError}
-            onTitleChange={(value) => {
-              setTitle(value);
-              setTitleError(null);
-            }}
-            onPathChange={(value) => {
-              setPath(value);
-              setPathError(PATH_PATTERN.test(value) ? null : PATH_ERROR);
-            }}
+            settingsHref={settingsHref}
             status={status}
             pageMeta={pageMeta}
             selectedNode={selectedNode}
@@ -625,7 +602,7 @@ export function PageStudio({
         <Stack gap="sm">
           <Text size="xs" c="slate.5">
             The raw page tree, exactly as the API stores it. Applying replaces what is on the
-            canvas; nothing is saved until you use {saveLabel}.
+            canvas; nothing is saved until you use Save.
           </Text>
           {jsonError !== null ? (
             <Alert

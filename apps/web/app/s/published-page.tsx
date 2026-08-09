@@ -40,7 +40,7 @@ export function PublishedPage({ data, css }: { data: PublicPageData; css: string
           Neriva
         </a>
       </footer>
-      <AdminPill />
+      <AdminPill siteSlug={data.site.slug} pagePath={data.page.path} />
     </>
   );
 }
