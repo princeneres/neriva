@@ -38,7 +38,11 @@ export const theme = createTheme({
   fontFamilyMonospace: 'var(--font-mono), monospace',
   headings: {
     fontFamily: 'var(--font-display), sans-serif',
-    fontWeight: '600',
+    fontWeight: '650',
+    sizes: {
+      h1: { lineHeight: '1.15' },
+      h2: { lineHeight: '1.2' },
+    },
   },
   defaultRadius: 'md',
   cursorType: 'pointer',

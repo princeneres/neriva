@@ -5,16 +5,14 @@ import { ColorSchemeScript, MantineProvider, mantineHtmlProps } from '@mantine/c
 import { ModalsProvider } from '@mantine/modals';
 import { Notifications } from '@mantine/notifications';
 import type { Metadata } from 'next';
-import { Bricolage_Grotesque, Instrument_Sans, JetBrains_Mono } from 'next/font/google';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import type { ReactNode } from 'react';
 import { theme } from '../lib/theme';
 
-const display = Bricolage_Grotesque({
-  subsets: ['latin'],
-  variable: '--font-display',
-  weight: ['500', '600', '700'],
-});
-const body = Instrument_Sans({ subsets: ['latin'], variable: '--font-body' });
+// Single minimalist family: Inter for headings and body (user preference),
+// with tighter tracking on display sizes handled by the Mantine theme.
+const display = Inter({ subsets: ['latin'], variable: '--font-display' });
+const body = Inter({ subsets: ['latin'], variable: '--font-body' });
 const mono = JetBrains_Mono({
   subsets: ['latin'],
   variable: '--font-mono',
