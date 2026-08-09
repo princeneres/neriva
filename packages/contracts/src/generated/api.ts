@@ -965,6 +965,10 @@ export interface components {
                 [key: string]: unknown;
             };
             slots: components["schemas"]["BlockSlotDto"][];
+            /** @description HTML template (spec 12); null means the registry rendering path */
+            html: string | null;
+            /** @description Template CSS, scoped at render time */
+            css: string | null;
         };
         CreateBlockDto: {
             /** @example Hero Banner */
@@ -988,6 +992,10 @@ export interface components {
             };
             /** @description Named slots, defaults to [] */
             slots?: components["schemas"]["BlockSlotDto"][];
+            /** @description HTML template with {{prop}} interpolation, data-nv-* bindings and data-nv-slot placeholders (spec 12); null keeps the registry rendering path */
+            html?: string | null;
+            /** @description Template CSS, scoped to the block wrapper at render time; may use var(--nv-*) */
+            css?: string | null;
             /** @description Stable code for idempotent upsert; generated when omitted */
             externalReferenceCode?: string;
         };
@@ -1001,6 +1009,10 @@ export interface components {
             };
             /** @description Replaces the full slot list */
             slots?: components["schemas"]["BlockSlotDto"][];
+            /** @description HTML template (spec 12); explicit null removes the template */
+            html?: string | null;
+            /** @description Template CSS; explicit null removes it */
+            css?: string | null;
         };
         ContentFieldDto: {
             /** @example headline */
@@ -1100,6 +1112,10 @@ export interface components {
             name: string;
             category: string | null;
             slots: components["schemas"]["DeliveredBlockSlotDto"][];
+            /** @description HTML template (spec 12); null means the registry rendering path */
+            html: string | null;
+            /** @description Template CSS, scoped at render time */
+            css: string | null;
         };
         DeliveredSiteDto: {
             name: string;

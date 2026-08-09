@@ -65,6 +65,25 @@ export class CreateBlockDto {
   @Type(() => BlockSlotDto)
   slots?: BlockSlotDto[];
 
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description:
+      'HTML template with {{prop}} interpolation, data-nv-* bindings and data-nv-slot placeholders (spec 12); null keeps the registry rendering path',
+  })
+  @IsOptional()
+  @IsString()
+  html?: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description: 'Template CSS, scoped to the block wrapper at render time; may use var(--nv-*)',
+  })
+  @IsOptional()
+  @IsString()
+  css?: string | null;
+
   @ApiPropertyOptional({ description: 'Stable code for idempotent upsert; generated when omitted' })
   @IsOptional()
   @IsString()
@@ -106,6 +125,24 @@ export class UpdateBlockDto {
   @ValidateNested({ each: true })
   @Type(() => BlockSlotDto)
   slots?: BlockSlotDto[];
+
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description: 'HTML template (spec 12); explicit null removes the template',
+  })
+  @IsOptional()
+  @IsString()
+  html?: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description: 'Template CSS; explicit null removes it',
+  })
+  @IsOptional()
+  @IsString()
+  css?: string | null;
 }
 
 export class ListBlocksQueryDto extends ListQueryDto {

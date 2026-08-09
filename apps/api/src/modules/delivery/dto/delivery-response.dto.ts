@@ -43,6 +43,16 @@ export class DeliveredBlockDto {
 
   @ApiProperty({ type: [DeliveredBlockSlotDto] })
   slots!: DeliveredBlockSlotDto[];
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'HTML template (spec 12); null means the registry rendering path',
+  })
+  html!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, description: 'Template CSS, scoped at render time' })
+  css!: string | null;
 }
 
 export class DeliveredPageViewDto {

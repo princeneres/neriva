@@ -2885,6 +2885,16 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BlockSlotDto"
+        html:
+          type:
+            - string
+            - "null"
+          description: HTML template (spec 12); null means the registry rendering path
+        css:
+          type:
+            - string
+            - "null"
+          description: Template CSS, scoped at render time
       required:
         - id
         - externalReferenceCode
@@ -2898,6 +2908,8 @@ components:
         - description
         - propsSchema
         - slots
+        - html
+        - css
     CreateBlockDto:
       type: object
       properties:
@@ -2923,6 +2935,19 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BlockSlotDto"
+        html:
+          type:
+            - string
+            - "null"
+          description: HTML template with {{prop}} interpolation, data-nv-* bindings and
+            data-nv-slot placeholders (spec 12); null keeps the registry
+            rendering path
+        css:
+          type:
+            - string
+            - "null"
+          description: Template CSS, scoped to the block wrapper at render time; may use
+            var(--nv-*)
         externalReferenceCode:
           type: string
           description: Stable code for idempotent upsert; generated when omitted
@@ -2947,6 +2972,16 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BlockSlotDto"
+        html:
+          type:
+            - string
+            - "null"
+          description: HTML template (spec 12); explicit null removes the template
+        css:
+          type:
+            - string
+            - "null"
+          description: Template CSS; explicit null removes it
     ContentFieldDto:
       type: object
       properties:
@@ -3168,10 +3203,22 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DeliveredBlockSlotDto"
+        html:
+          type:
+            - string
+            - "null"
+          description: HTML template (spec 12); null means the registry rendering path
+        css:
+          type:
+            - string
+            - "null"
+          description: Template CSS, scoped at render time
       required:
         - name
         - category
         - slots
+        - html
+        - css
     DeliveredSiteDto:
       type: object
       properties:

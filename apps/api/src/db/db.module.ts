@@ -2,6 +2,7 @@ import { Global, Inject, Injectable, Module, type OnApplicationShutdown } from '
 import type { Pool } from 'pg';
 import { createDatabase, createPool, DB, PG_POOL, type Database } from './database';
 import { DemoSeedService } from './demo-seed.service';
+import { NativeBlocksSeedService } from './native-blocks-seed.service';
 import { SeedService } from './seed.service';
 
 // useFactory providers get no lifecycle hooks, so this closes the pool when
@@ -35,6 +36,7 @@ class PoolLifecycle implements OnApplicationShutdown {
     },
     PoolLifecycle,
     SeedService,
+    NativeBlocksSeedService,
     DemoSeedService,
   ],
   // PG_POOL is exported so the objects module can build its Kysely instance

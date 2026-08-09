@@ -19,6 +19,8 @@ interface BlockBody {
   description: string | null;
   propsSchema: Record<string, unknown>;
   slots: { name: string; allowedBlocks?: string[] }[];
+  html: string | null;
+  css: string | null;
 }
 
 const HERO_PROPS_SCHEMA = {
@@ -313,6 +315,132 @@ describe('blocks (e2e)', () => {
     });
     expect(publish.statusCode).toBe(403);
     expect(publish.json()).toMatchObject({ detail: 'Missing permission block:publish' });
+  });
+
+  it('creates a block without a template (html and css null)', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/blocks',
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: { name: 'Registry Block', propsSchema: { type: 'object' } },
+    });
+    expect(res.statusCode).toBe(201);
+    const body = (res.json() as { data: BlockBody }).data;
+    expect(body.html).toBeNull();
+    expect(body.css).toBeNull();
+  });
+
+  it('creates, updates, publishes and clears a template block', async () => {
+    const html =
+      '<div class="quote"><p data-nv-text="title"></p><div data-nv-slot="main"></div></div>';
+    const css = '.quote { border-left: 4px solid var(--nv-color-primary, #cc3d47); }';
+    const created = await app.inject({
+      method: 'POST',
+      url: '/blocks',
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: {
+        name: 'Quote',
+        externalReferenceCode: 'quote',
+        propsSchema: HERO_PROPS_SCHEMA,
+        slots: [{ name: 'main' }],
+        html,
+        css,
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    const createdBody = (created.json() as { data: BlockBody }).data;
+    expect(createdBody.html).toBe(html);
+    expect(createdBody.css).toBe(css);
+
+    const read = await app.inject({
+      method: 'GET',
+      url: '/blocks/erc:quote',
+      headers: { authorization: `Bearer ${editorToken}` },
+    });
+    expect((read.json() as { data: BlockBody }).data.html).toBe(html);
+
+    const patchedHtml = '<blockquote class="quote" data-nv-text="title"></blockquote>';
+    const patched = await app.inject({
+      method: 'PATCH',
+      url: '/blocks/erc:quote',
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: { html: patchedHtml },
+    });
+    expect(patched.statusCode).toBe(200);
+    expect((patched.json() as { data: BlockBody }).data.html).toBe(patchedHtml);
+    expect((patched.json() as { data: BlockBody }).data.css).toBe(css);
+
+    const published = await app.inject({
+      method: 'POST',
+      url: '/blocks/erc:quote/publish',
+      headers: { authorization: `Bearer ${editorToken}` },
+    });
+    expect(published.statusCode).toBe(200);
+    const publishedBody = (published.json() as { data: BlockBody }).data;
+    expect(publishedBody.status).toBe('PUBLISHED');
+    expect(publishedBody.html).toBe(patchedHtml);
+
+    const cleared = await app.inject({
+      method: 'PATCH',
+      url: '/blocks/erc:quote',
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: { html: null, css: null },
+    });
+    expect(cleared.statusCode).toBe(200);
+    expect((cleared.json() as { data: BlockBody }).data.html).toBeNull();
+    expect((cleared.json() as { data: BlockBody }).data.css).toBeNull();
+  });
+
+  it('rejects template constraint violations with 400 problem+json', async () => {
+    async function attempt(payload: Record<string, unknown>): Promise<string> {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/blocks',
+        headers: { authorization: `Bearer ${editorToken}` },
+        payload: { name: 'Bad Template', propsSchema: HERO_PROPS_SCHEMA, ...payload },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.headers['content-type']).toContain('application/problem+json');
+      return (res.json() as { detail: string }).detail;
+    }
+
+    expect(await attempt({ html: '<div data-nv-text="title"><b>x</b></div>' })).toContain('leaf');
+    expect(
+      await attempt({ slots: [{ name: 'main' }], html: '<div data-nv-slot="main">x</div>' }),
+    ).toContain('empty');
+    expect(await attempt({ html: '<div data-nv-slot="ghost"></div>' })).toContain('not declared');
+    expect(await attempt({ html: '<h1 data-nv-text="nope"></h1>' })).toContain(
+      'does not exist in propsSchema.properties',
+    );
+    expect(await attempt({ html: '<script>x</script>' })).toContain('<script>');
+    expect(await attempt({ html: '<a onclick="x">y</a>' })).toContain('onclick');
+    expect(await attempt({ html: '<a href="javascript:x">y</a>' })).toContain('javascript:');
+    expect(await attempt({ html: '<p>ok</p>', css: '@import url(x);' })).toContain('@import');
+  });
+
+  it('re-validates the stored template when a PATCH changes propsSchema or slots', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/blocks',
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: {
+        name: 'Bound',
+        externalReferenceCode: 'bound',
+        propsSchema: HERO_PROPS_SCHEMA,
+        html: '<h1 data-nv-text="title"></h1>',
+      },
+    });
+    expect(created.statusCode).toBe(201);
+
+    // Removing the bound prop from the schema would orphan the template.
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/blocks/erc:bound',
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: { propsSchema: { type: 'object', properties: { other: { type: 'string' } } } },
+    });
+    expect(res.statusCode).toBe(400);
+    expect((res.json() as { detail: string }).detail).toContain('data-nv-text="title"');
   });
 
   it('deletes a block (204) and then returns 404', async () => {

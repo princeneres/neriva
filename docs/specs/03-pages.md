@@ -23,11 +23,14 @@ Tree shape (recursive):
     {
       "block": "<block ERC>",
       "props": { "...": "validated against the block propsSchema" },
-      "slots": { "<slotName>": [{ "block": "...", "props": {}, "slots": {} }] }
+      "slots": { "<slotName>": [{ "block": "...", "props": {}, "slots": {} }] },
+      "styles": { "marginTop": "token:space-lg", "textColor": "#333" }
     }
   ]
 }
 ```
+
+`styles` is optional per node (spec 12 section 3). Allowed keys (whitelist): marginTop/Right/Bottom/Left, paddingTop/Right/Bottom/Left, background, textColor, fontSize, textAlign, borderRadius, borderWidth, borderColor, maxWidth, minHeight, alignSelf. Every value is a string of at most 100 characters, either a raw CSS value or `token:<token-name>` which the renderer resolves to `var(--nv-<token-name>)`. An unknown style key is a 400 with a pointer to the offending node.
 
 Unique indexes: `(tenant_id, external_reference_code)`, `(site_id, path)`.
 

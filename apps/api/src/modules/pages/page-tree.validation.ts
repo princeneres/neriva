@@ -20,6 +20,31 @@ export interface TreeValidationError {
 
 const ajv = new Ajv2020({ strict: false, allErrors: false });
 
+// Per-instance style whitelist (spec 12 section 3). Values are raw CSS
+// strings or token:<name> references, max 100 chars each.
+export const NODE_STYLE_KEYS = new Set([
+  'marginTop',
+  'marginRight',
+  'marginBottom',
+  'marginLeft',
+  'paddingTop',
+  'paddingRight',
+  'paddingBottom',
+  'paddingLeft',
+  'background',
+  'textColor',
+  'fontSize',
+  'textAlign',
+  'borderRadius',
+  'borderWidth',
+  'borderColor',
+  'maxWidth',
+  'minHeight',
+  'alignSelf',
+]);
+
+const NODE_STYLE_VALUE_MAX_LENGTH = 100;
+
 interface StructuralNode {
   node: PageTreeNode;
   pointer: string;
@@ -57,7 +82,7 @@ function checkNodeList(list: unknown[], pointerBase: string): TreeValidationErro
     }
     const record = node as Record<string, unknown>;
     const unknownKey = Object.keys(record).find(
-      (k) => k !== 'block' && k !== 'props' && k !== 'slots',
+      (k) => k !== 'block' && k !== 'props' && k !== 'slots' && k !== 'styles',
     );
     if (unknownKey) {
       return { pointer, message: `unknown node key "${unknownKey}"` };
@@ -70,6 +95,12 @@ function checkNodeList(list: unknown[], pointerBase: string): TreeValidationErro
       (typeof record.props !== 'object' || record.props === null || Array.isArray(record.props))
     ) {
       return { pointer, message: 'node.props must be an object' };
+    }
+    if (record.styles !== undefined) {
+      const stylesError = checkNodeStyles(record.styles, pointer);
+      if (stylesError) {
+        return stylesError;
+      }
     }
     if (record.slots !== undefined) {
       if (
@@ -91,6 +122,27 @@ function checkNodeList(list: unknown[], pointerBase: string): TreeValidationErro
           return childError;
         }
       }
+    }
+  }
+  return null;
+}
+
+function checkNodeStyles(styles: unknown, pointer: string): TreeValidationError | null {
+  if (typeof styles !== 'object' || styles === null || Array.isArray(styles)) {
+    return { pointer, message: 'node.styles must be an object of style key to string value' };
+  }
+  for (const [key, value] of Object.entries(styles)) {
+    if (!NODE_STYLE_KEYS.has(key)) {
+      return { pointer, message: `unknown style key "${key}"` };
+    }
+    if (typeof value !== 'string') {
+      return { pointer, message: `style "${key}" must be a string value` };
+    }
+    if (value.length > NODE_STYLE_VALUE_MAX_LENGTH) {
+      return {
+        pointer,
+        message: `style "${key}" exceeds ${NODE_STYLE_VALUE_MAX_LENGTH} characters`,
+      };
     }
   }
   return null;

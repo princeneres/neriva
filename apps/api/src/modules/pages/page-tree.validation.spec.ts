@@ -60,6 +60,46 @@ describe('parsePageTree', () => {
       message: 'slot value must be an array',
     });
   });
+
+  it('accepts whitelisted node styles and preserves them', () => {
+    const node = {
+      block: 'a',
+      styles: { marginTop: 'token:space-lg', textColor: '#333', textAlign: 'center' },
+    };
+    const parsed = parsePageTree({ blocks: [node] });
+    expect(parsed.error).toBeNull();
+    expect(parsed.tree).toEqual({ blocks: [node] });
+  });
+
+  it('rejects a non-object styles value', () => {
+    expect(parsePageTree({ blocks: [{ block: 'a', styles: ['x'] }] }).error).toEqual({
+      pointer: 'blocks[0]',
+      message: 'node.styles must be an object of style key to string value',
+    });
+  });
+
+  it('rejects an unknown style key with the node pointer', () => {
+    const parsed = parsePageTree({
+      blocks: [{ block: 'a', slots: { main: [{ block: 'b', styles: { zIndex: '2' } }] } }],
+    });
+    expect(parsed.error).toEqual({
+      pointer: 'blocks[0].slots.main[0]',
+      message: 'unknown style key "zIndex"',
+    });
+  });
+
+  it('rejects non-string style values and values over 100 characters', () => {
+    expect(
+      parsePageTree({ blocks: [{ block: 'a', styles: { marginTop: 2 } }] }).error?.message,
+    ).toBe('style "marginTop" must be a string value');
+    expect(
+      parsePageTree({ blocks: [{ block: 'a', styles: { background: 'x'.repeat(101) } }] }).error
+        ?.message,
+    ).toBe('style "background" exceeds 100 characters');
+    expect(
+      parsePageTree({ blocks: [{ block: 'a', styles: { background: 'x'.repeat(100) } }] }).error,
+    ).toBeNull();
+  });
 });
 
 describe('collectBlockRefs', () => {

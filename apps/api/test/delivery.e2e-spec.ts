@@ -15,6 +15,8 @@ interface DeliveredBlock {
   name: string;
   category: string | null;
   slots: { name: string }[];
+  html: string | null;
+  css: string | null;
 }
 
 interface DeliveredPageBody {
@@ -104,9 +106,20 @@ describe('public delivery API (e2e)', () => {
     for (const erc of refs) {
       expect(blocks[erc]).toBeDefined();
       expect(blocks[erc]).not.toHaveProperty('propsSchema');
+      expect(blocks[erc]).toHaveProperty('html');
+      expect(blocks[erc]).toHaveProperty('css');
     }
-    expect(blocks.hero).toEqual({ name: 'Hero', category: 'content', slots: [] });
+    expect(blocks.hero).toMatchObject({ name: 'Hero', category: 'content', slots: [] });
     expect(blocks['two-columns']?.slots).toEqual([{ name: 'left' }, { name: 'right' }]);
+  });
+
+  it('exposes the demo block templates (html and css, spec 12)', async () => {
+    const res = await app.inject({ method: 'GET', url: '/public/sites/demo/page' });
+    expect(res.statusCode).toBe(200);
+    const blocks = (res.json() as DeliveredPageBody).data.blocks;
+    expect(blocks.hero?.html).toContain('data-nv-text="heading"');
+    expect(blocks.hero?.css).toContain('var(--nv-color-primary, #cc3d47)');
+    expect(blocks['two-columns']?.html).toContain('data-nv-slot="left"');
   });
 
   it('returns 404 for a DRAFT page, indistinguishable from a missing path', async () => {
