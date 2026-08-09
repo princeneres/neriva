@@ -34,7 +34,9 @@ export default function LoginPage() {
     try {
       const { data } = await login(email, password);
       saveTokens(data);
-      router.replace(data.mustChangePassword ? '/change-password' : '/admin');
+      // The public site is the front door (spec 13); the admin is reached
+      // from there via the collapsed nav rail, not the other way around.
+      router.replace(data.mustChangePassword ? '/change-password' : '/');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Login failed');
       setBusy(false);

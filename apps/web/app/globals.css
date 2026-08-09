@@ -3,7 +3,10 @@
 body {
   margin: 0;
   font-family: var(--font-body), var(--nv-font-sans);
-  background: #faf9f7;
+  /* Admin chrome follows the light/dark toggle; published pages paint their
+     own backgrounds from the site's Style Book at the block level. */
+  background: var(--mantine-color-body);
+  color: var(--mantine-color-text);
 }
 
 a {

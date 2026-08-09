@@ -1,6 +1,6 @@
 import type { PublicPageData } from '../../lib/delivery';
 import { RenderTree } from '../../lib/renderer/render-tree';
-import { AdminPill } from './admin-pill';
+import { SiteChrome } from './site-chrome';
 
 function safeDecode(segment: string): string {
   try {
@@ -22,7 +22,7 @@ export function pagePathFromSegments(segments?: string[]): string {
 // default-site root routes (spec 13) so both stay pixel-identical.
 export function PublishedPage({ data, css }: { data: PublicPageData; css: string }) {
   return (
-    <>
+    <SiteChrome siteSlug={data.site.slug} pagePath={data.page.path}>
       <style>{css}</style>
       <main>
         <RenderTree tree={data.page.tree} blockInfo={data.blocks} />
@@ -40,7 +40,6 @@ export function PublishedPage({ data, css }: { data: PublicPageData; css: string
           Neriva
         </a>
       </footer>
-      <AdminPill siteSlug={data.site.slug} pagePath={data.page.path} />
-    </>
+    </SiteChrome>
   );
 }

@@ -36,7 +36,7 @@ export default function ChangePasswordPage() {
     try {
       const { data } = await changePassword(currentPassword, newPassword);
       saveTokens(data);
-      router.replace('/admin');
+      router.replace('/');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Password change failed');
       setBusy(false);
