@@ -16,6 +16,7 @@ import {
 import { type ReactNode, useMemo, useState } from 'react';
 import { HelpTip } from '../../../components/help-tip';
 import { rendererFor } from '../../../lib/renderer/registry';
+import { type BlockInfo, type RenderNode, RenderTree } from '../../../lib/renderer/render-tree';
 import type { BuilderField } from './types';
 
 const LOREM_SENTENCE =
@@ -147,6 +148,49 @@ function SlotPlaceholder({ name }: { name: string }) {
   );
 }
 
+// The template preview goes through RenderTree, which only nests RenderNodes;
+// each slot receives one synthetic child rendered by this templated pseudo
+// block, reproducing SlotPlaceholder's dashed box.
+const SLOT_PLACEHOLDER_ERC = '__preview-slot__';
+
+const SLOT_PLACEHOLDER_INFO: BlockInfo = {
+  name: 'Slot placeholder',
+  html: '<div class="ph">Slot: {{name}}</div>',
+  css:
+    '.ph { border: 2px dashed var(--mantine-color-slate-3); border-radius: 8px;' +
+    ' min-height: 72px; margin: 0.75rem; padding: 0.5rem 1rem; display: flex;' +
+    ' align-items: center; justify-content: center;' +
+    ' color: var(--mantine-color-slate-5); font-size: 13px; font-weight: 600; }',
+};
+
+// Renders the block being edited through the same engine pages use, with the
+// dashed placeholder standing in for each declared slot.
+function TemplatePreview({
+  erc,
+  blockName,
+  html,
+  css,
+  props,
+  slotNames,
+}: {
+  erc: string;
+  blockName: string;
+  html: string;
+  css: string;
+  props: Record<string, unknown>;
+  slotNames: string[];
+}) {
+  const slots: Record<string, RenderNode[]> = {};
+  for (const name of slotNames) {
+    slots[name] = [{ block: SLOT_PLACEHOLDER_ERC, props: { name } }];
+  }
+  const blockInfo: Record<string, BlockInfo> = {
+    [erc]: { name: blockName, html, css: css.trim() === '' ? null : css, slots: slotNames },
+    [SLOT_PLACEHOLDER_ERC]: SLOT_PLACEHOLDER_INFO,
+  };
+  return <RenderTree tree={{ blocks: [{ block: erc, props, slots }] }} blockInfo={blockInfo} />;
+}
+
 function SampleInput({
   field,
   value,
@@ -224,11 +268,15 @@ export function BlockPreviewPanel({
   blockName,
   fields,
   slotNames,
+  html = '',
+  css = '',
 }: {
   erc: string;
   blockName: string;
   fields: BuilderField[] | null;
   slotNames: string[];
+  html?: string;
+  css?: string;
 }) {
   const [overrides, setOverrides] = useState<Record<string, unknown>>({});
 
@@ -264,6 +312,9 @@ export function BlockPreviewPanel({
     slots[name] = <SlotPlaceholder key={name} name={name} />;
   }
 
+  // A template renders even without fields or slots; the registry path needs
+  // at least one of them to have something to show.
+  const hasTemplate = html.trim() !== '';
   const empty = sampleFields.length === 0 && slotNames.length === 0;
 
   return (
@@ -275,11 +326,11 @@ export function BlockPreviewPanel({
         <HelpTip label="How this block will look on a page, using the sample values below" />
       </Group>
 
-      {fields === null ? (
+      {!hasTemplate && fields === null ? (
         <Text size="sm" c="slate.4">
           Preview unavailable for this schema.
         </Text>
-      ) : empty ? (
+      ) : !hasTemplate && empty ? (
         <Text size="sm" c="slate.4">
           Add fields or slots to see how this block will look.
         </Text>
@@ -295,7 +346,18 @@ export function BlockPreviewPanel({
               background: '#fff',
             }}
           >
-            <Renderer props={sampleProps} slots={slots} blockName={blockName} />
+            {hasTemplate ? (
+              <TemplatePreview
+                erc={erc}
+                blockName={blockName}
+                html={html}
+                css={css}
+                props={sampleProps}
+                slotNames={slotNames}
+              />
+            ) : (
+              <Renderer props={sampleProps} slots={slots} blockName={blockName} />
+            )}
           </div>
 
           {sampleFields.length > 0 ? (

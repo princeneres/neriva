@@ -19,6 +19,55 @@ export interface BlockPayload {
   description?: string;
   propsSchema: Record<string, unknown>;
   slots: BlockSlot[];
+  html: string | null;
+  css: string | null;
+}
+
+// Values handed from "Duplicate" on a built-in block to the create form,
+// serialized through sessionStorage (survives the client-side navigation).
+export interface BlockDraft {
+  name: string;
+  category: string | null;
+  description: string | null;
+  propsSchema: Record<string, unknown>;
+  slots: BlockSlot[];
+  html: string | null;
+  css: string | null;
+}
+
+export const BLOCK_DRAFT_STORAGE_KEY = 'neriva.blockDraft';
+
+// Built-in blocks seeded by the API (spec 12 section 2).
+export const NATIVE_BLOCK_ERC_PREFIX = 'nv-';
+
+// Lenient parse of the sessionStorage handoff; null when the payload is not
+// a draft this code wrote (stale key, manual tampering).
+export function parseBlockDraft(raw: string | null): BlockDraft | null {
+  if (raw === null) {
+    return null;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+  if (!isPlainObject(parsed) || typeof parsed.name !== 'string') {
+    return null;
+  }
+  return {
+    name: parsed.name,
+    category: typeof parsed.category === 'string' ? parsed.category : null,
+    description: typeof parsed.description === 'string' ? parsed.description : null,
+    propsSchema: isPlainObject(parsed.propsSchema) ? parsed.propsSchema : {},
+    slots: Array.isArray(parsed.slots)
+      ? parsed.slots.filter(
+          (slot): slot is BlockSlot => isPlainObject(slot) && typeof slot.name === 'string',
+        )
+      : [],
+    html: typeof parsed.html === 'string' ? parsed.html : null,
+    css: typeof parsed.css === 'string' ? parsed.css : null,
+  };
 }
 
 export type BuilderFieldType = 'text' | 'longtext' | 'number' | 'boolean' | 'choice';

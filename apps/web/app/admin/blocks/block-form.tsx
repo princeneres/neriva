@@ -7,6 +7,8 @@ import {
   Box,
   Button,
   Card,
+  Code,
+  Collapse,
   Grid,
   Group,
   JsonInput,
@@ -21,23 +23,36 @@ import {
   TextInput,
   Title,
   Tooltip,
+  UnstyledButton,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { randomId } from '@mantine/hooks';
+import { randomId, useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconAlertTriangle, IconPlus, IconTrash } from '@tabler/icons-react';
+import {
+  IconAlertTriangle,
+  IconChevronDown,
+  IconChevronRight,
+  IconCopy,
+  IconInfoCircle,
+  IconPlus,
+  IconTrash,
+} from '@tabler/icons-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMemo, useRef, useState } from 'react';
 import { HelpTip } from '../../../components/help-tip';
 import { ApiError, type ProblemDetails } from '../../../lib/api';
 import { BlockPreviewPanel, schemaTextToPreviewFields } from './block-preview';
 import {
   type Block,
+  BLOCK_DRAFT_STORAGE_KEY,
+  type BlockDraft,
   type BlockPayload,
   type BuilderField,
   CATEGORY_SUGGESTIONS,
   FIELD_TYPE_OPTIONS,
   fieldsToSchema,
+  NATIVE_BLOCK_ERC_PREFIX,
   schemaToFields,
   SLOT_NAME_PATTERN,
 } from './types';
@@ -70,22 +85,101 @@ function listIndex(path: string): number {
   return Number(path.split('.')[1]);
 }
 
+const HTML_PLACEHOLDER = `<section class="promo">
+  <h2 data-nv-text="title">{{title}}</h2>
+  <p data-nv-rich="body"></p>
+  <div data-nv-slot="content"></div>
+</section>`;
+
+const CSS_PLACEHOLDER = `.promo {
+  padding: var(--nv-space-lg, 2rem);
+  color: var(--nv-color-text, #1a1917);
+}`;
+
+const MONO_INPUT = { input: { fontFamily: 'var(--font-mono), monospace' } };
+
+const SYNTAX_ROWS: { code: string; text: string }[] = [
+  { code: '{{prop}}', text: 'Inserts the field value, always HTML-escaped.' },
+  {
+    code: 'data-nv-text="prop"',
+    text: 'Binds the element text to a field as plain text. Bound elements become inline-editable on the page editor canvas.',
+  },
+  {
+    code: 'data-nv-rich="prop"',
+    text: 'Binds sanitized rich text (p, br, b, strong, i, em, a, ul, ol, li). Also inline-editable.',
+  },
+  {
+    code: 'data-nv-image="prop"',
+    text: 'Sets the src from a field; add data-nv-alt="otherProp" for the alt text.',
+  },
+  { code: 'data-nv-link="prop"', text: 'Sets the href from a field.' },
+  {
+    code: 'data-nv-slot="name"',
+    text: 'Marks an EMPTY element as a slot: nested blocks render there. The name must be declared in Slots below.',
+  },
+  {
+    code: 'data-nv-embed="prop"',
+    text: 'Renders a sandboxed player for a YouTube or Vimeo URL field.',
+  },
+];
+
+function TemplateSyntaxHelp() {
+  const [opened, { toggle }] = useDisclosure(false);
+  return (
+    <Card padding="md" radius="md" bg="slate.0">
+      <UnstyledButton onClick={toggle} aria-expanded={opened} w="100%">
+        <Group gap={6}>
+          {opened ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
+          <Text size="sm" fw={600}>
+            Template syntax
+          </Text>
+        </Group>
+      </UnstyledButton>
+      <Collapse in={opened}>
+        <Stack gap={6} mt="sm">
+          {SYNTAX_ROWS.map((row) => (
+            <Text key={row.code} size="sm">
+              <Code>{row.code}</Code> {row.text}
+            </Text>
+          ))}
+          <Text size="sm">
+            The CSS is scoped to this block automatically and can use style book tokens, for example{' '}
+            <Code>{'var(--nv-color-primary)'}</Code> or <Code>{'var(--nv-space-md)'}</Code>.
+          </Text>
+          <Text size="sm" c="slate.5">
+            On save the API rejects templates that break the rules: bindings only on elements
+            without nested tags, slot elements empty, bound props declared as fields, and no
+            scripts, iframes or event handlers.
+          </Text>
+        </Stack>
+      </Collapse>
+    </Card>
+  );
+}
+
 export function BlockForm({
   block,
+  initial,
   onSubmit,
 }: {
   block?: Block;
+  // Pre-filled values for the create form (duplicate handoff); ignored on edit.
+  initial?: BlockDraft;
   onSubmit: (payload: BlockPayload) => Promise<void>;
 }) {
+  const router = useRouter();
+  const source: Block | BlockDraft | undefined = block ?? initial;
   // On edit, a schema the builder cannot represent opens straight in advanced mode.
-  const initialFields = useMemo(() => (block ? schemaToFields(block.propsSchema) : []), [block]);
+  const initialFields = useMemo(() => (source ? schemaToFields(source.propsSchema) : []), [source]);
   const [advanced, setAdvanced] = useState(initialFields === null);
   const [activeTab, setActiveTab] = useState<string | null>(
     initialFields === null ? 'advanced' : 'builder',
   );
   const [schemaText, setSchemaText] = useState(() =>
-    block ? JSON.stringify(block.propsSchema, null, 2) : '',
+    source ? JSON.stringify(source.propsSchema, null, 2) : '',
   );
+  const [html, setHtml] = useState(source?.html ?? '');
+  const [css, setCss] = useState(source?.css ?? '');
   const [schemaError, setSchemaError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<ProblemDetails | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -96,11 +190,11 @@ export function BlockForm({
 
   const form = useForm<FormValues>({
     initialValues: {
-      name: block?.name ?? '',
-      category: block?.category ?? '',
-      description: block?.description ?? '',
+      name: source?.name ?? '',
+      category: source?.category ?? '',
+      description: source?.description ?? '',
       fields: (initialFields ?? []).map((field) => ({ ...field, uid: randomId() })),
-      slots: (block?.slots ?? []).map((slot) => ({ ...slot, uid: randomId() })),
+      slots: (source?.slots ?? []).map((slot) => ({ ...slot, uid: randomId() })),
     },
     validate: {
       name: (value) => (value.trim() ? null : 'Name is required'),
@@ -240,6 +334,8 @@ export function BlockForm({
           ? { allowedBlocks: slot.allowedBlocks }
           : {}),
       })),
+      html: html.trim() === '' ? null : html,
+      css: css.trim() === '' ? null : css,
     };
 
     setSubmitting(true);
@@ -265,8 +361,66 @@ export function BlockForm({
     }
   }
 
+  const isNativeBlock =
+    block !== undefined && block.externalReferenceCode.startsWith(NATIVE_BLOCK_ERC_PREFIX);
+
+  // Hands the current form values (including unsaved edits) to the create
+  // form; invalid manual schema falls back to the stored one.
+  function duplicateBlock() {
+    if (!block) {
+      return;
+    }
+    let propsSchema: Record<string, unknown> = block.propsSchema;
+    if (advanced) {
+      try {
+        const parsed = JSON.parse(schemaText) as unknown;
+        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+          propsSchema = parsed as Record<string, unknown>;
+        }
+      } catch {
+        // keep the stored schema
+      }
+    } else {
+      propsSchema = fieldsToSchema(form.values.fields);
+    }
+    const draft: BlockDraft = {
+      name: `${form.values.name.trim() || block.name} (copy)`,
+      category: form.values.category.trim() || null,
+      description: form.values.description.trim() || null,
+      propsSchema,
+      slots: form.values.slots.map((slot) => ({
+        name: slot.name.trim(),
+        ...(slot.allowedBlocks && slot.allowedBlocks.length > 0
+          ? { allowedBlocks: slot.allowedBlocks }
+          : {}),
+      })),
+      html: html.trim() === '' ? null : html,
+      css: css.trim() === '' ? null : css,
+    };
+    sessionStorage.setItem(BLOCK_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    router.push('/admin/blocks/new');
+  }
+
   return (
     <form onSubmit={form.onSubmit((values) => void handleSubmit(values))}>
+      {isNativeBlock ? (
+        <Alert color="blue" variant="light" icon={<IconInfoCircle size={16} />} mb="md">
+          <Group justify="space-between" align="center" gap="sm" wrap="wrap">
+            <Text size="sm">
+              This is a built-in block. Consider duplicating it so updates do not surprise existing
+              pages.
+            </Text>
+            <Button
+              size="xs"
+              variant="light"
+              leftSection={<IconCopy size={14} />}
+              onClick={duplicateBlock}
+            >
+              Duplicate
+            </Button>
+          </Group>
+        </Alert>
+      ) : null}
       {apiError ? (
         <Alert
           color="red"
@@ -342,6 +496,7 @@ export function BlockForm({
               <Tabs.List mb="md">
                 <Tabs.Tab value="builder">Builder</Tabs.Tab>
                 <Tabs.Tab value="advanced">Advanced</Tabs.Tab>
+                <Tabs.Tab value="code">Code</Tabs.Tab>
               </Tabs.List>
 
               <Tabs.Panel value="builder">
@@ -472,6 +627,47 @@ export function BlockForm({
                   />
                 </Stack>
               </Tabs.Panel>
+
+              <Tabs.Panel value="code">
+                <Stack gap="sm">
+                  <Text size="sm" c="slate.5">
+                    Optional HTML and CSS template, Liferay-fragment style. With a template the
+                    block renders exactly this markup; without one it falls back to the generic
+                    rendering.
+                  </Text>
+                  <Textarea
+                    label={
+                      <span>
+                        HTML
+                        <HelpTip label="The markup this block renders. Use {{prop}} and data-nv-* bindings to pull in field values." />
+                      </span>
+                    }
+                    autosize
+                    minRows={12}
+                    spellCheck={false}
+                    styles={MONO_INPUT}
+                    placeholder={HTML_PLACEHOLDER}
+                    value={html}
+                    onChange={(event) => setHtml(event.currentTarget.value)}
+                  />
+                  <Textarea
+                    label={
+                      <span>
+                        CSS
+                        <HelpTip label="Styles for this block only; selectors are scoped automatically. Style book tokens are available as var(--nv-*)." />
+                      </span>
+                    }
+                    autosize
+                    minRows={12}
+                    spellCheck={false}
+                    styles={MONO_INPUT}
+                    placeholder={CSS_PLACEHOLDER}
+                    value={css}
+                    onChange={(event) => setCss(event.currentTarget.value)}
+                  />
+                  <TemplateSyntaxHelp />
+                </Stack>
+              </Tabs.Panel>
             </Tabs>
           </Card>
 
@@ -543,6 +739,8 @@ export function BlockForm({
               blockName={form.values.name.trim() || 'New block'}
               fields={previewFields}
               slotNames={previewSlotNames}
+              html={html}
+              css={css}
             />
           </Box>
         </Grid.Col>
