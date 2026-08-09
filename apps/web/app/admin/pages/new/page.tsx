@@ -7,13 +7,16 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { ApiError, api } from '../../../../lib/api';
+import { useSite } from '../../../../lib/site-context';
 import { PageForm, type PageFormValues } from '../page-form';
 import type { Page } from '../types';
 
 function NewPageForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { sites } = useSite();
   const siteId = searchParams.get('site');
+  const siteSlug = sites.find((site) => site.id === siteId)?.slug ?? null;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
 
@@ -44,12 +47,20 @@ function NewPageForm() {
     }
   }
 
-  return <PageForm busy={busy} serverError={error} submitLabel="Create page" onSubmit={onSubmit} />;
+  return (
+    <PageForm
+      busy={busy}
+      serverError={error}
+      submitLabel="Create page"
+      siteSlug={siteSlug}
+      onSubmit={onSubmit}
+    />
+  );
 }
 
 export default function NewPagePage() {
   return (
-    <Box maw={860}>
+    <Box maw={1120}>
       <Box mb="lg">
         <Title order={1} fz="h2">
           New page
