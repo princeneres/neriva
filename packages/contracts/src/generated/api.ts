@@ -212,6 +212,86 @@ export interface paths {
         patch: operations["SitesController_update"];
         trace?: never;
     };
+    "/page-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["PageTemplatesController_list"];
+        put?: never;
+        post: operations["PageTemplatesController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/page-templates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["PageTemplatesController_get"];
+        put?: never;
+        post?: never;
+        delete: operations["PageTemplatesController_delete"];
+        options?: never;
+        head?: never;
+        patch: operations["PageTemplatesController_update"];
+        trace?: never;
+    };
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HealthController_check"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/system/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SystemSettingsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/system/settings/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SystemSettingsController_get"];
+        put: operations["SystemSettingsController_upsert"];
+        post?: never;
+        delete: operations["SystemSettingsController_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sites/{siteRef}/pages": {
         parameters: {
             query?: never;
@@ -564,54 +644,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["HealthController_check"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/system/settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["SystemSettingsController_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/system/settings/{key}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["SystemSettingsController_get"];
-        put: operations["SystemSettingsController_upsert"];
-        post?: never;
-        delete: operations["SystemSettingsController_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -756,6 +788,79 @@ export interface components {
             slug?: string;
             description?: string | null;
         };
+        PageTemplateDto: {
+            /** Format: uuid */
+            id: string;
+            externalReferenceCode: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uuid */
+            createdBy: Record<string, never> | null;
+            name: string;
+            /** @enum {string} */
+            kind: "MASTER" | "STANDARD";
+            /**
+             * Format: uuid
+             * @description null = available to every site
+             */
+            siteId: Record<string, never> | null;
+            /** @description Recursive tree of block instances: { blocks: [...] } */
+            tree: {
+                [key: string]: unknown;
+            };
+        };
+        CreatePageTemplateDto: {
+            /** @example Default Master */
+            name: string;
+            /** @enum {string} */
+            kind: "MASTER" | "STANDARD";
+            /** @description Site reference: UUID or erc:<externalReferenceCode>; omitted = available to every site */
+            site?: string;
+            /**
+             * @description Recursive tree of block instances, same shape as a page tree. A MASTER tree must contain the reserved drop zone { "block": "__page_content__" } exactly once; a STANDARD tree must not contain it.
+             * @default default drop zone for MASTER, empty for STANDARD
+             */
+            tree: {
+                [key: string]: unknown;
+            };
+            /** @description Stable code for idempotent upsert; generated when omitted */
+            externalReferenceCode?: string;
+        };
+        UpdatePageTemplateDto: {
+            name?: string;
+            /** @description Recursive tree of block instances, same shape as a page tree. A MASTER tree must contain the reserved drop zone { "block": "__page_content__" } exactly once; a STANDARD tree must not contain it. */
+            tree?: {
+                [key: string]: unknown;
+            };
+        };
+        SystemSettingDto: {
+            /** Format: uuid */
+            id: string;
+            externalReferenceCode: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uuid */
+            createdBy: Record<string, never> | null;
+            /**
+             * @description Unique per tenant, pattern ^[a-z][a-z0-9.-]*$
+             * @example site.name
+             */
+            key: string;
+            /** @description Any JSON value */
+            value: Record<string, never>;
+        };
+        UpsertSystemSettingDto: {
+            /** @description Any JSON value (object, array, string, number, boolean) */
+            value: Record<string, never>;
+        };
         PageDto: {
             /** Format: uuid */
             id: string;
@@ -779,6 +884,11 @@ export interface components {
             tree: {
                 [key: string]: unknown;
             };
+            /**
+             * Format: uuid
+             * @description The page's own value, or null when it falls back to the tenant default (spec 14); the client resolves the default separately via GET /page-templates?kind=MASTER
+             */
+            masterPageTemplateId: Record<string, never> | null;
             customFields: {
                 [key: string]: unknown;
             };
@@ -820,6 +930,10 @@ export interface components {
             tree: {
                 [key: string]: unknown;
             };
+            /** @description Master page template reference (MASTER kind): UUID or erc:<externalReferenceCode> */
+            masterPageTemplateId?: string;
+            /** @description Page template reference (STANDARD kind): UUID or erc:<externalReferenceCode>. Its tree is copied once as the initial tree on create; ignored when tree is also given. Not persisted as an ongoing relationship. */
+            templateId?: string;
             /** @description Stable code for idempotent upsert; generated when omitted */
             externalReferenceCode?: string;
         };
@@ -853,6 +967,8 @@ export interface components {
             tree?: {
                 [key: string]: unknown;
             };
+            /** @description Master page template reference (MASTER kind): UUID or erc:<externalReferenceCode>; null reverts to the tenant default resolution */
+            masterPageTemplateId?: Record<string, never> | null;
         };
         BlockSlotDto: {
             /**
@@ -1173,30 +1289,6 @@ export interface components {
             tokens?: {
                 [key: string]: string;
             };
-        };
-        SystemSettingDto: {
-            /** Format: uuid */
-            id: string;
-            externalReferenceCode: string;
-            /** Format: uuid */
-            tenantId: string;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-            /** Format: uuid */
-            createdBy: Record<string, never> | null;
-            /**
-             * @description Unique per tenant, pattern ^[a-z][a-z0-9.-]*$
-             * @example site.name
-             */
-            key: string;
-            /** @description Any JSON value */
-            value: Record<string, never>;
-        };
-        UpsertSystemSettingDto: {
-            /** @description Any JSON value (object, array, string, number, boolean) */
-            value: Record<string, never>;
         };
     };
     responses: never;
@@ -1744,6 +1836,261 @@ export interface operations {
                         data: components["schemas"]["SiteDto"];
                     };
                 };
+            };
+        };
+    };
+    PageTemplatesController_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque cursor from the previous page meta */
+                cursor?: string;
+                kind?: "MASTER" | "STANDARD";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PageTemplateDto"][];
+                        meta: {
+                            cursor: string | null;
+                            limit: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    PageTemplatesController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePageTemplateDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PageTemplateDto"];
+                    };
+                };
+            };
+        };
+    };
+    PageTemplatesController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PageTemplateDto"];
+                    };
+                };
+            };
+        };
+    };
+    PageTemplatesController_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PageTemplatesController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePageTemplateDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PageTemplateDto"];
+                    };
+                };
+            };
+        };
+    };
+    HealthController_check: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SystemSettingsController_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque cursor from the previous page meta */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SystemSettingDto"][];
+                        meta: {
+                            cursor: string | null;
+                            limit: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    SystemSettingsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref) */
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SystemSettingDto"];
+                    };
+                };
+            };
+        };
+    };
+    SystemSettingsController_upsert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref) */
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertSystemSettingDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SystemSettingDto"];
+                    };
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SystemSettingDto"];
+                    };
+                };
+            };
+        };
+    };
+    SystemSettingsController_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref) */
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -2850,134 +3197,6 @@ export interface operations {
                 content: {
                     "text/css": string;
                 };
-            };
-        };
-    };
-    HealthController_check: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    SystemSettingsController_list: {
-        parameters: {
-            query?: {
-                limit?: number;
-                /** @description Opaque cursor from the previous page meta */
-                cursor?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["SystemSettingDto"][];
-                        meta: {
-                            cursor: string | null;
-                            limit: number;
-                        };
-                    };
-                };
-            };
-        };
-    };
-    SystemSettingsController_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref) */
-                key: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["SystemSettingDto"];
-                    };
-                };
-            };
-        };
-    };
-    SystemSettingsController_upsert: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref) */
-                key: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpsertSystemSettingDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["SystemSettingDto"];
-                    };
-                };
-            };
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["SystemSettingDto"];
-                    };
-                };
-            };
-        };
-    };
-    SystemSettingsController_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref) */
-                key: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };

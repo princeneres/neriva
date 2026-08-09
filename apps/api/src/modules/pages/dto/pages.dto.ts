@@ -3,6 +3,8 @@ import { IsNotEmpty, IsObject, IsOptional, IsString, Matches, MaxLength } from '
 
 export const PAGE_PATH_PATTERN = /^\/[a-z0-9/-]*$/;
 
+const REF_DESCRIPTION = 'UUID or erc:<externalReferenceCode>';
+
 const TREE_API_PROPERTY = {
   type: 'object' as const,
   additionalProperties: true,
@@ -43,6 +45,25 @@ export class CreatePageDto {
   @IsObject()
   tree?: Record<string, unknown>;
 
+  @ApiPropertyOptional({
+    description: `Master page template reference (MASTER kind): ${REF_DESCRIPTION}`,
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  masterPageTemplateId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      `Page template reference (STANDARD kind): ${REF_DESCRIPTION}. Its tree is copied ` +
+      'once as the initial tree on create; ignored when tree is also given. Not persisted ' +
+      'as an ongoing relationship.',
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  templateId?: string;
+
   @ApiPropertyOptional({ description: 'Stable code for idempotent upsert; generated when omitted' })
   @IsOptional()
   @IsString()
@@ -73,4 +94,18 @@ export class UpdatePageDto {
   @IsOptional()
   @IsObject()
   tree?: Record<string, unknown>;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      `Master page template reference (MASTER kind): ${REF_DESCRIPTION}; ` +
+      'null reverts to the tenant default resolution',
+  })
+  // @IsOptional also skips validation for explicit null, the intended
+  // "revert to tenant default" signal here (same trick as content-entries'
+  // nullable site field).
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  masterPageTemplateId?: string | null;
 }

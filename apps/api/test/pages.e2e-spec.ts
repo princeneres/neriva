@@ -18,6 +18,7 @@ interface PageBody {
   title: string;
   path: string;
   tree: Record<string, unknown>;
+  masterPageTemplateId: string | null;
   customFields: Record<string, unknown>;
 }
 
@@ -391,6 +392,160 @@ describe('pages (e2e)', () => {
     });
     expect(res.statusCode).toBe(200);
     expect((res.json() as { data: PageBody }).data.status).toBe('PUBLISHED');
+  });
+
+  it('creates a page from a templateId, copying its tree once with no ongoing link', async () => {
+    const template = await app.inject({
+      method: 'POST',
+      url: '/page-templates',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: {
+        name: 'Starter',
+        kind: 'STANDARD',
+        externalReferenceCode: 'starter-template',
+        tree: { blocks: [{ block: 'hero-banner', props: { title: 'From template' } }] },
+      },
+    });
+    expect(template.statusCode).toBe(201);
+
+    const page = await app.inject({
+      method: 'POST',
+      url: `/sites/${siteId}/pages`,
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: {
+        title: 'From Template',
+        path: '/from-template',
+        templateId: 'erc:starter-template',
+      },
+    });
+    expect(page.statusCode).toBe(201);
+    const body = (page.json() as { data: PageBody }).data;
+    expect(body.tree).toEqual({
+      blocks: [{ block: 'hero-banner', props: { title: 'From template' } }],
+    });
+
+    // No ongoing link: changing the template afterwards does not affect the
+    // page that was created from it.
+    const patchTemplate = await app.inject({
+      method: 'PATCH',
+      url: '/page-templates/erc:starter-template',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { tree: { blocks: [] } },
+    });
+    expect(patchTemplate.statusCode).toBe(200);
+
+    const reread = await app.inject({
+      method: 'GET',
+      url: `/pages/${body.id}`,
+      headers: { authorization: `Bearer ${editorToken}` },
+    });
+    expect(reread.statusCode).toBe(200);
+    expect((reread.json() as { data: PageBody }).data.tree).toEqual({
+      blocks: [{ block: 'hero-banner', props: { title: 'From template' } }],
+    });
+  });
+
+  it('rejects a templateId that is not a STANDARD template with 400', async () => {
+    const master = await app.inject({
+      method: 'POST',
+      url: '/page-templates',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { name: 'Not Standard', kind: 'MASTER', externalReferenceCode: 'not-standard' },
+    });
+    expect(master.statusCode).toBe(201);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/sites/${siteId}/pages`,
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: { title: 'Bad Template', path: '/bad-template', templateId: 'erc:not-standard' },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('sets masterPageTemplateId on create, validated for kind and site', async () => {
+    const master = await app.inject({
+      method: 'POST',
+      url: '/page-templates',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { name: 'Page Master', kind: 'MASTER', externalReferenceCode: 'page-master' },
+    });
+    expect(master.statusCode).toBe(201);
+    const masterId = (master.json() as { data: { id: string } }).data.id;
+
+    const page = await app.inject({
+      method: 'POST',
+      url: `/sites/${siteId}/pages`,
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: { title: 'With Master', path: '/with-master', masterPageTemplateId: masterId },
+    });
+    expect(page.statusCode).toBe(201);
+    const body = (page.json() as { data: PageBody }).data;
+    expect(body.masterPageTemplateId).toBe(masterId);
+
+    // PATCH can clear it with an explicit null.
+    const cleared = await app.inject({
+      method: 'PATCH',
+      url: `/pages/${body.id}`,
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: { masterPageTemplateId: null },
+    });
+    expect(cleared.statusCode).toBe(200);
+    expect((cleared.json() as { data: PageBody }).data.masterPageTemplateId).toBeNull();
+  });
+
+  it('rejects a masterPageTemplateId that is not a MASTER template with 400', async () => {
+    const standard = await app.inject({
+      method: 'POST',
+      url: '/page-templates',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { name: 'Not Master', kind: 'STANDARD', externalReferenceCode: 'not-master' },
+    });
+    expect(standard.statusCode).toBe(201);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/sites/${siteId}/pages`,
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: { title: 'Bad Master', path: '/bad-master', masterPageTemplateId: 'erc:not-master' },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('rejects a masterPageTemplateId scoped to a different site with 400', async () => {
+    const otherSite = await app.inject({
+      method: 'POST',
+      url: '/sites',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { name: 'Scoped Site', slug: 'scoped-site' },
+    });
+    expect(otherSite.statusCode).toBe(201);
+    const otherSiteId = (otherSite.json() as { data: { id: string } }).data.id;
+
+    const scopedMaster = await app.inject({
+      method: 'POST',
+      url: '/page-templates',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: {
+        name: 'Scoped Master',
+        kind: 'MASTER',
+        externalReferenceCode: 'scoped-master',
+        site: otherSiteId,
+      },
+    });
+    expect(scopedMaster.statusCode).toBe(201);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/sites/${siteId}/pages`,
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: {
+        title: 'Wrong Site Master',
+        path: '/wrong-site-master',
+        masterPageTemplateId: 'erc:scoped-master',
+      },
+    });
+    expect(res.statusCode).toBe(400);
   });
 
   it('denies every page endpoint to a role without page grants (403)', async () => {

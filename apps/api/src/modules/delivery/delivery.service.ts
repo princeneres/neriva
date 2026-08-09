@@ -12,6 +12,8 @@ import {
   type PageTree,
 } from '../../db/schema';
 import { DEFAULT_TENANT_ERC } from '../../db/seed.service';
+import { PageTemplatesService } from '../page-templates/page-templates.service';
+import { composePageTree } from '../pages/page-composition';
 import { collectBlockRefs } from '../pages/page-tree.validation';
 
 export interface DeliveredBlock {
@@ -51,7 +53,10 @@ function renderCss(tokens: Record<string, string>): string {
 
 @Injectable()
 export class DeliveryService {
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly pageTemplatesService: PageTemplatesService,
+  ) {}
 
   // v1 ships single-tenant deploys; delivery always targets the default
   // tenant, the same way login does (spec 10).
@@ -108,10 +113,17 @@ export class DeliveryService {
       throw new NotFoundException({ detail: PAGE_NOT_FOUND_DETAIL });
     }
 
+    // Master resolution (spec 14): the page's own masterPageTemplateId ->
+    // the tenant default setting -> the oldest MASTER template -> none.
+    const master = await this.pageTemplatesService.findMasterForPage(tenantId, page);
+    const composedTree = composePageTree(master?.tree ?? null, page.tree);
+
     // The tree was validated against PUBLISHED blocks when the page was
-    // published; the map entry is present for every block row that still
-    // exists, whatever its current status (spec 10).
-    const refs = collectBlockRefs(page.tree);
+    // published (and the master template validated on its own write); the
+    // map entry is present for every block row that still exists, whatever
+    // its current status (spec 10). collectBlockRefs on the composed tree
+    // already unions the page's own refs with the master's.
+    const refs = collectBlockRefs(composedTree);
     const blockMap: Record<string, DeliveredBlock> = {};
     if (refs.length > 0) {
       const rows = await this.db
@@ -134,7 +146,7 @@ export class DeliveryService {
 
     return {
       site: { name: site.name, slug: site.slug },
-      page: { title: page.title, path: page.path, tree: page.tree, updatedAt: page.updatedAt },
+      page: { title: page.title, path: page.path, tree: composedTree, updatedAt: page.updatedAt },
       blocks: blockMap,
     };
   }
