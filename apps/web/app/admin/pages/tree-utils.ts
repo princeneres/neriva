@@ -1,6 +1,6 @@
-// Pure helpers for the page tree editor: JSON parsing plus a light shape
-// check mirroring the tree shape from spec 03. Full validation (block
-// existence, slot names, props schemas) stays on the server.
+// Pure helpers for the page tree: JSON parsing plus a light shape check
+// mirroring the tree shape from spec 03. Full validation (block existence,
+// slot names, props schemas) stays on the server.
 
 export const PATH_PATTERN = /^\/[a-z0-9/-]*$/;
 
@@ -18,9 +18,7 @@ export interface PageTree {
 
 export type ParseTreeResult = { ok: true; tree: PageTree } | { ok: false; error: string };
 
-export type InsertBlockResult = { ok: true; text: string } | { ok: false; error: string };
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
+export function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
@@ -83,23 +81,4 @@ export function parseTree(text: string): ParseTreeResult {
 
 export function stringifyTree(tree: unknown): string {
   return JSON.stringify(tree, null, 2);
-}
-
-export const EMPTY_TREE_TEXT = stringifyTree({ blocks: [] });
-
-// Appends an empty instance of the given block ERC to the root blocks array
-// of the current editor text. Only requires the text to parse and have a
-// root blocks array; node-level problems are reported on submit instead.
-export function insertBlock(text: string, erc: string): InsertBlockResult {
-  let value: unknown;
-  try {
-    value = JSON.parse(text);
-  } catch {
-    return { ok: false, error: 'The current tree is not valid JSON. Fix it before inserting.' };
-  }
-  if (!isPlainObject(value) || !Array.isArray(value.blocks)) {
-    return { ok: false, error: 'Tree root must be an object with a "blocks" array.' };
-  }
-  value.blocks.push({ block: erc, props: {}, slots: {} });
-  return { ok: true, text: stringifyTree(value) };
 }
