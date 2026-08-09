@@ -129,8 +129,9 @@ describe('public delivery API (e2e)', () => {
     }
     expect(blocks.hero).toMatchObject({ name: 'Hero', category: 'content', slots: [] });
     expect(blocks['two-columns']?.slots).toEqual([{ name: 'left' }, { name: 'right' }]);
-    // The master's chrome blocks are unioned in too.
-    expect(blocks['nv-container']).toEqual({
+    // The master's chrome blocks are unioned in too. (html/css already
+    // asserted generically above; this native block ships a real template.)
+    expect(blocks['nv-container']).toMatchObject({
       name: 'Container',
       category: 'layout',
       slots: [{ name: 'content' }],
