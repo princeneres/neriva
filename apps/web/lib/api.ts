@@ -64,7 +64,9 @@ async function request<T>(path: string, init: RequestInit = {}, allowRetry = tru
   const response = await fetch(apiUrl(path), {
     ...init,
     headers: {
-      'content-type': 'application/json',
+      // Only claim a JSON body when one exists: Fastify rejects bodyless
+      // requests (e.g. the publish POSTs) that carry this content-type.
+      ...(init.body !== undefined ? { 'content-type': 'application/json' } : {}),
       ...(token ? { authorization: `Bearer ${token}` } : {}),
       ...init.headers,
     },
