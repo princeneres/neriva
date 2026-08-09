@@ -1,55 +1,74 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { type FormEvent, useState } from 'react';
-import { Button, Field, FormActions } from '../../../../components/form';
-import { useToast } from '../../../../components/toast';
+import {
+  Alert,
+  Anchor,
+  Button,
+  Card,
+  Group,
+  JsonInput,
+  Text,
+  TextInput,
+  Title,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { notifications } from '@mantine/notifications';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { HelpTip } from '../../../../components/help-tip';
 import { ApiError, api } from '../../../../lib/api';
 import {
   KEY_HINT,
   KEY_PATTERN,
-  WellKnownKeysCard,
+  VALUE_DESCRIPTION,
   parseValueInput,
   splitFieldErrors,
 } from '../shared';
 
-export default function NewSettingPage() {
+function NewSettingForm() {
   const router = useRouter();
-  const toast = useToast();
-  const [key, setKey] = useState('');
-  const [valueText, setValueText] = useState('');
-  const [keyError, setKeyError] = useState<string | null>(null);
-  const [valueError, setValueError] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // The Common settings card links here with ?key= to pre-fill the key.
+  const searchParams = useSearchParams();
+  const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    setError(null);
-    setKeyError(null);
-    setValueError(null);
-    if (!KEY_PATTERN.test(key)) {
-      setKeyError(KEY_HINT);
-      return;
-    }
-    if (valueText.trim() === '') {
-      setValueError('Value is required');
-      return;
-    }
+  const form = useForm({
+    initialValues: {
+      key: searchParams.get('key') ?? '',
+      value: '',
+    },
+    validate: {
+      key: (value) => (KEY_PATTERN.test(value) ? null : KEY_HINT),
+      value: (value) => (value.trim() === '' ? 'Value is required' : null),
+    },
+  });
+
+  async function onSubmit(values: { key: string; value: string }) {
+    setFormError(null);
     setBusy(true);
     try {
-      const value = parseValueInput(valueText);
-      await api.put(`/system/settings/${encodeURIComponent(key)}`, { value });
-      toast.success('Setting saved');
+      await api.put(`/system/settings/${encodeURIComponent(values.key)}`, {
+        value: parseValueInput(values.value),
+      });
+      notifications.show({ color: 'green', message: `Setting "${values.key}" saved` });
       router.push('/admin/settings');
-    } catch (err) {
-      if (err instanceof ApiError) {
-        const fields = splitFieldErrors(err.problem.errors);
-        setKeyError(fields.key);
-        setValueError(fields.value);
-        setError(fields.other.length > 0 ? fields.other.join('. ') : err.message);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        const fields = splitFieldErrors(error.problem.errors);
+        if (fields.key) {
+          form.setFieldError('key', fields.key);
+        }
+        if (fields.value) {
+          form.setFieldError('value', fields.value);
+        }
+        if (fields.other.length > 0) {
+          setFormError(fields.other.join('. '));
+        } else if (!fields.key && !fields.value) {
+          setFormError(error.message);
+        }
       } else {
-        setError('Request failed');
+        setFormError('Request failed');
       }
       setBusy(false);
     }
@@ -57,45 +76,71 @@ export default function NewSettingPage() {
 
   return (
     <>
-      <div className="nv-toolbar">
-        <h1>New setting</h1>
-      </div>
-      <form className="nv-form" onSubmit={onSubmit}>
-        {error ? <div className="nv-error">{error}</div> : null}
-        <Field label="Key" htmlFor="key" error={keyError}>
-          <input
-            id="key"
-            type="text"
-            required
+      <Group justify="space-between" mb="lg">
+        <div>
+          <Title order={1} fz="h2">
+            New setting
+          </Title>
+          <Text c="slate.5">
+            Give it a key to look it up by, and the value the system should read.
+          </Text>
+        </div>
+      </Group>
+
+      <Card padding="xl" maw={640}>
+        <form onSubmit={form.onSubmit((values) => void onSubmit(values))}>
+          {formError ? (
+            <Alert color="red" mb="md">
+              {formError}
+            </Alert>
+          ) : null}
+          <TextInput
+            label={
+              <>
+                Key
+                <HelpTip label="The unique name used to look this setting up, in the admin and through the API." />
+              </>
+            }
             placeholder="site.name"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-          />
-          <small>{KEY_HINT}</small>
-        </Field>
-        <Field label="Value (JSON)" htmlFor="value" error={valueError}>
-          <textarea
-            id="value"
-            rows={8}
+            description={KEY_HINT}
             required
-            placeholder='"My site" or { "host": "smtp.example.com" }'
-            value={valueText}
-            onChange={(e) => setValueText(e.target.value)}
+            mb="md"
+            {...form.getInputProps('key')}
           />
-          <small>
-            Any JSON value. Plain text that is not valid JSON is saved as a JSON string.
-          </small>
-        </Field>
-        <FormActions>
-          <Button type="submit" disabled={busy}>
-            {busy ? 'Saving…' : 'Save'}
-          </Button>
-          <Button type="button" variant="secondary" onClick={() => router.push('/admin/settings')}>
-            Cancel
-          </Button>
-        </FormActions>
-      </form>
-      <WellKnownKeysCard />
+          <JsonInput
+            label={
+              <>
+                Value
+                <HelpTip label="What the setting holds. It can be a single piece of text or a number, or a whole group of related values." />
+              </>
+            }
+            placeholder='"My site" or { "host": "smtp.example.com" }'
+            description={VALUE_DESCRIPTION}
+            validationError="Not valid JSON on its own, so it will be saved as plain text"
+            autosize
+            minRows={6}
+            required
+            mb="lg"
+            {...form.getInputProps('value')}
+          />
+          <Group>
+            <Button type="submit" loading={busy}>
+              Save
+            </Button>
+            <Anchor component={Link} href="/admin/settings" size="sm" c="slate.5">
+              Cancel
+            </Anchor>
+          </Group>
+        </form>
+      </Card>
     </>
+  );
+}
+
+export default function NewSettingPage() {
+  return (
+    <Suspense>
+      <NewSettingForm />
+    </Suspense>
   );
 }
