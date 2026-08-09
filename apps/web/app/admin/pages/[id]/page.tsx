@@ -1,7 +1,9 @@
 'use client';
 
 import {
+  ActionIcon,
   Alert,
+  Anchor,
   Badge,
   Box,
   Button,
@@ -11,18 +13,36 @@ import {
   Stack,
   Text,
   Title,
+  Tooltip,
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
-import { IconAlertCircle, IconRocket } from '@tabler/icons-react';
+import { IconAlertCircle, IconExternalLink, IconRocket } from '@tabler/icons-react';
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { ApiError, api } from '../../../../lib/api';
+import { publicPageUrl, useSite } from '../../../../lib/site-context';
 import { PageForm, type PageFormValues } from '../page-form';
 import { type Page, statusColor } from '../types';
 
+// Success message with a direct link to the live page when there is one.
+function successMessage(text: string, viewUrl: string | null): ReactNode {
+  if (viewUrl === null) {
+    return text;
+  }
+  return (
+    <Group gap="xs">
+      <Text size="sm">{text}</Text>
+      <Anchor size="sm" fw={600} href={viewUrl} target="_blank" rel="noopener">
+        View page
+      </Anchor>
+    </Group>
+  );
+}
+
 export default function EditPagePage() {
   const { id } = useParams<{ id: string }>();
+  const { sites } = useSite();
   const [page, setPage] = useState<Page | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -37,13 +57,26 @@ export default function EditPagePage() {
       });
   }, [id]);
 
+  const siteSlug = page ? (sites.find((site) => site.id === page.siteId)?.slug ?? null) : null;
+
+  function viewUrlFor(current: Page): string | null {
+    const slug = sites.find((site) => site.id === current.siteId)?.slug ?? null;
+    if (slug === null || current.status !== 'PUBLISHED') {
+      return null;
+    }
+    return publicPageUrl(slug, current.path);
+  }
+
   async function onSubmit(values: PageFormValues) {
     setBusy(true);
     setError(null);
     try {
       const { data } = await api.patch<{ data: Page }>(`/pages/${id}`, values);
       setPage(data);
-      notifications.show({ color: 'green', message: 'Page saved.' });
+      notifications.show({
+        color: 'green',
+        message: successMessage('Page saved.', viewUrlFor(data)),
+      });
     } catch (err) {
       // Tree validation 400s carry node pointers in the problem errors;
       // they render in the Alert at the top of the form.
@@ -76,7 +109,10 @@ export default function EditPagePage() {
     try {
       const { data } = await api.post<{ data: Page }>(`/pages/${id}/publish`);
       setPage(data);
-      notifications.show({ color: 'green', message: 'Page published.' });
+      notifications.show({
+        color: 'green',
+        message: successMessage('Page published.', viewUrlFor(data)),
+      });
     } catch (err) {
       setError(
         err instanceof ApiError ? err : new ApiError({ status: 0, detail: 'Request failed' }),
@@ -87,7 +123,7 @@ export default function EditPagePage() {
   }
 
   return (
-    <Box maw={860}>
+    <Box maw={1120}>
       <Group justify="space-between" mb="lg" align="flex-start">
         <Box>
           <Group gap="sm">
@@ -103,14 +139,31 @@ export default function EditPagePage() {
           ) : null}
         </Box>
         {page ? (
-          <Button
-            variant="light"
-            leftSection={<IconRocket size={16} />}
-            disabled={busy}
-            onClick={() => confirmPublish(page)}
-          >
-            Publish
-          </Button>
+          <Group gap="xs">
+            {page.status === 'PUBLISHED' && siteSlug !== null ? (
+              <Tooltip label="View the live page in a new tab">
+                <ActionIcon
+                  variant="light"
+                  size="lg"
+                  component="a"
+                  href={publicPageUrl(siteSlug, page.path)}
+                  target="_blank"
+                  rel="noopener"
+                  aria-label="View the live page"
+                >
+                  <IconExternalLink size={17} />
+                </ActionIcon>
+              </Tooltip>
+            ) : null}
+            <Button
+              variant="light"
+              leftSection={<IconRocket size={16} />}
+              disabled={busy}
+              onClick={() => confirmPublish(page)}
+            >
+              Publish
+            </Button>
+          </Group>
         ) : null}
       </Group>
 
@@ -131,6 +184,7 @@ export default function EditPagePage() {
           busy={busy}
           serverError={error}
           submitLabel="Save changes"
+          siteSlug={siteSlug}
           onSubmit={onSubmit}
         />
       ) : null}

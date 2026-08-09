@@ -103,6 +103,43 @@ export function moveNode(nodes: EditorNode[], key: string, direction: 'up' | 'do
   }));
 }
 
+// Reorders a node among its siblings so it lands at the position of the node
+// with overKey. Only acts when both keys live in the same list (root or one
+// slot); any other combination is a no-op, which makes drag-and-drop safe
+// against cross-container drops the editor does not support.
+export function reorderNodes(
+  nodes: EditorNode[],
+  activeKey: string,
+  overKey: string,
+): EditorNode[] {
+  const from = nodes.findIndex((node) => node.key === activeKey);
+  const to = nodes.findIndex((node) => node.key === overKey);
+  if (from !== -1 && to !== -1 && from !== to) {
+    const copy = [...nodes];
+    const [moved] = copy.splice(from, 1);
+    if (moved === undefined) {
+      return nodes;
+    }
+    copy.splice(to, 0, moved);
+    return copy;
+  }
+  return nodes.map((node) => ({
+    ...node,
+    slots: mapSlots(node.slots, (children) => reorderNodes(children, activeKey, overKey)),
+  }));
+}
+
+// Inserts a new root-level node at a specific index (used by palette drops).
+export function insertRootNodeAt(
+  nodes: EditorNode[],
+  index: number,
+  blockErc: string,
+): { nodes: EditorNode[]; key: string } {
+  const created: EditorNode = { key: nextKey(), block: blockErc, props: {}, slots: {} };
+  const at = Math.max(0, Math.min(index, nodes.length));
+  return { nodes: [...nodes.slice(0, at), created, ...nodes.slice(at)], key: created.key };
+}
+
 // Sets one prop value; undefined removes the prop entirely.
 export function setNodeProp(
   nodes: EditorNode[],

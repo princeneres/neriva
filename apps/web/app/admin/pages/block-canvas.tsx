@@ -1,12 +1,26 @@
 'use client';
 
 import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  DragOverlay,
+  type DragStartEvent,
+  PointerSensor,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
   ActionIcon,
   Badge,
   Box,
   Button,
   Card,
   Collapse,
+  Flex,
   Group,
   JsonInput,
   NumberInput,
@@ -26,18 +40,22 @@ import {
   IconChevronDown,
   IconChevronRight,
   IconCube,
+  IconGripVertical,
   IconPlus,
   IconTrash,
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import { HelpTip } from '../../../components/help-tip';
+import { BlockPalette, PALETTE_ID_PREFIX } from './block-palette';
 import { BlockPickerModal } from './block-picker';
 import {
   type EditorNode,
   type InsertLocation,
   insertNode,
+  insertRootNodeAt,
   moveNode,
   removeNode,
+  reorderNodes,
   setNodeProp,
   setNodeProps,
 } from './editor-state';
@@ -45,10 +63,28 @@ import { fieldSpecsFor, type PropFieldSpec, summarizeProps } from './schema-form
 import type { Block } from './types';
 
 const SLOT_HELP = 'A slot is a space inside a block where other blocks can be placed.';
+const ROOT_DROP_ID = 'root-canvas';
+
+function findNode(nodes: EditorNode[], key: string): EditorNode | null {
+  for (const node of nodes) {
+    if (node.key === key) {
+      return node;
+    }
+    for (const children of Object.values(node.slots)) {
+      const found = findNode(children, key);
+      if (found !== null) {
+        return found;
+      }
+    }
+  }
+  return null;
+}
 
 // The visual page builder: a vertical list of block cards, recursive through
-// slots. All tree changes flow through the pure helpers in editor-state.ts
-// and are reported upward via onNodesChange.
+// slots, with a draggable block palette on the right. All tree changes flow
+// through the pure helpers in editor-state.ts and are reported upward via
+// onNodesChange. Drag-and-drop reorders blocks within their list (root or
+// slot); palette items drop into the root canvas.
 export function BlockCanvas({
   nodes,
   onNodesChange,
@@ -64,6 +100,10 @@ export function BlockCanvas({
 }) {
   const [expandedKeys, setExpandedKeys] = useState<ReadonlySet<string>>(new Set());
   const [pickerLocation, setPickerLocation] = useState<InsertLocation | 'closed'>('closed');
+  const [dragLabel, setDragLabel] = useState<string | null>(null);
+  // A small distance threshold keeps plain clicks (expand, palette add) working.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const { setNodeRef: setRootDropRef } = useDroppable({ id: ROOT_DROP_ID });
 
   function toggleExpanded(key: string) {
     setExpandedKeys((current) => {
@@ -87,6 +127,12 @@ export function BlockCanvas({
     setPickerLocation('closed');
   }
 
+  function handlePaletteAdd(block: Block) {
+    const result = insertNode(nodes, null, block.externalReferenceCode);
+    onNodesChange(result.nodes);
+    setExpandedKeys((current) => new Set(current).add(result.key));
+  }
+
   function handleRemove(node: EditorNode) {
     const name = blocksByErc.get(node.block)?.name ?? node.block;
     modals.openConfirmModal({
@@ -103,6 +149,39 @@ export function BlockCanvas({
     });
   }
 
+  function handleDragStart(event: DragStartEvent) {
+    const id = String(event.active.id);
+    if (id.startsWith(PALETTE_ID_PREFIX)) {
+      const erc = id.slice(PALETTE_ID_PREFIX.length);
+      setDragLabel(blocksByErc.get(erc)?.name ?? erc);
+      return;
+    }
+    const node = findNode(nodes, id);
+    setDragLabel(node ? (blocksByErc.get(node.block)?.name ?? node.block) : null);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setDragLabel(null);
+    const activeId = String(event.active.id);
+    const overId = event.over === null ? null : String(event.over.id);
+    if (activeId.startsWith(PALETTE_ID_PREFIX)) {
+      if (overId === null) {
+        return;
+      }
+      const erc = activeId.slice(PALETTE_ID_PREFIX.length);
+      // Dropping over a root block inserts at its position; anywhere else
+      // in the canvas appends at the end.
+      const rootIndex = nodes.findIndex((node) => node.key === overId);
+      const result = insertRootNodeAt(nodes, rootIndex === -1 ? nodes.length : rootIndex, erc);
+      onNodesChange(result.nodes);
+      setExpandedKeys((current) => new Set(current).add(result.key));
+      return;
+    }
+    if (overId !== null && overId !== activeId) {
+      onNodesChange(reorderNodes(nodes, activeId, overId));
+    }
+  }
+
   const shared: SharedCardProps = {
     blocksByErc,
     blocksLoading,
@@ -116,36 +195,68 @@ export function BlockCanvas({
   };
 
   return (
-    <>
-      <Stack gap="sm">
-        {nodes.length === 0 ? (
-          <Card padding="xl">
-            <Stack align="center" gap="sm" py="md">
-              <ThemeIcon size={44} radius="xl" variant="light">
-                <IconCube size={22} stroke={1.6} />
-              </ThemeIcon>
-              <Text fw={600}>This page is empty</Text>
-              <Text size="sm" c="slate.5" ta="center" maw={400}>
-                Pages are built by stacking blocks from top to bottom. Add your first block to start
-                building.
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setDragLabel(null)}
+    >
+      <Flex gap="lg" align="flex-start">
+        <Stack gap="sm" flex={1} miw={0} ref={setRootDropRef}>
+          {nodes.length === 0 ? (
+            <Card padding="xl">
+              <Stack align="center" gap="sm" py="md">
+                <ThemeIcon size={44} radius="xl" variant="light">
+                  <IconCube size={22} stroke={1.6} />
+                </ThemeIcon>
+                <Text fw={600}>This page is empty</Text>
+                <Text size="sm" c="slate.5" ta="center" maw={400}>
+                  Pages are built by stacking blocks from top to bottom. Add your first block to
+                  start building, or drag one in from the list on the right.
+                </Text>
+              </Stack>
+            </Card>
+          ) : (
+            <SortableContext
+              items={nodes.map((node) => node.key)}
+              strategy={verticalListSortingStrategy}
+            >
+              {nodes.map((node, index) => (
+                <BlockCard
+                  key={node.key}
+                  node={node}
+                  index={index}
+                  count={nodes.length}
+                  {...shared}
+                />
+              ))}
+            </SortableContext>
+          )}
+          <Group justify="center">
+            <Button
+              variant="light"
+              leftSection={<IconPlus size={16} />}
+              onClick={() => setPickerLocation(null)}
+            >
+              Add block
+            </Button>
+          </Group>
+        </Stack>
+        <BlockPalette blocks={blocks} loading={blocksLoading} onAdd={handlePaletteAdd} />
+      </Flex>
+      <DragOverlay>
+        {dragLabel !== null ? (
+          <Card padding="xs" withBorder shadow="md">
+            <Group gap={6} wrap="nowrap">
+              <IconGripVertical size={14} color="var(--mantine-color-slate-4)" />
+              <Text size="sm" fw={600}>
+                {dragLabel}
               </Text>
-            </Stack>
+            </Group>
           </Card>
-        ) : (
-          nodes.map((node, index) => (
-            <BlockCard key={node.key} node={node} index={index} count={nodes.length} {...shared} />
-          ))
-        )}
-        <Group justify="center">
-          <Button
-            variant="light"
-            leftSection={<IconPlus size={16} />}
-            onClick={() => setPickerLocation(null)}
-          >
-            Add block
-          </Button>
-        </Group>
-      </Stack>
+        ) : null}
+      </DragOverlay>
       <BlockPickerModal
         opened={pickerLocation !== 'closed'}
         onClose={() => setPickerLocation('closed')}
@@ -153,7 +264,7 @@ export function BlockCanvas({
         loading={blocksLoading}
         onPick={handlePick}
       />
-    </>
+    </DndContext>
   );
 }
 
@@ -180,6 +291,9 @@ function BlockCard({
   count: number;
 }) {
   const { blocksByErc, blocksLoading, expandedKeys, onToggle, onMove, onRemove } = shared;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: node.key,
+  });
   const block = blocksByErc.get(node.block);
   const expanded = expandedKeys.has(node.key);
   const summary = summarizeProps(node.props);
@@ -190,9 +304,31 @@ function BlockCard({
   );
 
   return (
-    <Card padding="sm">
+    <Card
+      padding="sm"
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.45 : 1,
+        position: 'relative',
+        zIndex: isDragging ? 1 : undefined,
+      }}
+    >
       <Group justify="space-between" wrap="nowrap" gap="xs">
         <Group gap="xs" wrap="nowrap" miw={0} style={{ flex: 1 }}>
+          <Tooltip label="Drag to reorder">
+            <ActionIcon
+              variant="subtle"
+              color="slate"
+              aria-label="Drag block to reorder"
+              {...attributes}
+              {...listeners}
+              style={{ cursor: 'grab', touchAction: 'none' }}
+            >
+              <IconGripVertical size={16} />
+            </ActionIcon>
+          </Tooltip>
           <ActionIcon
             variant="subtle"
             color="slate"
@@ -334,17 +470,22 @@ function SlotArea({
         ) : null}
       </Group>
       {children.length > 0 ? (
-        <Stack gap="sm" mb="sm">
-          {children.map((child, index) => (
-            <BlockCard
-              key={child.key}
-              node={child}
-              index={index}
-              count={children.length}
-              {...shared}
-            />
-          ))}
-        </Stack>
+        <SortableContext
+          items={children.map((child) => child.key)}
+          strategy={verticalListSortingStrategy}
+        >
+          <Stack gap="sm" mb="sm">
+            {children.map((child, index) => (
+              <BlockCard
+                key={child.key}
+                node={child}
+                index={index}
+                count={children.length}
+                {...shared}
+              />
+            ))}
+          </Stack>
+        </SortableContext>
       ) : null}
       <Button
         size="xs"

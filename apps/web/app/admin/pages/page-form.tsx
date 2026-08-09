@@ -14,13 +14,14 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { IconAlertCircle, IconCode, IconCube } from '@tabler/icons-react';
+import { IconAlertCircle, IconCode, IconCube, IconEye } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { HelpTip } from '../../../components/help-tip';
 import { ApiError, api } from '../../../lib/api';
 import { BlockCanvas } from './block-canvas';
 import { type EditorNode, stateToTree, treeToState } from './editor-state';
+import { PagePreview } from './page-preview';
 import { type PageTree, PATH_PATTERN, parseTree, stringifyTree } from './tree-utils';
 import type { Block } from './types';
 
@@ -35,12 +36,16 @@ export function PageForm({
   busy,
   serverError,
   submitLabel,
+  siteSlug = null,
   onSubmit,
 }: {
   initial?: { title: string; path: string; tree: PageTree };
   busy: boolean;
   serverError: ApiError | null;
   submitLabel: string;
+  // Slug of the site the page belongs to; used by the preview to fetch the
+  // site's public stylesheet. null previews without site tokens.
+  siteSlug?: string | null;
   onSubmit: (values: PageFormValues) => void;
 }) {
   const form = useForm({
@@ -101,21 +106,21 @@ export function PageForm({
     if (next === null || next === tab) {
       return;
     }
+    // Leaving Advanced: the JSON must parse before the visual editor or the
+    // preview takes over.
+    if (tab === 'advanced') {
+      const parsed = parseTree(advancedText);
+      if (!parsed.ok) {
+        setAdvancedError(parsed.error);
+        return;
+      }
+      setNodes(treeToState(parsed.tree));
+    }
     if (next === 'advanced') {
       setAdvancedText(stringifyTree(stateToTree(nodes)));
-      setAdvancedError(null);
-      setTab('advanced');
-      return;
     }
-    // Leaving Advanced: the JSON must parse before the visual editor takes over.
-    const parsed = parseTree(advancedText);
-    if (!parsed.ok) {
-      setAdvancedError(parsed.error);
-      return;
-    }
-    setNodes(treeToState(parsed.tree));
     setAdvancedError(null);
-    setTab('blocks');
+    setTab(next);
   }
 
   function handleSubmit(values: { title: string; path: string }) {
@@ -186,6 +191,9 @@ export function PageForm({
             <Tabs.Tab value="blocks" leftSection={<IconCube size={15} />}>
               Blocks
             </Tabs.Tab>
+            <Tabs.Tab value="preview" leftSection={<IconEye size={15} />}>
+              Preview
+            </Tabs.Tab>
             <Tabs.Tab value="advanced" leftSection={<IconCode size={15} />}>
               Advanced
             </Tabs.Tab>
@@ -198,6 +206,9 @@ export function PageForm({
               blocksByErc={blocksByErc}
               blocksLoading={blocksLoading}
             />
+          </Tabs.Panel>
+          <Tabs.Panel value="preview" pt="md">
+            <PagePreview nodes={nodes} blocks={blocks} siteSlug={siteSlug} />
           </Tabs.Panel>
           <Tabs.Panel value="advanced" pt="md">
             <Stack gap="sm">
