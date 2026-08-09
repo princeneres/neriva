@@ -26,11 +26,17 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" {...mantineHtmlProps}>
+    <html
+      lang="en"
+      {...mantineHtmlProps}
+      // Font variables must live on <html>: Mantine's --mantine-font-family
+      // is declared at :root and var() inside it resolves there.
+      className={`${display.variable} ${body.variable} ${mono.variable}`}
+    >
       <head>
         <ColorSchemeScript />
       </head>
-      <body className={`${display.variable} ${body.variable} ${mono.variable}`}>
+      <body>
         <MantineProvider theme={theme}>
           <ModalsProvider>
             <Notifications position="bottom-right" />
