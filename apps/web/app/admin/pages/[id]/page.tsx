@@ -1,29 +1,15 @@
 'use client';
 
-import {
-  ActionIcon,
-  Alert,
-  Anchor,
-  Badge,
-  Box,
-  Button,
-  Code,
-  Group,
-  Skeleton,
-  Stack,
-  Text,
-  Title,
-  Tooltip,
-} from '@mantine/core';
-import { modals } from '@mantine/modals';
+import { Alert, Anchor, Box, Group, Skeleton, Stack, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconAlertCircle, IconExternalLink, IconRocket } from '@tabler/icons-react';
+import { IconAlertCircle } from '@tabler/icons-react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { type ReactNode, useEffect, useState } from 'react';
 import { ApiError, api } from '../../../../lib/api';
 import { publicPageUrl, useSite } from '../../../../lib/site-context';
-import { PageForm, type PageFormValues } from '../page-form';
-import { type Page, statusColor } from '../types';
+import { PageStudio, type PageStudioValues } from '../page-studio';
+import type { Page } from '../types';
 
 // Success message with a direct link to the live page when there is one.
 function successMessage(text: string, viewUrl: string | null): ReactNode {
@@ -67,7 +53,21 @@ export default function EditPagePage() {
     return publicPageUrl(slug, current.path);
   }
 
-  async function onSubmit(values: PageFormValues) {
+  function reportError(err: unknown, title: string) {
+    const apiError =
+      err instanceof ApiError ? err : new ApiError({ status: 0, detail: 'Request failed' });
+    // Tree validation 400s carry node pointers in the problem errors; they
+    // also render in the Alert inside the studio inspector.
+    setError(apiError);
+    notifications.show({
+      color: 'red',
+      title,
+      message: apiError.message,
+      autoClose: 10000,
+    });
+  }
+
+  async function onSave(values: PageStudioValues) {
     setBusy(true);
     setError(null);
     try {
@@ -78,32 +78,13 @@ export default function EditPagePage() {
         message: successMessage('Page saved.', viewUrlFor(data)),
       });
     } catch (err) {
-      // Tree validation 400s carry node pointers in the problem errors;
-      // they render in the Alert at the top of the form.
-      setError(
-        err instanceof ApiError ? err : new ApiError({ status: 0, detail: 'Request failed' }),
-      );
+      reportError(err, 'The page could not be saved');
     } finally {
       setBusy(false);
     }
   }
 
-  function confirmPublish(current: Page) {
-    modals.openConfirmModal({
-      title: 'Publish page',
-      children: (
-        <Text size="sm">
-          Publish &quot;{current.title}&quot;? It becomes visible to visitors at{' '}
-          <Code>{current.path}</Code>. Unsaved changes in the editor are not included; save first if
-          you made edits.
-        </Text>
-      ),
-      labels: { confirm: 'Publish', cancel: 'Not yet' },
-      onConfirm: () => void publish(),
-    });
-  }
-
-  async function publish() {
+  async function onPublish() {
     setBusy(true);
     setError(null);
     try {
@@ -114,80 +95,47 @@ export default function EditPagePage() {
         message: successMessage('Page published.', viewUrlFor(data)),
       });
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err : new ApiError({ status: 0, detail: 'Request failed' }),
-      );
+      reportError(err, 'The page could not be published');
     } finally {
       setBusy(false);
     }
   }
 
-  return (
-    <Box maw={1120}>
-      <Group justify="space-between" mb="lg" align="flex-start">
-        <Box>
-          <Group gap="sm">
-            <Title order={1} fz="h2">
-              {page ? page.title : 'Edit page'}
-            </Title>
-            {page ? <Badge color={statusColor(page.status)}>{page.status}</Badge> : null}
-          </Group>
-          {page ? (
-            <Text size="xs" c="slate.4" mt={4}>
-              ID <Code>{page.id}</Code> · Reference <Code>{page.externalReferenceCode}</Code>
-            </Text>
-          ) : null}
-        </Box>
-        {page ? (
-          <Group gap="xs">
-            {page.status === 'PUBLISHED' && siteSlug !== null ? (
-              <Tooltip label="View the live page in a new tab">
-                <ActionIcon
-                  variant="light"
-                  size="lg"
-                  component="a"
-                  href={publicPageUrl(siteSlug, page.path)}
-                  target="_blank"
-                  rel="noopener"
-                  aria-label="View the live page"
-                >
-                  <IconExternalLink size={17} />
-                </ActionIcon>
-              </Tooltip>
-            ) : null}
-            <Button
-              variant="light"
-              leftSection={<IconRocket size={16} />}
-              disabled={busy}
-              onClick={() => confirmPublish(page)}
-            >
-              Publish
-            </Button>
-          </Group>
-        ) : null}
-      </Group>
-
-      {loadError !== null ? (
+  if (loadError !== null) {
+    return (
+      <Box maw={640}>
         <Alert color="red" icon={<IconAlertCircle size={16} />} title="Could not load the page">
-          {loadError}
+          <Text size="sm">{loadError}</Text>
+          <Anchor component={Link} href="/admin/pages" size="sm" fw={600}>
+            Back to pages
+          </Anchor>
         </Alert>
-      ) : null}
-      {!page && loadError === null ? (
-        <Stack gap="md">
-          <Skeleton height={96} radius="lg" />
-          <Skeleton height={240} radius="lg" />
-        </Stack>
-      ) : null}
-      {page ? (
-        <PageForm
-          initial={{ title: page.title, path: page.path, tree: page.tree }}
-          busy={busy}
-          serverError={error}
-          submitLabel="Save changes"
-          siteSlug={siteSlug}
-          onSubmit={onSubmit}
-        />
-      ) : null}
-    </Box>
+      </Box>
+    );
+  }
+
+  if (page === null) {
+    return (
+      <Stack gap="md">
+        <Skeleton height={44} radius="md" />
+        <Skeleton height={420} radius="lg" />
+      </Stack>
+    );
+  }
+
+  return (
+    <PageStudio
+      key={page.id}
+      initial={{ title: page.title, path: page.path, tree: page.tree }}
+      status={page.status}
+      pageMeta={{ id: page.id, externalReferenceCode: page.externalReferenceCode }}
+      siteSlug={siteSlug}
+      busy={busy}
+      serverError={error}
+      saveLabel="Save"
+      viewUrl={viewUrlFor(page)}
+      onSave={(values) => void onSave(values)}
+      onPublish={() => void onPublish()}
+    />
   );
 }
