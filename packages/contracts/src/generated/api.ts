@@ -388,6 +388,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/sites/{slug}/page": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["DeliveryController_page"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/sites/{slug}/pages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["DeliveryController_pages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/sites/{slug}/style.css": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["DeliveryController_css"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/object-definitions": {
         parameters: {
             query?: never;
@@ -963,6 +1011,43 @@ export interface components {
             };
             /** @description Site reference: UUID or erc:<externalReferenceCode>; null detaches the entry to tenant-wide */
             site?: Record<string, never> | null;
+        };
+        DeliveredBlockSlotDto: {
+            name: string;
+            allowedBlocks?: string[];
+        };
+        DeliveredBlockDto: {
+            name: string;
+            category: string | null;
+            slots: components["schemas"]["DeliveredBlockSlotDto"][];
+        };
+        DeliveredSiteDto: {
+            name: string;
+            slug: string;
+        };
+        DeliveredPageDto: {
+            title: string;
+            path: string;
+            /** @description Recursive tree of block instances: { blocks: [...] } */
+            tree: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        DeliveredPageViewDto: {
+            site: components["schemas"]["DeliveredSiteDto"];
+            page: components["schemas"]["DeliveredPageDto"];
+            /** @description Map of block ERC to its definition, for every block referenced in the tree */
+            blocks: {
+                [key: string]: components["schemas"]["DeliveredBlockDto"];
+            };
+        };
+        DeliveredPageListItemDto: {
+            title: string;
+            path: string;
+            /** Format: date-time */
+            updatedAt: string;
         };
         ObjectFieldDto: {
             /** @example firstName */
@@ -2245,6 +2330,88 @@ export interface operations {
                     "application/json": {
                         data: components["schemas"]["ContentEntryDto"];
                     };
+                };
+            };
+        };
+    };
+    DeliveryController_page: {
+        parameters: {
+            query?: {
+                /** @description Page path within the site */
+                path?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Site slug */
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DeliveredPageViewDto"];
+                    };
+                };
+            };
+        };
+    };
+    DeliveryController_pages: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque cursor from the previous page meta */
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Site slug */
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DeliveredPageListItemDto"][];
+                        meta: {
+                            cursor: string | null;
+                            limit: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    DeliveryController_css: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Site slug */
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Design tokens of the most recently published Style Book as CSS custom properties on :root */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/css": string;
                 };
             };
         };

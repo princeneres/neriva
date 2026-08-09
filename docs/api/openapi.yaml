@@ -1300,6 +1300,110 @@ paths:
         - bearer: []
       tags:
         - content-entries
+  /public/sites/{slug}/page:
+    get:
+      operationId: DeliveryController_page
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          description: Site slug
+          schema:
+            type: string
+        - name: path
+          required: false
+          in: query
+          description: Page path within the site
+          schema:
+            default: /
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DeliveredPageViewDto"
+      tags:
+        - delivery
+  /public/sites/{slug}/pages:
+    get:
+      operationId: DeliveryController_pages
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          description: Site slug
+          schema:
+            type: string
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DeliveredPageListItemDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      tags:
+        - delivery
+  /public/sites/{slug}/style.css:
+    get:
+      operationId: DeliveryController_css
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          description: Site slug
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Design tokens of the most recently published Style Book as CSS
+            custom properties on :root
+          content:
+            text/css:
+              schema:
+                type: string
+      tags:
+        - delivery
   /object-definitions:
     get:
       operationId: ObjectDefinitionsController_list
@@ -2715,6 +2819,94 @@ components:
             - "null"
           description: "Site reference: UUID or erc:<externalReferenceCode>; null detaches
             the entry to tenant-wide"
+    DeliveredBlockSlotDto:
+      type: object
+      properties:
+        name:
+          type: string
+        allowedBlocks:
+          type: array
+          items:
+            type: string
+      required:
+        - name
+    DeliveredBlockDto:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type:
+            - string
+            - "null"
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeliveredBlockSlotDto"
+      required:
+        - name
+        - category
+        - slots
+    DeliveredSiteDto:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+      required:
+        - name
+        - slug
+    DeliveredPageDto:
+      type: object
+      properties:
+        title:
+          type: string
+        path:
+          type: string
+        tree:
+          type: object
+          additionalProperties: true
+          description: "Recursive tree of block instances: { blocks: [...] }"
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - title
+        - path
+        - tree
+        - updatedAt
+    DeliveredPageViewDto:
+      type: object
+      properties:
+        site:
+          $ref: "#/components/schemas/DeliveredSiteDto"
+        page:
+          $ref: "#/components/schemas/DeliveredPageDto"
+        blocks:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/DeliveredBlockDto"
+          description: Map of block ERC to its definition, for every block referenced in
+            the tree
+      required:
+        - site
+        - page
+        - blocks
+    DeliveredPageListItemDto:
+      type: object
+      properties:
+        title:
+          type: string
+        path:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - title
+        - path
+        - updatedAt
     ObjectFieldDto:
       type: object
       properties:
