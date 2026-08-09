@@ -28,6 +28,9 @@ services:
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-30d}
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      MEDIA_STORAGE_DIR: /data/uploads
+    volumes:
+      - media-uploads:/data/uploads
     ports:
       - '3001:3001'
     depends_on:
@@ -47,3 +50,4 @@ services:
 
 volumes:
   pgdata-prod:
+  media-uploads:
