@@ -13,6 +13,7 @@ import { DB, type Database } from '../../db/database';
 import { blocks, type BlockSlot } from '../../db/schema';
 import { TenantScopedRepository, type CursorPage } from '../../db/tenant-scoped.repository';
 import { validatePropsSchema, validateSlots } from './block-validation';
+import { validateBlockCss, validateBlockTemplate } from './template-validation';
 import type { BlockStatus } from './dto/blocks.dto';
 
 export type BlockRow = InferSelectModel<typeof blocks>;
@@ -69,10 +70,17 @@ export class BlocksService {
       description?: string;
       propsSchema: Record<string, unknown>;
       slots?: BlockSlot[];
+      html?: string | null;
+      css?: string | null;
       externalReferenceCode?: string;
     },
   ): Promise<BlockRow> {
-    this.assertValidDefinition(input.propsSchema, input.slots ?? []);
+    this.assertValidDefinition(
+      input.propsSchema,
+      input.slots ?? [],
+      input.html ?? null,
+      input.css ?? null,
+    );
     try {
       // Intermediate variable: tsc cannot apply the excess-property check to
       // the generic repository parameter and rejects fresh literals here.
@@ -82,6 +90,8 @@ export class BlocksService {
         description: input.description ?? null,
         propsSchema: input.propsSchema,
         slots: input.slots ?? [],
+        html: input.html ?? null,
+        css: input.css ?? null,
         createdBy,
         // undefined lets the envelope default generate one
         externalReferenceCode: input.externalReferenceCode,
@@ -104,12 +114,19 @@ export class BlocksService {
       description?: string;
       propsSchema?: Record<string, unknown>;
       slots?: BlockSlot[];
+      html?: string | null;
+      css?: string | null;
     },
   ): Promise<BlockRow> {
     const existing = await this.getByRef(tenantId, ref);
+    // Effective values: a PATCH that changes only propsSchema or slots must
+    // keep the stored template consistent with them, so the template is
+    // re-validated against the merged definition.
     this.assertValidDefinition(
       input.propsSchema ?? existing.propsSchema,
       input.slots ?? existing.slots,
+      input.html !== undefined ? input.html : existing.html,
+      input.css !== undefined ? input.css : existing.css,
     );
 
     const values: Partial<{
@@ -118,6 +135,8 @@ export class BlocksService {
       description: string | null;
       propsSchema: Record<string, unknown>;
       slots: BlockSlot[];
+      html: string | null;
+      css: string | null;
     }> = {};
     if (input.name !== undefined) {
       values.name = input.name;
@@ -133,6 +152,12 @@ export class BlocksService {
     }
     if (input.slots !== undefined) {
       values.slots = input.slots;
+    }
+    if (input.html !== undefined) {
+      values.html = input.html;
+    }
+    if (input.css !== undefined) {
+      values.css = input.css;
     }
 
     if (Object.keys(values).length === 0) {
@@ -159,7 +184,12 @@ export class BlocksService {
     return rows[0] ?? existing;
   }
 
-  private assertValidDefinition(propsSchema: unknown, slots: BlockSlot[]): void {
+  private assertValidDefinition(
+    propsSchema: unknown,
+    slots: BlockSlot[],
+    html: string | null,
+    css: string | null,
+  ): void {
     const schemaError = validatePropsSchema(propsSchema);
     if (schemaError) {
       throw new BadRequestException({ detail: schemaError });
@@ -167,6 +197,23 @@ export class BlocksService {
     const slotsError = validateSlots(slots);
     if (slotsError) {
       throw new BadRequestException({ detail: slotsError });
+    }
+    if (html !== null) {
+      // Safe cast: validatePropsSchema above proved it is an object.
+      const templateError = validateBlockTemplate(
+        html,
+        slots,
+        propsSchema as Record<string, unknown>,
+      );
+      if (templateError) {
+        throw new BadRequestException({ detail: templateError });
+      }
+    }
+    if (css !== null) {
+      const cssError = validateBlockCss(css);
+      if (cssError) {
+        throw new BadRequestException({ detail: cssError });
+      }
     }
   }
 }

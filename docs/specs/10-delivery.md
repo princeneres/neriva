@@ -21,13 +21,19 @@ Status: approved for implementation. Purpose: serve PUBLISHED content to anonymo
       "updatedAt": "..."
     },
     "blocks": {
-      "hero": { "name": "Hero", "category": "content", "slots": [] }
+      "hero": {
+        "name": "Hero",
+        "category": "content",
+        "slots": [],
+        "html": "<section class=\"hero\"><h1 data-nv-text=\"heading\"></h1></section>",
+        "css": ".hero { background: var(--nv-color-surface, #faf9f7); }"
+      }
     }
   }
 }
 ```
 
-- `blocks` maps every block ERC referenced anywhere in the tree to `{ name, category, slots }` (no propsSchema; the renderer does not validate). Only PUBLISHED blocks are included; a tree referencing a non-published block still renders (the map entry is simply present when the block row exists, whatever its status, since the page was validated at publish time).
+- `blocks` maps every block ERC referenced anywhere in the tree to `{ name, category, slots, html, css }` (no propsSchema; the renderer does not validate). `html` and `css` are the block's template (spec 12), null for registry-rendered blocks. Only PUBLISHED blocks are included; a tree referencing a non-published block still renders (the map entry is simply present when the block row exists, whatever its status, since the page was validated at publish time).
 
 ### GET /public/sites/:slug/pages
 

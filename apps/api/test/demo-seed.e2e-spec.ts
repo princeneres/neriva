@@ -43,6 +43,8 @@ interface BlockBody {
     properties?: Record<string, { title?: string }>;
   };
   slots: { name: string }[];
+  html: string | null;
+  css: string | null;
 }
 
 interface PageBody {
@@ -161,11 +163,13 @@ describe('demo content seed (e2e)', () => {
     });
   });
 
-  it('seeds the four demo blocks, PUBLISHED', async () => {
+  it('seeds the four demo blocks, PUBLISHED, with templates (spec 12)', async () => {
     for (const erc of DEMO_BLOCK_ERCS) {
       const { statusCode, data } = await asAdmin<BlockBody>(`/blocks/erc:${erc}`);
       expect(statusCode).toBe(200);
       expect(data.status).toBe('PUBLISHED');
+      expect(data.html).toBeTruthy();
+      expect(data.css).toBeTruthy();
     }
 
     const hero = (await asAdmin<BlockBody>('/blocks/erc:hero')).data;

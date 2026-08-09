@@ -17,6 +17,10 @@ export const blocks = pgTable(
     description: text('description'),
     propsSchema: jsonb('props_schema').$type<Record<string, unknown>>().notNull(),
     slots: jsonb('slots').$type<BlockSlot[]>().notNull().default([]),
+    // Optional authorable template (ADR-003). A block with html renders
+    // through the template engine; null keeps the registry/generic path.
+    html: text('html'),
+    css: text('css'),
   },
   (t) => [
     uniqueIndex('blocks_tenant_erc_uq').on(t.tenantId, t.externalReferenceCode),

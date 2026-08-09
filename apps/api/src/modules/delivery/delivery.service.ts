@@ -24,6 +24,8 @@ export interface DeliveredBlock {
   name: string;
   category: string | null;
   slots: BlockSlot[];
+  html: string | null;
+  css: string | null;
 }
 
 // Spec 13: well-known system setting holding the default site slug.
@@ -177,6 +179,8 @@ export class DeliveryService {
           name: blocks.name,
           category: blocks.category,
           slots: blocks.slots,
+          html: blocks.html,
+          css: blocks.css,
         })
         .from(blocks)
         .where(and(eq(blocks.tenantId, tenantId), inArray(blocks.externalReferenceCode, refs)));
@@ -185,6 +189,8 @@ export class DeliveryService {
           name: row.name,
           category: row.category,
           slots: row.slots,
+          html: row.html,
+          css: row.css,
         };
       }
     }

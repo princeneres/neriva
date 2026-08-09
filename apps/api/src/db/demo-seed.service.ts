@@ -32,10 +32,15 @@ interface DemoBlockDefinition {
   description: string;
   propsSchema: Record<string, unknown>;
   slots: BlockSlot[];
+  html: string;
+  css: string;
 }
 
 // title/description on every schema node so generated prop forms read well.
-const DEMO_BLOCKS: DemoBlockDefinition[] = [
+// The html/css templates (spec 12) only reach fresh installs: seeding is
+// idempotent by ERC and never retro-updates existing rows.
+// Exported so tests can assert every template passes the write-time rules.
+export const DEMO_BLOCKS: DemoBlockDefinition[] = [
   {
     erc: 'hero',
     name: 'Hero',
@@ -67,6 +72,20 @@ const DEMO_BLOCKS: DemoBlockDefinition[] = [
       required: ['heading'],
     },
     slots: [],
+    html: [
+      '<section class="demo-hero">',
+      '  <h1 class="demo-hero-heading" data-nv-text="heading">Heading</h1>',
+      '  <p class="demo-hero-subheading" data-nv-text="subheading"></p>',
+      '  <a class="demo-hero-cta" data-nv-link="ctaUrl" data-nv-text="ctaLabel"></a>',
+      '</section>',
+    ].join('\n'),
+    css: [
+      '.demo-hero { padding: calc(var(--nv-space-lg, 2rem) * 2) var(--nv-space-lg, 2rem); background: var(--nv-color-surface, #faf9f7); text-align: center; border-radius: var(--nv-radius-md, 8px); }',
+      '.demo-hero-heading { margin: 0; font-size: 2.5rem; line-height: 1.15; color: var(--nv-color-text, #1a1917); }',
+      '.demo-hero-subheading { margin: var(--nv-space-md, 1rem) auto 0; max-width: 42rem; font-size: 1.125rem; color: var(--nv-color-text, #1a1917); opacity: 0.75; }',
+      '.demo-hero-cta { display: inline-block; margin-top: var(--nv-space-lg, 2rem); padding: 0.75rem 1.5rem; background: var(--nv-color-primary, #cc3d47); color: #fff; text-decoration: none; border-radius: var(--nv-radius-md, 8px); font-weight: 600; }',
+      '.demo-hero-cta:empty { display: none; }',
+    ].join('\n'),
   },
   {
     erc: 'rich-text',
@@ -84,6 +103,8 @@ const DEMO_BLOCKS: DemoBlockDefinition[] = [
       required: ['body'],
     },
     slots: [],
+    html: '<div class="demo-rich-text" data-nv-rich="body"></div>',
+    css: '.demo-rich-text { max-width: 42rem; line-height: 1.6; color: var(--nv-color-text, #1a1917); font-family: var(--nv-font-body, system-ui); }',
   },
   {
     erc: 'two-columns',
@@ -98,6 +119,16 @@ const DEMO_BLOCKS: DemoBlockDefinition[] = [
       properties: {},
     },
     slots: [{ name: 'left' }, { name: 'right' }],
+    html: [
+      '<div class="demo-two-columns">',
+      '  <div class="demo-two-columns-col" data-nv-slot="left"></div>',
+      '  <div class="demo-two-columns-col" data-nv-slot="right"></div>',
+      '</div>',
+    ].join('\n'),
+    css: [
+      '.demo-two-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--nv-space-lg, 2rem); }',
+      '.demo-two-columns-col { min-width: 0; }',
+    ].join('\n'),
   },
   {
     erc: 'image',
@@ -120,6 +151,11 @@ const DEMO_BLOCKS: DemoBlockDefinition[] = [
       required: ['url', 'alt'],
     },
     slots: [],
+    html: '<figure class="demo-image"><img class="demo-image-img" data-nv-image="url" data-nv-alt="alt" alt=""></figure>',
+    css: [
+      '.demo-image { margin: 0; }',
+      '.demo-image-img { display: block; max-width: 100%; height: auto; border-radius: var(--nv-radius-md, 8px); }',
+    ].join('\n'),
   },
 ];
 
@@ -315,6 +351,8 @@ export class DemoSeedService implements OnApplicationBootstrap {
             description: block.description,
             propsSchema: block.propsSchema,
             slots: block.slots,
+            html: block.html,
+            css: block.css,
             status: 'PUBLISHED',
           });
           this.logger.log(`Seeded block "${block.name}"`);

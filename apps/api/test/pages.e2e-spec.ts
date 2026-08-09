@@ -301,6 +301,86 @@ describe('pages (e2e)', () => {
     expect(problem.detail).toContain('sidebar');
   });
 
+  it('round-trips whitelisted per-instance styles on tree nodes', async () => {
+    const tree = {
+      blocks: [
+        {
+          block: 'hero-banner',
+          props: { title: 'Styled' },
+          slots: {
+            main: [
+              {
+                block: 'text',
+                props: { body: 'Hello' },
+                styles: { textAlign: 'center', maxWidth: '40rem' },
+              },
+            ],
+          },
+          styles: { marginTop: 'token:space-lg', background: '#fff' },
+        },
+      ],
+    };
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/pages/${homePageId}`,
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: { tree },
+    });
+    expect(res.statusCode).toBe(200);
+    expect((res.json() as { data: PageBody }).data.tree).toEqual(tree);
+
+    const read = await app.inject({
+      method: 'GET',
+      url: `/pages/${homePageId}`,
+      headers: { authorization: `Bearer ${editorToken}` },
+    });
+    expect((read.json() as { data: PageBody }).data.tree).toEqual(tree);
+  });
+
+  it('rejects an unknown style key with 400 and the node pointer', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/pages/${homePageId}`,
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: {
+        tree: {
+          blocks: [
+            {
+              block: 'hero-banner',
+              props: { title: 'x' },
+              slots: { main: [{ block: 'text', styles: { position: 'fixed' } }] },
+            },
+          ],
+        },
+      },
+    });
+    expect(res.statusCode).toBe(400);
+    const problem = res.json() as Problem;
+    expect(problem.detail).toContain('blocks[0].slots.main[0]');
+    expect(problem.detail).toContain('unknown style key "position"');
+  });
+
+  it('rejects a style value over 100 characters with 400', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/pages/${homePageId}`,
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: {
+        tree: {
+          blocks: [
+            {
+              block: 'hero-banner',
+              props: { title: 'x' },
+              styles: { background: 'y'.repeat(101) },
+            },
+          ],
+        },
+      },
+    });
+    expect(res.statusCode).toBe(400);
+    expect((res.json() as Problem).detail).toContain('exceeds 100 characters');
+  });
+
   it('rejects an invalid path with 400', async () => {
     const res = await app.inject({
       method: 'POST',

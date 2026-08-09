@@ -5,10 +5,13 @@ import { tenants } from './tenants';
 
 // Recursive tree of Block instances (spec 03-pages). `block` is the block's
 // externalReferenceCode; `slots` maps declared slot names to child nodes.
+// `styles` holds per-instance presentation values from the spec 12 whitelist
+// (raw CSS values or token:<name> references resolved by the renderer).
 export interface PageTreeNode {
   block: string;
   props?: Record<string, unknown>;
   slots?: Record<string, PageTreeNode[]>;
+  styles?: Record<string, string>;
 }
 
 export interface PageTree {
