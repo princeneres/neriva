@@ -9,11 +9,13 @@ import {
   DeliveredBlockDto,
   DeliveredPageListItemDto,
   DeliveredPageViewDto,
+  DeliveredSiteDto,
 } from './dto/delivery-response.dto';
 import {
   DeliveryService,
   type DeliveredPageListItem,
   type DeliveredPageView,
+  type DeliveredSite,
 } from './delivery.service';
 
 const SLUG_PARAM = { name: 'slug', description: 'Site slug' };
@@ -22,12 +24,21 @@ const SLUG_PARAM = { name: 'slug', description: 'Site slug' };
 // authenticated API remains the management side.
 @ApiTags('delivery')
 @ApiExtraModels(DeliveredBlockDto)
-@Controller('public/sites')
+@Controller('public')
 export class DeliveryController {
   constructor(private readonly deliveryService: DeliveryService) {}
 
+  // Spec 13: the default site the web root serves; setting site.default
+  // wins when its slug exists, otherwise the oldest site.
   @Public()
-  @Get(':slug/page')
+  @Get('site')
+  @ApiDataResponse(DeliveredSiteDto)
+  async defaultSite(): Promise<{ data: DeliveredSite }> {
+    return { data: await this.deliveryService.getDefaultSite() };
+  }
+
+  @Public()
+  @Get('sites/:slug/page')
   @ApiParam(SLUG_PARAM)
   @ApiDataResponse(DeliveredPageViewDto)
   async page(
@@ -38,7 +49,7 @@ export class DeliveryController {
   }
 
   @Public()
-  @Get(':slug/pages')
+  @Get('sites/:slug/pages')
   @ApiParam(SLUG_PARAM)
   @ApiListResponse(DeliveredPageListItemDto)
   async pages(
@@ -50,7 +61,7 @@ export class DeliveryController {
   }
 
   @Public()
-  @Get(':slug/style.css')
+  @Get('sites/:slug/style.css')
   @ApiParam(SLUG_PARAM)
   @ApiResponse({
     status: 200,

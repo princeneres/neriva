@@ -38,7 +38,7 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { BoltMark, NerivaLogo } from '../../components/logo';
 import { ApiError, logout, me, type PublicUser } from '../../lib/api';
 import { clearTokens, getRefreshToken } from '../../lib/auth-storage';
-import { publicPageUrl, SiteProvider, useSite } from '../../lib/site-context';
+import { SiteProvider, useSite, visitSiteUrl } from '../../lib/site-context';
 
 const NAV_GROUPS: {
   label: string;
@@ -128,7 +128,7 @@ const WIDTH_KEY = 'neriva.navWidth';
 const COLLAPSED_KEY = 'neriva.navCollapsed';
 
 function SiteSwitcher({ collapsed }: { collapsed: boolean }) {
-  const { sites, current, select } = useSite();
+  const { sites, current, select, defaultSlug } = useSite();
   if (sites.length === 0) {
     return null;
   }
@@ -160,7 +160,7 @@ function SiteSwitcher({ collapsed }: { collapsed: boolean }) {
       <Tooltip label="Open the published site in a new tab">
         <ActionIcon
           component="a"
-          href={current ? publicPageUrl(current.slug, '/') : '#'}
+          href={current ? visitSiteUrl(current.slug, defaultSlug) : '#'}
           target="_blank"
           variant="subtle"
           color="slate.5"

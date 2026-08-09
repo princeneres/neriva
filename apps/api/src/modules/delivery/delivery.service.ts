@@ -13,6 +13,12 @@ import {
 } from '../../db/schema';
 import { DEFAULT_TENANT_ERC } from '../../db/seed.service';
 import { collectBlockRefs } from '../pages/page-tree.validation';
+import { SystemSettingsService } from '../system/system-settings.service';
+
+export interface DeliveredSite {
+  name: string;
+  slug: string;
+}
 
 export interface DeliveredBlock {
   name: string;
@@ -20,8 +26,11 @@ export interface DeliveredBlock {
   slots: BlockSlot[];
 }
 
+// Spec 13: well-known system setting holding the default site slug.
+export const DEFAULT_SITE_SETTING_KEY = 'site.default';
+
 export interface DeliveredPageView {
-  site: { name: string; slug: string };
+  site: DeliveredSite;
   page: { title: string; path: string; tree: PageTree; updatedAt: Date };
   blocks: Record<string, DeliveredBlock>;
 }
@@ -51,7 +60,10 @@ function renderCss(tokens: Record<string, string>): string {
 
 @Injectable()
 export class DeliveryService {
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly settingsService: SystemSettingsService,
+  ) {}
 
   // v1 ships single-tenant deploys; delivery always targets the default
   // tenant, the same way login does (spec 10).
@@ -84,6 +96,51 @@ export class DeliveryService {
       throw new NotFoundException({ detail: `Site ${slug} not found` });
     }
     return site;
+  }
+
+  // Spec 13 resolution order: the site.default setting when its slug
+  // exists, otherwise the oldest site; 404 when no sites exist at all.
+  async getDefaultSite(): Promise<DeliveredSite> {
+    const tenantId = await this.resolveTenantId();
+
+    const configuredSlug = await this.configuredDefaultSlug(tenantId);
+    if (configuredSlug) {
+      const configured = (
+        await this.db
+          .select({ name: sites.name, slug: sites.slug })
+          .from(sites)
+          .where(and(eq(sites.tenantId, tenantId), eq(sites.slug, configuredSlug)))
+          .limit(1)
+      )[0];
+      if (configured) {
+        return configured;
+      }
+    }
+
+    const oldest = (
+      await this.db
+        .select({ name: sites.name, slug: sites.slug })
+        .from(sites)
+        .where(eq(sites.tenantId, tenantId))
+        .orderBy(asc(sites.createdAt), asc(sites.id))
+        .limit(1)
+    )[0];
+    if (!oldest) {
+      throw new NotFoundException({ detail: 'No sites exist' });
+    }
+    return oldest;
+  }
+
+  private async configuredDefaultSlug(tenantId: string): Promise<string | null> {
+    try {
+      const setting = await this.settingsService.getByKey(tenantId, DEFAULT_SITE_SETTING_KEY);
+      return typeof setting.value === 'string' ? setting.value : null;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   async getPage(slug: string, path: string): Promise<DeliveredPageView> {
