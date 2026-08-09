@@ -10,10 +10,19 @@ export interface EditorNode {
   block: string;
   props: Record<string, unknown>;
   slots: Record<string, EditorNode[]>;
+  styles: Record<string, string>;
 }
 
+// The root list when null, otherwise a named slot of an existing node.
+export type ContainerRef = { parentKey: string; slot: string } | null;
+
 // Root insert when null, otherwise a named slot of an existing node.
-export type InsertLocation = { parentKey: string; slot: string } | null;
+export type InsertLocation = ContainerRef;
+
+// Stable string identity for a container, used to match drop indicators.
+export function containerKey(container: ContainerRef): string {
+  return container === null ? 'root' : `${container.parentKey}/${container.slot}`;
+}
 
 let keyCounter = 0;
 
@@ -31,7 +40,13 @@ function nodeToEditor(node: TreeNode): EditorNode {
   for (const [name, children] of Object.entries(node.slots ?? {})) {
     slots[name] = children.map(nodeToEditor);
   }
-  return { key: nextKey(), block: node.block, props: { ...(node.props ?? {}) }, slots };
+  const styles: Record<string, string> = {};
+  for (const [name, value] of Object.entries(node.styles ?? {})) {
+    if (typeof value === 'string') {
+      styles[name] = value;
+    }
+  }
+  return { key: nextKey(), block: node.block, props: { ...(node.props ?? {}) }, slots, styles };
 }
 
 export function stateToTree(nodes: EditorNode[]): PageTree {
@@ -48,7 +63,14 @@ function editorToNode(node: EditorNode): TreeNode {
     }
     result.slots = slots;
   }
+  if (Object.keys(node.styles).length > 0) {
+    result.styles = { ...node.styles };
+  }
   return result;
+}
+
+function createNode(blockErc: string): EditorNode {
+  return { key: nextKey(), block: blockErc, props: {}, slots: {}, styles: {} };
 }
 
 export function insertNode(
@@ -56,7 +78,7 @@ export function insertNode(
   location: InsertLocation,
   blockErc: string,
 ): { nodes: EditorNode[]; key: string } {
-  const created: EditorNode = { key: nextKey(), block: blockErc, props: {}, slots: {} };
+  const created = createNode(blockErc);
   if (location === null) {
     return { nodes: [...nodes, created], key: created.key };
   }
@@ -122,7 +144,13 @@ function cloneWithFreshKeys(node: EditorNode): EditorNode {
   for (const [name, children] of Object.entries(node.slots)) {
     slots[name] = children.map(cloneWithFreshKeys);
   }
-  return { key: nextKey(), block: node.block, props: { ...node.props }, slots };
+  return {
+    key: nextKey(),
+    block: node.block,
+    props: { ...node.props },
+    slots,
+    styles: { ...node.styles },
+  };
 }
 
 export function removeNode(nodes: EditorNode[], key: string): EditorNode[] {
@@ -158,41 +186,119 @@ export function moveNode(nodes: EditorNode[], key: string, direction: 'up' | 'do
   }));
 }
 
-// Reorders a node among its siblings so it lands at the position of the node
-// with overKey. Only acts when both keys live in the same list (root or one
-// slot); any other combination is a no-op, which makes drag-and-drop safe
-// against cross-container drops the editor does not support.
-export function reorderNodes(
+// Inserts a new node at a specific index of a container (palette drops).
+export function insertNodeAt(
   nodes: EditorNode[],
-  activeKey: string,
-  overKey: string,
-): EditorNode[] {
-  const from = nodes.findIndex((node) => node.key === activeKey);
-  const to = nodes.findIndex((node) => node.key === overKey);
-  if (from !== -1 && to !== -1 && from !== to) {
-    const copy = [...nodes];
-    const [moved] = copy.splice(from, 1);
-    if (moved === undefined) {
-      return nodes;
-    }
-    copy.splice(to, 0, moved);
-    return copy;
-  }
-  return nodes.map((node) => ({
-    ...node,
-    slots: mapSlots(node.slots, (children) => reorderNodes(children, activeKey, overKey)),
-  }));
-}
-
-// Inserts a new root-level node at a specific index (used by palette drops).
-export function insertRootNodeAt(
-  nodes: EditorNode[],
+  container: ContainerRef,
   index: number,
   blockErc: string,
 ): { nodes: EditorNode[]; key: string } {
-  const created: EditorNode = { key: nextKey(), block: blockErc, props: {}, slots: {} };
-  const at = Math.max(0, Math.min(index, nodes.length));
-  return { nodes: [...nodes.slice(0, at), created, ...nodes.slice(at)], key: created.key };
+  const created = createNode(blockErc);
+  if (container === null) {
+    const at = clampIndex(index, nodes.length);
+    return { nodes: [...nodes.slice(0, at), created, ...nodes.slice(at)], key: created.key };
+  }
+  const next = mapNode(nodes, container.parentKey, (parent) => {
+    const children = parent.slots[container.slot] ?? [];
+    const at = clampIndex(index, children.length);
+    return {
+      ...parent,
+      slots: {
+        ...parent.slots,
+        [container.slot]: [...children.slice(0, at), created, ...children.slice(at)],
+      },
+    };
+  });
+  return { nodes: next, key: created.key };
+}
+
+// Locates the container (root or slot) holding a node and its index in it.
+export function findNodeContainer(
+  nodes: EditorNode[],
+  key: string,
+): { container: ContainerRef; index: number } | null {
+  const rootIndex = nodes.findIndex((node) => node.key === key);
+  if (rootIndex !== -1) {
+    return { container: null, index: rootIndex };
+  }
+  return findInSlots(nodes, key);
+}
+
+function findInSlots(
+  nodes: EditorNode[],
+  key: string,
+): { container: ContainerRef; index: number } | null {
+  for (const node of nodes) {
+    for (const [slot, children] of Object.entries(node.slots)) {
+      const index = children.findIndex((child) => child.key === key);
+      if (index !== -1) {
+        return { container: { parentKey: node.key, slot }, index };
+      }
+      const nested = findInSlots(children, key);
+      if (nested !== null) {
+        return nested;
+      }
+    }
+  }
+  return null;
+}
+
+function sameContainer(a: ContainerRef, b: ContainerRef): boolean {
+  if (a === null || b === null) {
+    return a === b;
+  }
+  return a.parentKey === b.parentKey && a.slot === b.slot;
+}
+
+function clampIndex(index: number, length: number): number {
+  return Math.max(0, Math.min(index, length));
+}
+
+// Moves an existing node to any position of any container (fluid drag and
+// drop). The index refers to the list BEFORE the node is lifted out; moving
+// down within the same container compensates for the removal shift. No-ops:
+// unknown node, unknown target parent, or a drop into the node itself or one
+// of its descendants.
+export function moveNodeToContainer(
+  nodes: EditorNode[],
+  nodeKey: string,
+  container: ContainerRef,
+  index: number,
+): EditorNode[] {
+  const node = findNode(nodes, nodeKey);
+  const source = findNodeContainer(nodes, nodeKey);
+  if (node === null || source === null) {
+    return nodes;
+  }
+  if (container !== null) {
+    // findNode over [node] matches the node itself and every descendant.
+    if (findNode([node], container.parentKey) !== null) {
+      return nodes;
+    }
+    if (findNode(nodes, container.parentKey) === null) {
+      return nodes;
+    }
+  }
+  let at = index;
+  if (sameContainer(source.container, container) && source.index < at) {
+    at -= 1;
+  }
+  const without = removeNode(nodes, nodeKey);
+  if (container === null) {
+    const clamped = clampIndex(at, without.length);
+    return [...without.slice(0, clamped), node, ...without.slice(clamped)];
+  }
+  return mapNode(without, container.parentKey, (parent) => {
+    const children = parent.slots[container.slot] ?? [];
+    const clamped = clampIndex(at, children.length);
+    return {
+      ...parent,
+      slots: {
+        ...parent.slots,
+        [container.slot]: [...children.slice(0, clamped), node, ...children.slice(clamped)],
+      },
+    };
+  });
 }
 
 // Sets one prop value; undefined removes the prop entirely.
@@ -210,6 +316,25 @@ export function setNodeProp(
       props[name] = value;
     }
     return { ...node, props };
+  });
+}
+
+// Sets one style value; undefined or a blank string removes the key so
+// cleared controls fall back to the block and style book defaults.
+export function setNodeStyle(
+  nodes: EditorNode[],
+  key: string,
+  name: string,
+  value: string | undefined,
+): EditorNode[] {
+  return mapNode(nodes, key, (node) => {
+    const styles = { ...node.styles };
+    if (value === undefined || value.trim() === '') {
+      delete styles[name];
+    } else {
+      styles[name] = value;
+    }
+    return { ...node, styles };
   });
 }
 

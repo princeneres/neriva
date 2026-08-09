@@ -10,6 +10,7 @@ import {
   Group,
   List,
   Stack,
+  Tabs,
   Text,
   TextInput,
   Tooltip,
@@ -21,6 +22,7 @@ import type { EditorNode } from './editor-state';
 import { JsonValueField, PropField } from './prop-fields';
 import { fieldSpecsFor } from './schema-form';
 import classes from './studio.module.css';
+import { StylesPanel } from './styles-panel';
 import { type Block, type EntityStatus, statusColor } from './types';
 
 const SLOT_HELP =
@@ -47,8 +49,10 @@ export function StudioInspector({
   selectedNode,
   block,
   blocksLoading,
+  tokens,
   onSetProp,
   onSetProps,
+  onSetStyle,
   onDeselect,
 }: {
   serverError: ApiError | null;
@@ -63,8 +67,10 @@ export function StudioInspector({
   selectedNode: EditorNode | null;
   block: Block | null;
   blocksLoading: boolean;
+  tokens: Record<string, string>;
   onSetProp: (key: string, name: string, value: unknown) => void;
   onSetProps: (key: string, props: Record<string, unknown>) => void;
+  onSetStyle: (key: string, name: string, value: string | undefined) => void;
   onDeselect: () => void;
 }) {
   const serverMessages = serverError?.problem.errors ?? [];
@@ -105,8 +111,10 @@ export function StudioInspector({
             node={selectedNode}
             block={block}
             blocksLoading={blocksLoading}
+            tokens={tokens}
             onSetProp={onSetProp}
             onSetProps={onSetProps}
+            onSetStyle={onSetStyle}
             onDeselect={onDeselect}
           />
         )}
@@ -206,15 +214,19 @@ function BlockPanel({
   node,
   block,
   blocksLoading,
+  tokens,
   onSetProp,
   onSetProps,
+  onSetStyle,
   onDeselect,
 }: {
   node: EditorNode;
   block: Block | null;
   blocksLoading: boolean;
+  tokens: Record<string, string>;
   onSetProp: (key: string, name: string, value: unknown) => void;
   onSetProps: (key: string, props: Record<string, unknown>) => void;
+  onSetStyle: (key: string, name: string, value: string | undefined) => void;
   onDeselect: () => void;
 }) {
   const specs = block ? fieldSpecsFor(block.propsSchema) : [];
@@ -256,75 +268,93 @@ function BlockPanel({
         </Alert>
       ) : null}
 
-      <Divider />
+      {/* Remount when the selection changes so the active tab resets. */}
+      <Tabs key={node.key} defaultValue="general" keepMounted={false}>
+        <Tabs.List grow>
+          <Tabs.Tab value="general">General</Tabs.Tab>
+          <Tabs.Tab value="styles">Styles</Tabs.Tab>
+        </Tabs.List>
 
-      {block && specs.length === 0 ? (
-        <Text size="sm" c="slate.5">
-          This block has nothing to fill in.
-        </Text>
-      ) : null}
-      {specs.map((spec) => (
-        <PropField
-          key={`${node.key}:${spec.name}`}
-          spec={spec}
-          value={node.props[spec.name]}
-          onChange={(value) => onSetProp(node.key, spec.name, value)}
-        />
-      ))}
-      {!block ? (
-        <JsonValueField
-          key={`${node.key}:props`}
-          label="Props (JSON)"
-          description="The block definition is unknown, so its values can only be edited as JSON."
-          value={node.props}
-          onChange={(value) =>
-            onSetProps(
-              node.key,
-              // Only objects are valid props; anything else clears them.
-              typeof value === 'object' && value !== null && !Array.isArray(value)
-                ? (value as Record<string, unknown>)
-                : {},
-            )
-          }
-        />
-      ) : null}
+        <Tabs.Panel value="general" pt="md">
+          <Stack gap="md">
+            {block && specs.length === 0 ? (
+              <Text size="sm" c="slate.5">
+                This block has nothing to fill in.
+              </Text>
+            ) : null}
+            {specs.map((spec) => (
+              <PropField
+                key={`${node.key}:${spec.name}`}
+                spec={spec}
+                value={node.props[spec.name]}
+                onChange={(value) => onSetProp(node.key, spec.name, value)}
+              />
+            ))}
+            {!block ? (
+              <JsonValueField
+                key={`${node.key}:props`}
+                label="Props (JSON)"
+                description="The block definition is unknown, so its values can only be edited as JSON."
+                value={node.props}
+                onChange={(value) =>
+                  onSetProps(
+                    node.key,
+                    // Only objects are valid props; anything else clears them.
+                    typeof value === 'object' && value !== null && !Array.isArray(value)
+                      ? (value as Record<string, unknown>)
+                      : {},
+                  )
+                }
+              />
+            ) : null}
 
-      {declaredSlots.length > 0 || extraSlotNames.length > 0 ? (
-        <>
-          <Divider />
-          <Box>
-            <Text size="xs" fw={700} tt="uppercase" c="slate.5" lts="0.05em" mb={4}>
-              Slots
-              <HelpTip label={SLOT_HELP} />
-            </Text>
-            <Stack gap={2}>
-              {declaredSlots.map((slot) => {
-                const count = (node.slots[slot.name] ?? []).length;
-                return (
-                  <Text size="xs" c="slate.5" key={slot.name}>
-                    {slot.name} · {count} block{count === 1 ? '' : 's'}
+            {declaredSlots.length > 0 || extraSlotNames.length > 0 ? (
+              <>
+                <Divider />
+                <Box>
+                  <Text size="xs" fw={700} tt="uppercase" c="slate.5" lts="0.05em" mb={4}>
+                    Slots
+                    <HelpTip label={SLOT_HELP} />
                   </Text>
-                );
-              })}
-              {extraSlotNames.map((name) => {
-                const count = (node.slots[name] ?? []).length;
-                return (
-                  <Group gap={6} key={name}>
-                    <Text size="xs" c="slate.5">
-                      {name} · {count} block{count === 1 ? '' : 's'}
-                    </Text>
-                    <Tooltip label="This block does not declare a slot with this name, so saving will fail until its blocks are moved or removed.">
-                      <Badge color="yellow" size="xs">
-                        unknown slot
-                      </Badge>
-                    </Tooltip>
-                  </Group>
-                );
-              })}
-            </Stack>
-          </Box>
-        </>
-      ) : null}
+                  <Stack gap={2}>
+                    {declaredSlots.map((slot) => {
+                      const count = (node.slots[slot.name] ?? []).length;
+                      return (
+                        <Text size="xs" c="slate.5" key={slot.name}>
+                          {slot.name} · {count} block{count === 1 ? '' : 's'}
+                        </Text>
+                      );
+                    })}
+                    {extraSlotNames.map((name) => {
+                      const count = (node.slots[name] ?? []).length;
+                      return (
+                        <Group gap={6} key={name}>
+                          <Text size="xs" c="slate.5">
+                            {name} · {count} block{count === 1 ? '' : 's'}
+                          </Text>
+                          <Tooltip label="This block does not declare a slot with this name, so saving will fail until its blocks are moved or removed.">
+                            <Badge color="yellow" size="xs">
+                              unknown slot
+                            </Badge>
+                          </Tooltip>
+                        </Group>
+                      );
+                    })}
+                  </Stack>
+                </Box>
+              </>
+            ) : null}
+          </Stack>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="styles" pt="md">
+          <StylesPanel
+            styles={node.styles}
+            tokens={tokens}
+            onSetStyle={(name, value) => onSetStyle(node.key, name, value)}
+          />
+        </Tabs.Panel>
+      </Tabs>
     </>
   );
 }

@@ -10,6 +10,9 @@ export interface TreeNode {
   block: string;
   props?: Record<string, unknown>;
   slots?: Record<string, TreeNode[]>;
+  // Per-instance styles (spec 12 section 3): whitelist key -> CSS value or
+  // token:<name>. Whitelist enforcement stays on the server.
+  styles?: Record<string, string>;
 }
 
 export interface PageTree {
@@ -36,6 +39,16 @@ function checkNode(node: unknown, pointer: string): string | null {
   }
   if (node.slots !== undefined && !isPlainObject(node.slots)) {
     return `${pointer}: "slots" must be an object mapping slot names to arrays.`;
+  }
+  if (node.styles !== undefined) {
+    if (!isPlainObject(node.styles)) {
+      return `${pointer}: "styles" must be an object mapping style keys to strings.`;
+    }
+    for (const [styleKey, styleValue] of Object.entries(node.styles)) {
+      if (typeof styleValue !== 'string') {
+        return `${pointer}.styles.${styleKey}: style values must be strings.`;
+      }
+    }
   }
   for (const [slotName, children] of Object.entries(
     (node.slots as Record<string, unknown> | undefined) ?? {},

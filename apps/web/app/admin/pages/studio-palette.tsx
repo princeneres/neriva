@@ -57,11 +57,16 @@ export function StudioPalette({
     [blocks, needle],
   );
 
+  // Grouped case-insensitively so native blocks (lowercase categories like
+  // "layout") share a group with user blocks whose category only differs in
+  // casing; the label shows capitalized.
   const groups = useMemo(() => {
     const map = new Map<string, Block[]>();
     for (const block of filtered) {
       const category =
-        block.category === null || block.category === '' ? OTHER_CATEGORY : block.category;
+        block.category === null || block.category.trim() === ''
+          ? OTHER_CATEGORY
+          : block.category.trim().toLowerCase();
       map.set(category, [...(map.get(category) ?? []), block]);
     }
     return [...map.entries()].sort(([a], [b]) => {
@@ -136,7 +141,7 @@ export function StudioPalette({
             {groups.map(([category, items]) => (
               <Box key={category}>
                 <Text size="xs" fw={700} tt="uppercase" c="slate.4" lts="0.05em" mb={4}>
-                  {category}
+                  {category.charAt(0).toUpperCase() + category.slice(1)}
                 </Text>
                 <Stack gap={6}>
                   {items.map((block) => (
