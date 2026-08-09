@@ -11,6 +11,7 @@ import {
   Stack,
   Text,
   TextInput,
+  ThemeIcon,
   Tooltip,
 } from '@mantine/core';
 import {
@@ -20,6 +21,7 @@ import {
   IconSearch,
 } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
+import { blockIconFor } from '../../../components/block-icon';
 import { HelpTip } from '../../../components/help-tip';
 import classes from './studio.module.css';
 import type { Block } from './types';
@@ -162,6 +164,7 @@ function PaletteItem({ block, onAdd }: { block: Block; onAdd: (block: Block) => 
     id: `${PALETTE_ID_PREFIX}${block.externalReferenceCode}`,
     data: { blockErc: block.externalReferenceCode },
   });
+  const BlockIcon = blockIconFor(block.externalReferenceCode, block.category);
 
   return (
     <Box
@@ -186,6 +189,9 @@ function PaletteItem({ block, onAdd }: { block: Block; onAdd: (block: Block) => 
           color="var(--mantine-color-slate-4)"
           style={{ flexShrink: 0 }}
         />
+        <ThemeIcon variant="light" size="sm" radius="sm" style={{ flexShrink: 0 }}>
+          <BlockIcon size={14} stroke={1.7} />
+        </ThemeIcon>
         <Box miw={0} style={{ flex: 1 }}>
           <Text size="sm" fw={500} truncate>
             {block.name}

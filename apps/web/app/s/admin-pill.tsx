@@ -1,7 +1,9 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { BoltMark } from '../../components/logo';
+import { api } from '../../lib/api';
 import { getAccessToken } from '../../lib/auth-storage';
 
 const DISMISS_KEY = 'neriva.adminPillDismissed';
@@ -12,11 +14,35 @@ const linkStyle: React.CSSProperties = {
   fontWeight: 600,
 };
 
+const editButtonStyle: React.CSSProperties = {
+  ...linkStyle,
+  border: 'none',
+  background: 'none',
+  padding: 0,
+  fontSize: 13,
+  fontFamily: 'inherit',
+  cursor: 'pointer',
+};
+
+interface SiteRow {
+  id: string;
+  slug: string;
+}
+
+interface PageRow {
+  id: string;
+  path: string;
+}
+
 // Floating bridge back to the admin, shown on public pages only when the
 // visitor has an access token in localStorage (spec 13). Invisible to
 // anonymous visitors; an X hides it for the rest of the browser session.
-export function AdminPill() {
+// "Edit this page" resolves the current page through the admin API and
+// opens it straight in the studio (edit-in-place, Liferay style).
+export function AdminPill({ siteSlug, pagePath }: { siteSlug: string; pagePath: string }) {
+  const router = useRouter();
   const [visible, setVisible] = useState(false);
+  const [resolving, setResolving] = useState(false);
 
   useEffect(() => {
     try {
@@ -36,6 +62,26 @@ export function AdminPill() {
     }
     setVisible(false);
   }, []);
+
+  const openEditor = useCallback(async () => {
+    setResolving(true);
+    try {
+      const sites = await api.get<{ data: SiteRow[] }>('/sites?limit=100');
+      const site = sites.data.find((candidate) => candidate.slug === siteSlug);
+      if (site !== undefined) {
+        const pages = await api.get<{ data: PageRow[] }>(`/sites/${site.id}/pages?limit=100`);
+        const page = pages.data.find((candidate) => candidate.path === pagePath);
+        if (page !== undefined) {
+          router.push(`/admin/pages/${page.id}/design`);
+          return;
+        }
+      }
+    } catch {
+      // Resolution failed (expired session, API error): fall through.
+    }
+    // Could not match this page in the admin: land on the pages list.
+    router.push('/admin/pages?notfound=1');
+  }, [router, siteSlug, pagePath]);
 
   if (!visible) {
     return null;
@@ -67,11 +113,14 @@ export function AdminPill() {
       <span aria-hidden="true" style={{ color: '#d5d5d5' }}>
         |
       </span>
-      {/* Page-level studio resolution is a later step; the pages list is the
-          reliable target for every public page (spec 13). */}
-      <a href="/admin/pages" style={linkStyle}>
-        Edit this page
-      </a>
+      <button
+        type="button"
+        onClick={() => void openEditor()}
+        disabled={resolving}
+        style={{ ...editButtonStyle, cursor: resolving ? 'progress' : 'pointer' }}
+      >
+        {resolving ? 'Opening the editor...' : 'Edit this page'}
+      </button>
       <button
         type="button"
         onClick={dismiss}

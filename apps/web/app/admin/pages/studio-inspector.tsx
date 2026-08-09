@@ -3,6 +3,7 @@
 import {
   ActionIcon,
   Alert,
+  Anchor,
   Badge,
   Box,
   Code,
@@ -12,10 +13,10 @@ import {
   Stack,
   Tabs,
   Text,
-  TextInput,
   Tooltip,
 } from '@mantine/core';
-import { IconAlertCircle, IconX } from '@tabler/icons-react';
+import { IconAlertCircle, IconSettings, IconX } from '@tabler/icons-react';
+import Link from 'next/link';
 import { HelpTip } from '../../../components/help-tip';
 import type { ApiError } from '../../../lib/api';
 import type { EditorNode } from './editor-state';
@@ -33,17 +34,12 @@ export interface PageMeta {
   externalReferenceCode: string;
 }
 
-// Right panel of the studio. With nothing selected it shows the page details
-// (title, path, status); with a block selected it becomes the block's
-// properties form, editing the canvas live per keystroke.
+// Right panel of the studio. With nothing selected it shows the page status
+// and a link to the page settings; with a block selected it becomes the
+// block's properties form, editing the canvas live per keystroke.
 export function StudioInspector({
   serverError,
-  title,
-  path,
-  titleError,
-  pathError,
-  onTitleChange,
-  onPathChange,
+  settingsHref,
   status,
   pageMeta,
   selectedNode,
@@ -56,14 +52,9 @@ export function StudioInspector({
   onDeselect,
 }: {
   serverError: ApiError | null;
-  title: string;
-  path: string;
-  titleError: string | null;
-  pathError: string | null;
-  onTitleChange: (value: string) => void;
-  onPathChange: (value: string) => void;
-  status: EntityStatus | null;
-  pageMeta: PageMeta | null;
+  settingsHref: string;
+  status: EntityStatus;
+  pageMeta: PageMeta;
   selectedNode: EditorNode | null;
   block: Block | null;
   blocksLoading: boolean;
@@ -96,16 +87,7 @@ export function StudioInspector({
         ) : null}
 
         {selectedNode === null ? (
-          <PagePanel
-            title={title}
-            path={path}
-            titleError={titleError}
-            pathError={pathError}
-            onTitleChange={onTitleChange}
-            onPathChange={onPathChange}
-            status={status}
-            pageMeta={pageMeta}
-          />
+          <PagePanel settingsHref={settingsHref} status={status} pageMeta={pageMeta} />
         ) : (
           <BlockPanel
             node={selectedNode}
@@ -124,23 +106,13 @@ export function StudioInspector({
 }
 
 function PagePanel({
-  title,
-  path,
-  titleError,
-  pathError,
-  onTitleChange,
-  onPathChange,
+  settingsHref,
   status,
   pageMeta,
 }: {
-  title: string;
-  path: string;
-  titleError: string | null;
-  pathError: string | null;
-  onTitleChange: (value: string) => void;
-  onPathChange: (value: string) => void;
-  status: EntityStatus | null;
-  pageMeta: PageMeta | null;
+  settingsHref: string;
+  status: EntityStatus;
+  pageMeta: PageMeta;
 }) {
   return (
     <>
@@ -149,63 +121,44 @@ function PagePanel({
           Page
         </Text>
         <Text size="xs" c="slate.4">
-          Click a block on the page to edit it here instead.
+          Click a block on the page to edit it here.
         </Text>
       </Box>
-      <TextInput
-        label="Title"
-        description="The name of the page, shown in menus and browser tabs."
-        required
-        size="sm"
-        maxLength={255}
-        value={title}
-        error={titleError}
-        onChange={(event) => onTitleChange(event.currentTarget.value)}
-      />
-      <TextInput
-        label={
-          <>
-            Path
-            <HelpTip label="The address of the page inside its site, for example /about. Only lowercase letters, digits, / and - are allowed." />
-          </>
-        }
-        description="Where the page lives, for example /about."
-        required
-        size="sm"
-        maxLength={255}
-        placeholder="/home"
-        value={path}
-        error={pathError}
-        onChange={(event) => onPathChange(event.currentTarget.value)}
-      />
-      <Divider />
       <Box>
         <Group gap="xs" mb={4}>
           <Text size="sm" fw={600}>
             Status
           </Text>
-          <Badge color={statusColor(status ?? 'DRAFT')}>{status ?? 'DRAFT'}</Badge>
+          <Badge color={statusColor(status)}>{status}</Badge>
         </Group>
         <Text size="xs" c="slate.5">
           {status === 'PUBLISHED'
             ? 'This page is live. Saved changes only reach visitors when you publish again.'
             : status === 'ARCHIVED'
               ? 'This page is archived and not visible to visitors.'
-              : status === null
-                ? 'This page has not been created yet. Fill in a title and a path, then use Create page in the top bar.'
-                : 'Drafts are safe to work on; visitors only see the page after you publish it.'}
+              : 'Drafts are safe to work on; visitors only see the page after you publish it.'}
         </Text>
       </Box>
-      {pageMeta !== null ? (
-        <Box>
-          <Text size="xs" c="slate.4">
-            ID <Code>{pageMeta.id}</Code>
-          </Text>
-          <Text size="xs" c="slate.4" mt={2}>
-            Reference <Code>{pageMeta.externalReferenceCode}</Code>
-          </Text>
-        </Box>
-      ) : null}
+      <Divider />
+      <Box>
+        <Anchor component={Link} href={settingsHref} size="sm" fw={600}>
+          <Group gap={6} wrap="nowrap">
+            <IconSettings size={15} />
+            Page settings
+          </Group>
+        </Anchor>
+        <Text size="xs" c="slate.5" mt={4}>
+          The title, the address and publishing are managed in the page settings.
+        </Text>
+      </Box>
+      <Box>
+        <Text size="xs" c="slate.4">
+          ID <Code>{pageMeta.id}</Code>
+        </Text>
+        <Text size="xs" c="slate.4" mt={2}>
+          Reference <Code>{pageMeta.externalReferenceCode}</Code>
+        </Text>
+      </Box>
     </>
   );
 }
