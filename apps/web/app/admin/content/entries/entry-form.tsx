@@ -1,18 +1,38 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { type FormEvent, useState } from 'react';
-import { Button, Field, FormActions } from '../../../../components/form';
+import {
+  Alert,
+  Button,
+  Group,
+  NumberInput,
+  Stack,
+  Switch,
+  Text,
+  TextInput,
+  Textarea,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { IconAlertCircle } from '@tabler/icons-react';
+import Link from 'next/link';
+import type { ReactNode } from 'react';
+import { useState } from 'react';
+import { HelpTip } from '../../../../components/help-tip';
 import { ApiError } from '../../../../lib/api';
-import type { ContentField, ContentType } from '../types';
+import { FIELD_TYPE_META, type ContentField, type ContentType } from '../types';
 
 export interface EntryFormValues {
   title: string;
   values: Record<string, unknown>;
 }
 
-// UI state per field: strings for inputs, boolean for checkboxes.
-type FieldState = Record<string, string | boolean>;
+// Per-field UI state: strings for text-like inputs, number | '' for
+// NumberInput, boolean for switches.
+type FieldState = Record<string, string | number | boolean>;
+
+interface FormState {
+  title: string;
+  values: FieldState;
+}
 
 function toFieldState(fields: ContentField[], values: Record<string, unknown>): FieldState {
   const state: FieldState = {};
@@ -23,7 +43,7 @@ function toFieldState(fields: ContentField[], values: Record<string, unknown>): 
         state[field.key] = value === true;
         break;
       case 'number':
-        state[field.key] = typeof value === 'number' ? String(value) : '';
+        state[field.key] = typeof value === 'number' ? value : '';
         break;
       case 'date':
         // ISO 8601 string; keep only the date part for <input type="date">.
@@ -36,7 +56,7 @@ function toFieldState(fields: ContentField[], values: Record<string, unknown>): 
   return state;
 }
 
-function toValues(fields: ContentField[], state: FieldState): Record<string, unknown> {
+function toApiValues(fields: ContentField[], state: FieldState): Record<string, unknown> {
   const values: Record<string, unknown> = {};
   for (const field of fields) {
     const raw = state[field.key];
@@ -44,13 +64,13 @@ function toValues(fields: ContentField[], state: FieldState): Record<string, unk
       case 'boolean':
         values[field.key] = raw === true;
         break;
-      case 'number': {
-        const text = typeof raw === 'string' ? raw.trim() : '';
-        if (text !== '') {
-          values[field.key] = Number(text);
+      case 'number':
+        if (typeof raw === 'number') {
+          values[field.key] = raw;
+        } else if (typeof raw === 'string' && raw.trim() !== '') {
+          values[field.key] = Number(raw);
         }
         break;
-      }
       case 'date': {
         const text = typeof raw === 'string' ? raw : '';
         if (text !== '') {
@@ -69,8 +89,26 @@ function toValues(fields: ContentField[], state: FieldState): Record<string, unk
   return values;
 }
 
-function fieldLabel(field: ContentField): string {
-  return field.required ? `${field.label} *` : field.label;
+function isEmptyValue(field: ContentField, value: string | number | boolean | undefined): boolean {
+  if (field.type === 'number') {
+    return typeof value !== 'number';
+  }
+  return typeof value !== 'string' || value.trim() === '';
+}
+
+function fieldHelp(field: ContentField): string {
+  const meta = FIELD_TYPE_META[field.type];
+  const required = field.required ? ' This field is required.' : '';
+  return `${field.label}: ${meta.description.toLowerCase().replace(/\.$/, '')}.${required}`;
+}
+
+function fieldLabel(field: ContentField): ReactNode {
+  return (
+    <span>
+      {field.label}
+      <HelpTip label={fieldHelp(field)} />
+    </span>
+  );
 }
 
 export function EntryForm({
@@ -86,135 +124,143 @@ export function EntryForm({
   busyLabel: string;
   onSubmit: (values: EntryFormValues) => Promise<void>;
 }) {
-  const router = useRouter();
-  const [title, setTitle] = useState(initial?.title ?? '');
-  const [fieldState, setFieldState] = useState<FieldState>(() =>
-    toFieldState(contentType.fields, initial?.values ?? {}),
-  );
   const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<string[]>([]);
+  const [errorDetails, setErrorDetails] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
-  function setValue(key: string, value: string | boolean) {
-    setFieldState((current) => ({ ...current, [key]: value }));
-  }
+  const form = useForm<FormState>({
+    initialValues: {
+      title: initial?.title ?? '',
+      values: toFieldState(contentType.fields, initial?.values ?? {}),
+    },
+    validate: {
+      title: (value) => (value.trim() === '' ? 'Title is required' : null),
+      values: Object.fromEntries(
+        contentType.fields
+          .filter((field) => field.required && field.type !== 'boolean')
+          .map((field) => [
+            field.key,
+            (value: string | number | boolean | undefined) =>
+              isEmptyValue(field, value) ? `${field.label} is required` : null,
+          ]),
+      ),
+    },
+  });
 
-  function apiFieldError(field: string): string | null {
-    return (
-      fieldErrors.find((message) => message.toLowerCase().includes(field.toLowerCase())) ?? null
-    );
-  }
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
+  const handleSubmit = form.onSubmit(async (state) => {
     setError(null);
-    setFieldErrors([]);
+    setErrorDetails([]);
     setBusy(true);
     try {
-      await onSubmit({ title, values: toValues(contentType.fields, fieldState) });
+      await onSubmit({
+        title: state.title,
+        values: toApiValues(contentType.fields, state.values),
+      });
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
-        setFieldErrors(err.problem.errors ?? []);
+        setErrorDetails(err.problem.errors ?? []);
       } else {
         setError('Saving the entry failed');
       }
       setBusy(false);
     }
-  }
+  });
 
-  function renderInput(field: ContentField) {
-    const raw = fieldState[field.key];
-    const text = typeof raw === 'string' ? raw : '';
+  function renderField(field: ContentField): ReactNode {
     switch (field.type) {
       case 'richtext':
         return (
-          <textarea
-            id={`field-${field.key}`}
-            rows={6}
-            required={field.required}
-            value={text}
-            onChange={(e) => setValue(field.key, e.target.value)}
+          <Textarea
+            key={field.key}
+            label={fieldLabel(field)}
+            description="Rich text is stored as plain text in v1"
+            withAsterisk={field.required}
+            autosize
+            minRows={4}
+            {...form.getInputProps(`values.${field.key}`)}
           />
         );
       case 'number':
         return (
-          <input
-            id={`field-${field.key}`}
-            type="number"
-            step="any"
-            required={field.required}
-            value={text}
-            onChange={(e) => setValue(field.key, e.target.value)}
+          <NumberInput
+            key={field.key}
+            label={fieldLabel(field)}
+            withAsterisk={field.required}
+            step={1}
+            {...form.getInputProps(`values.${field.key}`)}
           />
         );
       case 'boolean':
         return (
-          <input
-            id={`field-${field.key}`}
-            type="checkbox"
-            checked={raw === true}
-            onChange={(e) => setValue(field.key, e.target.checked)}
+          <Switch
+            key={field.key}
+            label={fieldLabel(field)}
+            {...form.getInputProps(`values.${field.key}`, { type: 'checkbox' })}
           />
         );
       case 'date':
         return (
-          <input
-            id={`field-${field.key}`}
+          <TextInput
+            key={field.key}
             type="date"
-            required={field.required}
-            value={text}
-            onChange={(e) => setValue(field.key, e.target.value)}
+            label={fieldLabel(field)}
+            withAsterisk={field.required}
+            {...form.getInputProps(`values.${field.key}`)}
           />
         );
       default:
         return (
-          <input
-            id={`field-${field.key}`}
-            type="text"
-            required={field.required}
-            value={text}
-            onChange={(e) => setValue(field.key, e.target.value)}
+          <TextInput
+            key={field.key}
+            label={fieldLabel(field)}
+            withAsterisk={field.required}
+            {...form.getInputProps(`values.${field.key}`)}
           />
         );
     }
   }
 
   return (
-    <form className="nv-form" onSubmit={handleSubmit}>
-      {error ? <div className="nv-error">{error}</div> : null}
-      <Field label="Title" htmlFor="title" error={apiFieldError('title')}>
-        <input
-          id="title"
-          type="text"
-          required
+    <form onSubmit={handleSubmit}>
+      <Stack gap="md" maw={640}>
+        {error ? (
+          <Alert color="red" icon={<IconAlertCircle size={16} />} title={error}>
+            {errorDetails.length > 0 ? (
+              <Stack gap={2}>
+                {errorDetails.map((detail) => (
+                  <Text key={detail} size="sm">
+                    {detail}
+                  </Text>
+                ))}
+              </Stack>
+            ) : null}
+          </Alert>
+        ) : null}
+
+        <TextInput
+          label={
+            <span>
+              Title
+              <HelpTip label="The name of this entry in lists; not one of the type fields" />
+            </span>
+          }
+          withAsterisk
           maxLength={255}
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          {...form.getInputProps('title')}
         />
-      </Field>
-      {contentType.fields.map((field) => (
-        <Field
-          key={field.key}
-          label={fieldLabel(field)}
-          htmlFor={`field-${field.key}`}
-          error={apiFieldError(field.key)}
-        >
-          {renderInput(field)}
-        </Field>
-      ))}
-      <FormActions>
-        <Button type="submit" disabled={busy}>
-          {busy ? busyLabel : submitLabel}
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => router.push('/admin/content/entries')}
-        >
-          Cancel
-        </Button>
-      </FormActions>
+
+        {contentType.fields.map((field) => renderField(field))}
+
+        <Group gap="sm">
+          <Button type="submit" loading={busy}>
+            {busy ? busyLabel : submitLabel}
+          </Button>
+          <Button component={Link} href="/admin/content/entries" variant="subtle" color="slate">
+            Cancel
+          </Button>
+        </Group>
+      </Stack>
     </form>
   );
 }

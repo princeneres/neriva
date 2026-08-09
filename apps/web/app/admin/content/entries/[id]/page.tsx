@@ -1,19 +1,21 @@
 'use client';
 
+import { Alert, Badge, Button, Group, Skeleton, Stack, Text, Title } from '@mantine/core';
+import { modals } from '@mantine/modals';
+import { notifications } from '@mantine/notifications';
 import type { components } from '@neriva/contracts';
+import { IconAlertCircle, IconSend } from '@tabler/icons-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Button } from '../../../../../components/form';
-import { useToast } from '../../../../../components/toast';
+import { HelpTip } from '../../../../../components/help-tip';
 import { ApiError, api } from '../../../../../lib/api';
-import type { ContentEntry, ContentType } from '../../types';
+import { STATUS_COLORS, type ContentEntry, type ContentType } from '../../types';
 import { EntryForm, type EntryFormValues } from '../entry-form';
 
 type UpdateContentEntryDto = components['schemas']['UpdateContentEntryDto'];
 
 export default function EditEntryPage() {
   const router = useRouter();
-  const toast = useToast();
   const { id } = useParams<{ id: string }>();
   const [entry, setEntry] = useState<ContentEntry | null>(null);
   const [contentType, setContentType] = useState<ContentType | null>(null);
@@ -47,47 +49,84 @@ export default function EditEntryPage() {
       values: values.values,
     };
     await api.patch<{ data: ContentEntry }>(`/content-entries/${encodeURIComponent(id)}`, body);
-    toast.success('Entry updated');
+    notifications.show({ color: 'green', message: 'Entry updated' });
     router.push('/admin/content/entries');
   }
 
-  async function onPublish() {
-    if (!entry || !window.confirm(`Publish entry "${entry.title}"?`)) {
+  function confirmPublish() {
+    if (!entry) {
       return;
     }
-    setPublishing(true);
-    try {
-      const { data } = await api.post<{ data: ContentEntry }>(
-        `/content-entries/${encodeURIComponent(id)}/publish`,
-      );
-      setEntry(data);
-      toast.success('Entry published');
-    } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : 'Failed to publish entry');
-    } finally {
-      setPublishing(false);
-    }
+    modals.openConfirmModal({
+      title: 'Publish entry',
+      children: (
+        <Text size="sm">
+          Publish <strong>{entry.title}</strong>? Published entries are visible to the sites and
+          apps that consume this content.
+        </Text>
+      ),
+      labels: { confirm: 'Publish', cancel: 'Cancel' },
+      onConfirm: () => {
+        void (async () => {
+          setPublishing(true);
+          try {
+            const { data } = await api.post<{ data: ContentEntry }>(
+              `/content-entries/${encodeURIComponent(id)}/publish`,
+            );
+            setEntry(data);
+            notifications.show({ color: 'green', message: 'Entry published' });
+          } catch (error) {
+            notifications.show({
+              color: 'red',
+              title: 'Could not publish entry',
+              message: error instanceof ApiError ? error.message : 'Publishing the entry failed',
+            });
+          } finally {
+            setPublishing(false);
+          }
+        })();
+      },
+    });
   }
 
   return (
     <>
-      <div className="nv-toolbar">
-        <h1 style={{ display: 'flex', gap: 'var(--nv-space-2)', alignItems: 'center' }}>
-          Edit entry
-          {entry ? (
-            <span className="nv-badge" data-status={entry.status}>
-              {entry.status}
-            </span>
-          ) : null}
-        </h1>
+      <Group justify="space-between" mb="lg">
+        <div>
+          <Group gap="sm" align="center">
+            <Title order={1} fz="h2">
+              Edit entry
+            </Title>
+            {entry ? <Badge color={STATUS_COLORS[entry.status]}>{entry.status}</Badge> : null}
+          </Group>
+          <Text c="slate.5">
+            {contentType ? (
+              <>
+                Based on the <strong>{contentType.name}</strong> content type
+                <HelpTip label="This entry fills in the fields defined by its content type" />
+              </>
+            ) : (
+              'Update the fields of this entry.'
+            )}
+          </Text>
+        </div>
         {entry && entry.status !== 'PUBLISHED' ? (
-          <Button type="button" disabled={publishing} onClick={() => void onPublish()}>
-            {publishing ? 'Publishing…' : 'Publish'}
+          <Button
+            leftSection={<IconSend size={16} />}
+            variant="light"
+            loading={publishing}
+            onClick={confirmPublish}
+          >
+            Publish
           </Button>
         ) : null}
-      </div>
-      {loadError ? <div className="nv-error">{loadError}</div> : null}
-      {entry && contentType ? (
+      </Group>
+
+      {loadError ? (
+        <Alert color="red" icon={<IconAlertCircle size={16} />}>
+          {loadError}
+        </Alert>
+      ) : entry && contentType ? (
         <EntryForm
           contentType={contentType}
           initial={{ title: entry.title, values: entry.values }}
@@ -95,9 +134,13 @@ export default function EditEntryPage() {
           busyLabel="Saving…"
           onSubmit={onSubmit}
         />
-      ) : !loadError ? (
-        <p>Loading…</p>
-      ) : null}
+      ) : (
+        <Stack gap="sm" maw={640}>
+          <Skeleton height={56} radius="md" />
+          <Skeleton height={56} radius="md" />
+          <Skeleton height={96} radius="md" />
+        </Stack>
+      )}
     </>
   );
 }

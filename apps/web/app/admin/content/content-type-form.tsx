@@ -1,10 +1,26 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { type FormEvent, useState } from 'react';
-import { Button, Field, FormActions } from '../../../components/form';
+import {
+  ActionIcon,
+  Alert,
+  Button,
+  Card,
+  Group,
+  Select,
+  Stack,
+  Switch,
+  Text,
+  TextInput,
+  Textarea,
+  Tooltip,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { IconAlertCircle, IconPlus, IconTrash } from '@tabler/icons-react';
+import Link from 'next/link';
+import { useState } from 'react';
+import { HelpTip } from '../../../components/help-tip';
 import { ApiError } from '../../../lib/api';
-import type { ContentField } from './types';
+import { FIELD_TYPE_META, FIELD_TYPE_OPTIONS, type ContentField } from './types';
 
 export interface ContentTypeFormValues {
   name: string;
@@ -12,26 +28,8 @@ export interface ContentTypeFormValues {
   fields: ContentField[];
 }
 
-const FIELD_TYPES: ContentField['type'][] = ['text', 'richtext', 'number', 'boolean', 'date'];
 const KEY_PATTERN = /^[a-z][a-zA-Z0-9]*$/;
 const KEY_HINT = 'Start with a lowercase letter, then letters and digits only (e.g. headline)';
-
-interface FieldRow {
-  rowKey: number;
-  key: string;
-  label: string;
-  type: ContentField['type'];
-  required: boolean;
-}
-
-interface RowErrors {
-  key?: string;
-  label?: string;
-}
-
-function fieldError(errors: string[], field: string): string | null {
-  return errors.find((message) => message.toLowerCase().startsWith(field.toLowerCase())) ?? null;
-}
 
 export function ContentTypeForm({
   initial,
@@ -44,205 +42,213 @@ export function ContentTypeForm({
   busyLabel: string;
   onSubmit: (values: ContentTypeFormValues) => Promise<void>;
 }) {
-  const router = useRouter();
-  const [name, setName] = useState(initial?.name ?? '');
-  const [description, setDescription] = useState(initial?.description ?? '');
-  const [nextRowKey, setNextRowKey] = useState(() => (initial?.fields.length ?? 0) + 1);
-  const [rows, setRows] = useState<FieldRow[]>(
-    () =>
-      initial?.fields.map((field, index) => ({
-        rowKey: index + 1,
-        key: field.key,
-        label: field.label,
-        type: field.type,
-        required: field.required,
-      })) ?? [],
-  );
-  const [rowErrors, setRowErrors] = useState<Record<number, RowErrors>>({});
   const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<string[]>([]);
+  const [errorDetails, setErrorDetails] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
-  function addRow() {
-    setRows((current) => [
-      ...current,
-      { rowKey: nextRowKey, key: '', label: '', type: 'text', required: false },
-    ]);
-    setNextRowKey((key) => key + 1);
+  const form = useForm<ContentTypeFormValues>({
+    initialValues: initial ?? { name: '', description: '', fields: [] },
+    validate: {
+      name: (value) => (value.trim() === '' ? 'Name is required' : null),
+      fields: {
+        key: (value, values) => {
+          if (!KEY_PATTERN.test(value)) {
+            return KEY_HINT;
+          }
+          if (values.fields.filter((field) => field.key === value).length > 1) {
+            return `Duplicate key "${value}"`;
+          }
+          return null;
+        },
+        label: (value) => (value.trim() === '' ? 'Label is required' : null),
+      },
+    },
+  });
+
+  function addField() {
+    form.insertListItem('fields', {
+      key: '',
+      label: '',
+      type: 'text',
+      required: false,
+    } satisfies ContentField);
   }
 
-  function removeRow(rowKey: number) {
-    setRows((current) => current.filter((row) => row.rowKey !== rowKey));
-    setRowErrors((current) => {
-      const { [rowKey]: _removed, ...rest } = current;
-      return rest;
-    });
-  }
-
-  function updateRow(rowKey: number, patch: Partial<Omit<FieldRow, 'rowKey'>>) {
-    setRows((current) =>
-      current.map((row) => (row.rowKey === rowKey ? { ...row, ...patch } : row)),
-    );
-  }
-
-  function validateRows(): boolean {
-    const errors: Record<number, RowErrors> = {};
-    const seenKeys = new Set<string>();
-    for (const row of rows) {
-      const rowError: RowErrors = {};
-      if (!KEY_PATTERN.test(row.key)) {
-        rowError.key = KEY_HINT;
-      } else if (seenKeys.has(row.key)) {
-        rowError.key = `Duplicate key "${row.key}"`;
-      } else {
-        seenKeys.add(row.key);
-      }
-      if (row.label.trim() === '') {
-        rowError.label = 'Label is required';
-      }
-      if (rowError.key || rowError.label) {
-        errors[row.rowKey] = rowError;
-      }
-    }
-    setRowErrors(errors);
-    return Object.keys(errors).length === 0;
-  }
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
+  const handleSubmit = form.onSubmit(async (values) => {
     setError(null);
-    setFieldErrors([]);
-    if (!validateRows()) {
-      return;
-    }
+    setErrorDetails([]);
     setBusy(true);
     try {
       await onSubmit({
-        name,
-        description,
-        fields: rows.map((row) => ({
-          key: row.key,
-          label: row.label,
-          type: row.type,
-          required: row.required,
+        name: values.name,
+        description: values.description,
+        fields: values.fields.map((field) => ({
+          key: field.key,
+          label: field.label,
+          type: field.type,
+          required: field.required,
         })),
       });
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
-        setFieldErrors(err.problem.errors ?? []);
+        setErrorDetails(err.problem.errors ?? []);
       } else {
         setError('Saving the content type failed');
       }
       setBusy(false);
     }
-  }
+  });
 
   return (
-    <form className="nv-form" onSubmit={handleSubmit}>
-      {error ? <div className="nv-error">{error}</div> : null}
-      <Field label="Name" htmlFor="name" error={fieldError(fieldErrors, 'name')}>
-        <input
-          id="name"
-          type="text"
-          required
-          maxLength={255}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </Field>
-      <Field
-        label="Description"
-        htmlFor="description"
-        error={fieldError(fieldErrors, 'description')}
-      >
-        <textarea
-          id="description"
-          rows={3}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-      </Field>
-      <Field label="Fields" error={fieldError(fieldErrors, 'fields')}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--nv-space-2)' }}>
-          {rows.map((row) => (
-            <div
-              key={row.rowKey}
-              style={{ display: 'flex', gap: 'var(--nv-space-2)', alignItems: 'flex-start' }}
-            >
-              <div className="nv-field" style={{ flex: 1 }}>
-                <input
-                  type="text"
-                  aria-label="Field key"
-                  placeholder="Key (e.g. headline)"
-                  value={row.key}
-                  onChange={(e) => updateRow(row.rowKey, { key: e.target.value })}
-                />
-                {rowErrors[row.rowKey]?.key ? (
-                  <span className="nv-field-error">{rowErrors[row.rowKey]?.key}</span>
-                ) : null}
-              </div>
-              <div className="nv-field" style={{ flex: 1 }}>
-                <input
-                  type="text"
-                  aria-label="Field label"
-                  placeholder="Label (e.g. Headline)"
-                  value={row.label}
-                  onChange={(e) => updateRow(row.rowKey, { label: e.target.value })}
-                />
-                {rowErrors[row.rowKey]?.label ? (
-                  <span className="nv-field-error">{rowErrors[row.rowKey]?.label}</span>
-                ) : null}
-              </div>
-              <select
-                aria-label="Field type"
-                value={row.type}
-                onChange={(e) =>
-                  updateRow(row.rowKey, { type: e.target.value as ContentField['type'] })
-                }
-              >
-                {FIELD_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
+    <form onSubmit={handleSubmit}>
+      <Stack gap="md" maw={860}>
+        {error ? (
+          <Alert color="red" icon={<IconAlertCircle size={16} />} title={error}>
+            {errorDetails.length > 0 ? (
+              <Stack gap={2}>
+                {errorDetails.map((detail) => (
+                  <Text key={detail} size="sm">
+                    {detail}
+                  </Text>
                 ))}
-              </select>
-              <label
-                style={{
-                  display: 'flex',
-                  gap: 'var(--nv-space-1)',
-                  alignItems: 'center',
-                  whiteSpace: 'nowrap',
-                  paddingTop: '6px',
-                }}
+              </Stack>
+            ) : null}
+          </Alert>
+        ) : null}
+
+        <TextInput
+          label={
+            <span>
+              Name
+              <HelpTip label="What this kind of content is called, e.g. Article, FAQ, Testimonial" />
+            </span>
+          }
+          placeholder="e.g. Article"
+          withAsterisk
+          maxLength={255}
+          {...form.getInputProps('name')}
+        />
+        <Textarea
+          label={
+            <span>
+              Description
+              <HelpTip label="A short note that helps editors pick the right type" />
+            </span>
+          }
+          placeholder="What is this type used for?"
+          autosize
+          minRows={2}
+          {...form.getInputProps('description')}
+        />
+
+        <div>
+          <Group gap={4} mb={4}>
+            <Text component="label" size="sm" fw={500}>
+              Fields
+            </Text>
+            <HelpTip label="The form editors fill in for every entry of this type. Each field has a technical key, a friendly label and a type." />
+          </Group>
+          <Stack gap="sm">
+            {form.values.fields.length === 0 ? (
+              <Card padding="lg" style={{ borderStyle: 'dashed' }}>
+                <Text size="sm" c="slate.5" ta="center">
+                  No fields yet. Add the first field to define what each entry of this type
+                  contains.
+                </Text>
+              </Card>
+            ) : (
+              form.values.fields.map((field, index) => (
+                <Card key={index} padding="sm">
+                  <Group align="flex-start" wrap="nowrap" gap="sm">
+                    <TextInput
+                      flex={1}
+                      aria-label="Field key"
+                      label={
+                        <span>
+                          Key
+                          <HelpTip label="Technical name used by the API, e.g. headline. Lowercase start, letters and digits only." />
+                        </span>
+                      }
+                      placeholder="headline"
+                      {...form.getInputProps(`fields.${index}.key`)}
+                    />
+                    <TextInput
+                      flex={1}
+                      aria-label="Field label"
+                      label={
+                        <span>
+                          Label
+                          <HelpTip label="The friendly name editors see, e.g. Headline" />
+                        </span>
+                      }
+                      placeholder="Headline"
+                      {...form.getInputProps(`fields.${index}.label`)}
+                    />
+                    <Select
+                      w={170}
+                      aria-label="Field type"
+                      label={
+                        <span>
+                          Type
+                          <HelpTip label="What kind of value this field holds" />
+                        </span>
+                      }
+                      data={FIELD_TYPE_OPTIONS}
+                      allowDeselect={false}
+                      renderOption={({ option }) => (
+                        <div>
+                          <Text size="sm">{option.label}</Text>
+                          <Text size="xs" c="slate.5">
+                            {FIELD_TYPE_META[option.value as ContentField['type']].description}
+                          </Text>
+                        </div>
+                      )}
+                      {...form.getInputProps(`fields.${index}.type`)}
+                    />
+                    <Switch
+                      mt={30}
+                      label="Required"
+                      styles={{ label: { whiteSpace: 'nowrap' } }}
+                      {...form.getInputProps(`fields.${index}.required`, { type: 'checkbox' })}
+                    />
+                    <Tooltip label="Remove field">
+                      <ActionIcon
+                        mt={28}
+                        variant="subtle"
+                        color="red"
+                        aria-label="Remove field"
+                        onClick={() => form.removeListItem('fields', index)}
+                      >
+                        <IconTrash size={16} />
+                      </ActionIcon>
+                    </Tooltip>
+                  </Group>
+                </Card>
+              ))
+            )}
+            <div>
+              <Button
+                type="button"
+                variant="light"
+                leftSection={<IconPlus size={16} />}
+                onClick={addField}
               >
-                <input
-                  type="checkbox"
-                  checked={row.required}
-                  onChange={(e) => updateRow(row.rowKey, { required: e.target.checked })}
-                />
-                Required
-              </label>
-              <Button type="button" variant="danger" onClick={() => removeRow(row.rowKey)}>
-                Remove
+                Add field
               </Button>
             </div>
-          ))}
-          <div>
-            <Button type="button" variant="secondary" onClick={addRow}>
-              Add field
-            </Button>
-          </div>
+          </Stack>
         </div>
-      </Field>
-      <FormActions>
-        <Button type="submit" disabled={busy}>
-          {busy ? busyLabel : submitLabel}
-        </Button>
-        <Button type="button" variant="secondary" onClick={() => router.push('/admin/content')}>
-          Cancel
-        </Button>
-      </FormActions>
+
+        <Group gap="sm">
+          <Button type="submit" loading={busy}>
+            {busy ? busyLabel : submitLabel}
+          </Button>
+          <Button component={Link} href="/admin/content" variant="subtle" color="slate">
+            Cancel
+          </Button>
+        </Group>
+      </Stack>
     </form>
   );
 }
