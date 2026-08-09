@@ -1,4 +1,6 @@
 import 'reflect-metadata';
+import { resolve } from 'node:path';
+import { config as loadEnv } from 'dotenv';
 import helmet from '@fastify/helmet';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
@@ -6,6 +8,12 @@ import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fa
 import { AppModule } from './app.module';
 import { configureApp } from './app.setup';
 import { runMigrations } from './db/run-migrations';
+
+// dotenv never overrides variables already set in the environment, so loading
+// the app-local .env first and the repo-root .env second is safe regardless of
+// the working directory (apps/api in dev, repo root otherwise).
+loadEnv({ path: resolve(process.cwd(), '.env') });
+loadEnv({ path: resolve(process.cwd(), '../../.env') });
 
 async function bootstrap(): Promise<void> {
   if (process.env.RUN_MIGRATIONS === 'true') {

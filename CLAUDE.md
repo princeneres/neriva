@@ -53,7 +53,7 @@ docs/
 ## Key domain rules
 
 - **Pages are data.** A Page is a JSON tree of Block instances (block ref + prop values + slot children). The rendering runtime composes it; headless clients consume the raw JSON.
-- **Blocks are typed components.** A Block declares a JSON schema of configurable props + named slots. No string-template HTML editing (no FreeMarker-style approach).
+- **Blocks are authorable templates** (ADR-003). A Block declares a JSON schema of configurable props + named slots, and optionally an HTML+CSS template with editable-field bindings (`data-nv-*`) authored in the admin, Liferay-fragment style. Templates are data (escaped interpolation, sanitized on write), never server-side code execution.
 - **Style Book = design token set.** Tokens (colors, spacing, typography, radii) are a versioned entity; Blocks consume tokens via CSS variables. Default token set uses primary color `#cc3d47`, minimalist neutral palette.
 - **Permissions:** Role -> allowed actions (create/read/update/delete/publish) on resource types, scoped to tenant or site. Implemented as CASL abilities built from DB rows. Deny by default.
 - **Bootstrap:** first boot seeds tenant "default", role "Administrator", and user `admin@neriva.com` / password `admin` with `mustChangePassword=true`. Login while that flag is set forces a password change before anything else.

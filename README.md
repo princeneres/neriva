@@ -25,27 +25,41 @@ Neriva takes the concepts that make Liferay DXP productive (pages composed from 
 - **Style Book.** Versioned design tokens exposed as CSS variables, consumed by every Block.
 - **Standard entity envelope.** UUIDv7 ids, external reference codes for idempotent upserts, tenant scoping in every query from day one.
 
-## Quickstart
+## Running the project
+
+### Prerequisites
+
+- Node.js >= 20
+- pnpm 10 (`corepack enable` is the easiest way to get it)
+- Docker (only used to run PostgreSQL locally)
+
+### Steps
 
 ```bash
 git clone <repo-url> neriva && cd neriva
 pnpm install
 
-# 1. Start PostgreSQL
+# 1. Start PostgreSQL (docker-compose.yml runs only the database)
 docker compose up -d
 
-# 2. Configure environment
+# 2. Configure environment (defaults work out of the box for local dev)
 cp .env.example .env
 
 # 3. Apply database migrations
 pnpm --filter @neriva/api db:migrate
 
-# 4. Run the API and the Admin UI
-pnpm --filter @neriva/api dev     # http://localhost:3001
-pnpm --filter @neriva/web dev     # http://localhost:3000
+# 4. Run the API and the Admin UI (two terminals)
+pnpm --filter @neriva/api dev     # REST API on http://localhost:3001
+pnpm --filter @neriva/web dev     # Admin UI on http://localhost:3000
 ```
 
-Sign in with the bootstrap credentials: `admin@neriva.com` / `admin`. Neriva forces a password change on first login before anything else is allowed.
+Open http://localhost:3000 and sign in with the bootstrap credentials: `admin@neriva.com` / `admin`. Neriva forces a password change on first login before anything else is allowed.
+
+To run the full verification loop (lint, typecheck, tests, build):
+
+```bash
+pnpm verify
+```
 
 ## Architecture
 
