@@ -14,7 +14,12 @@ Status: approved for implementation. Purpose: serve PUBLISHED content to anonymo
 {
   "data": {
     "site": { "name": "Demo Site", "slug": "demo" },
-    "page": { "title": "Welcome to Neriva", "path": "/", "tree": { "blocks": [] }, "updatedAt": "..." },
+    "page": {
+      "title": "Welcome to Neriva",
+      "path": "/",
+      "tree": { "blocks": [] },
+      "updatedAt": "..."
+    },
     "blocks": {
       "hero": { "name": "Hero", "category": "content", "slots": [] }
     }
