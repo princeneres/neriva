@@ -166,9 +166,18 @@ export default function BlocksPage() {
                 : items.map((block) => (
                     <Table.Tr key={block.id}>
                       <Table.Td>
-                        <Text size="sm" fw={600}>
-                          {block.name}
-                        </Text>
+                        <Group gap={6} wrap="nowrap">
+                          <Text size="sm" fw={600}>
+                            {block.name}
+                          </Text>
+                          {block.html ? (
+                            <Tooltip label="Renders through an HTML and CSS template">
+                              <Badge size="xs" variant="light" color="slate" tt="none">
+                                Code
+                              </Badge>
+                            </Tooltip>
+                          ) : null}
+                        </Group>
                         {block.description ? (
                           <Text size="xs" c="slate.5" lineClamp={1}>
                             {block.description}
