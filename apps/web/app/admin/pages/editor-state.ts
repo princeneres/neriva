@@ -70,6 +70,61 @@ export function insertNode(
   return { nodes: next, key: created.key };
 }
 
+export function findNode(nodes: EditorNode[], key: string): EditorNode | null {
+  for (const node of nodes) {
+    if (node.key === key) {
+      return node;
+    }
+    for (const children of Object.values(node.slots)) {
+      const found = findNode(children, key);
+      if (found !== null) {
+        return found;
+      }
+    }
+  }
+  return null;
+}
+
+// Deep-copies a node (fresh keys throughout) and places the copy right after
+// the original among its siblings. Returns the copy's key for selection.
+export function duplicateNode(
+  nodes: EditorNode[],
+  key: string,
+): { nodes: EditorNode[]; key: string | null } {
+  const index = nodes.findIndex((node) => node.key === key);
+  if (index !== -1) {
+    const source = nodes[index];
+    if (source === undefined) {
+      return { nodes, key: null };
+    }
+    const copy = cloneWithFreshKeys(source);
+    return {
+      nodes: [...nodes.slice(0, index + 1), copy, ...nodes.slice(index + 1)],
+      key: copy.key,
+    };
+  }
+  let createdKey: string | null = null;
+  const next = nodes.map((node) => ({
+    ...node,
+    slots: mapSlots(node.slots, (children) => {
+      const result = duplicateNode(children, key);
+      if (result.key !== null) {
+        createdKey = result.key;
+      }
+      return result.nodes;
+    }),
+  }));
+  return createdKey === null ? { nodes, key: null } : { nodes: next, key: createdKey };
+}
+
+function cloneWithFreshKeys(node: EditorNode): EditorNode {
+  const slots: Record<string, EditorNode[]> = {};
+  for (const [name, children] of Object.entries(node.slots)) {
+    slots[name] = children.map(cloneWithFreshKeys);
+  }
+  return { key: nextKey(), block: node.block, props: { ...node.props }, slots };
+}
+
 export function removeNode(nodes: EditorNode[], key: string): EditorNode[] {
   return nodes
     .filter((node) => node.key !== key)

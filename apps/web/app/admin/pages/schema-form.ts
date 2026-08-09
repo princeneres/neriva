@@ -69,35 +69,3 @@ function buildSpec(name: string, schema: unknown, required: boolean): PropFieldS
       return spec;
   }
 }
-
-// One-line preview of the filled props, shown on collapsed block cards.
-export function summarizeProps(props: Record<string, unknown>, maxEntries = 3): string {
-  const entries = Object.entries(props).filter(([, value]) => value !== undefined);
-  if (entries.length === 0) {
-    return '';
-  }
-  const parts = entries
-    .slice(0, maxEntries)
-    .map(([name, value]) => `${name}: ${previewValue(value)}`);
-  const rest = entries.length - maxEntries;
-  if (rest > 0) {
-    parts.push(`+${rest} more`);
-  }
-  return parts.join(' · ');
-}
-
-function previewValue(value: unknown): string {
-  if (typeof value === 'string') {
-    return `"${value.length > 24 ? `${value.slice(0, 24)}…` : value}"`;
-  }
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-  if (value === null) {
-    return 'null';
-  }
-  if (Array.isArray(value)) {
-    return `[${value.length} item${value.length === 1 ? '' : 's'}]`;
-  }
-  return '{…}';
-}

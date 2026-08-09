@@ -1,0 +1,303 @@
+/* Page Studio: full-height three-zone layout pulled flush against the
+   AppShell.Main padding so the editor uses the whole content area. */
+.studio {
+  margin: calc(var(--app-shell-padding, var(--mantine-spacing-xl)) * -1);
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--mantine-color-slate-1);
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-sm);
+  padding: 8px var(--mantine-spacing-md);
+  background: white;
+  border-bottom: 1px solid var(--mantine-color-slate-2);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.palette {
+  width: 240px;
+  flex-shrink: 0;
+  background: white;
+  border-right: 1px solid var(--mantine-color-slate-2);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.paletteRail {
+  width: 44px;
+  flex-shrink: 0;
+  background: white;
+  border-right: 1px solid var(--mantine-color-slate-2);
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
+}
+
+.canvasScroll {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: var(--mantine-spacing-xl) var(--mantine-spacing-lg);
+}
+
+.pageSurface {
+  background: white;
+  margin: 0 auto;
+  min-height: 70vh;
+  box-shadow: var(--mantine-shadow-sm);
+  border: 1px solid var(--mantine-color-slate-2);
+  transition: max-width 200ms ease;
+}
+
+.inspector {
+  width: 300px;
+  flex-shrink: 0;
+  background: white;
+  border-left: 1px solid var(--mantine-color-slate-2);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* Selection wrapper around every rendered block. The :has() guard keeps the
+   dashed hover outline on the innermost hovered block only. */
+.block {
+  position: relative;
+}
+
+.block:hover:not(:has(.block:hover)) {
+  outline: 1.5px dashed var(--mantine-color-slate-5);
+  outline-offset: -1.5px;
+}
+
+.block:hover:not(:has(.block:hover)) > .chip {
+  opacity: 1;
+}
+
+.block.blockSelected,
+.block.blockSelected:hover:not(:has(.block:hover)) {
+  outline: 2px solid var(--mantine-color-neriva-6);
+  outline-offset: -2px;
+}
+
+.block.blockSelected > .chip {
+  opacity: 1;
+  background: var(--mantine-color-neriva-6);
+}
+
+.chip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateY(-100%);
+  z-index: 6;
+  opacity: 0;
+  background: var(--mantine-color-slate-6);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 2px 8px;
+  border-radius: 4px 4px 0 0;
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 80ms ease;
+}
+
+/* Floating mini-toolbar of the selected block. */
+.toolbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: translateY(-100%);
+  z-index: 7;
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  background: var(--mantine-color-neriva-6);
+  border-radius: 4px 4px 0 0;
+  padding: 2px 4px;
+}
+
+.toolbarButton {
+  color: white;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.toolbarButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.toolbarButton:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.grip {
+  cursor: grab;
+  touch-action: none;
+}
+
+/* Thin insertion line between root blocks, revealed on hover or focus. */
+.insertZone {
+  position: relative;
+  height: 16px;
+  margin: -8px 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+.insertZone:hover,
+.insertZone:focus-within {
+  opacity: 1;
+}
+
+.insertZone::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--mantine-color-neriva-5);
+  border-radius: 1px;
+}
+
+.insertButton {
+  position: relative;
+  z-index: 1;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--mantine-color-neriva-6);
+  color: white;
+  border: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--mantine-shadow-sm);
+}
+
+/* Dashed "add" affordances: end of page and inside slots. */
+.addArea {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: calc(100% - 2 * var(--mantine-spacing-md));
+  margin: var(--mantine-spacing-md);
+  padding: var(--mantine-spacing-md);
+  border: 1.5px dashed var(--mantine-color-slate-3);
+  border-radius: var(--mantine-radius-md);
+  background: transparent;
+  color: var(--mantine-color-slate-5);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 100ms ease,
+    color 100ms ease,
+    background 100ms ease;
+}
+
+.addArea:hover {
+  border-color: var(--mantine-color-neriva-5);
+  color: var(--mantine-color-neriva-6);
+  background: var(--mantine-color-neriva-0);
+}
+
+.slotArea {
+  min-width: 0;
+}
+
+.slotAdd {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px;
+  border: 1.5px dashed var(--mantine-color-slate-3);
+  border-radius: var(--mantine-radius-md);
+  background: transparent;
+  color: var(--mantine-color-slate-5);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 100ms ease,
+    color 100ms ease;
+}
+
+.slotAdd:hover {
+  border-color: var(--mantine-color-neriva-5);
+  color: var(--mantine-color-neriva-6);
+}
+
+.slotEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: 14px 10px;
+  border: 1.5px dashed var(--mantine-color-slate-3);
+  border-radius: var(--mantine-radius-md);
+  background: var(--mantine-color-slate-0);
+  color: var(--mantine-color-slate-5);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    border-color 100ms ease,
+    color 100ms ease;
+}
+
+.slotEmpty:hover {
+  border-color: var(--mantine-color-neriva-5);
+  color: var(--mantine-color-neriva-6);
+}
+
+.slotLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--mantine-color-slate-4);
+}
