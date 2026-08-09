@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://placehold.co/120x120/cc3d47/ffffff?text=N" alt="Neriva logo" width="96" height="96" />
+  <img src="docs/assets/logo.svg" alt="Neriva logo" width="96" height="96" />
 </p>
 
 <h1 align="center">Neriva</h1>
