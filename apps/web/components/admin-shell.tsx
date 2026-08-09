@@ -24,6 +24,7 @@ import {
   IconExternalLink,
   IconFileText,
   IconFiles,
+  IconLayoutBoard,
   IconLayoutSidebarLeftCollapse,
   IconLayoutSidebarLeftExpand,
   IconLogout,
@@ -33,6 +34,7 @@ import {
   IconSettings,
   IconShieldLock,
   IconSun,
+  IconTrash,
   IconUsers,
   IconWorld,
 } from '@tabler/icons-react';
@@ -98,6 +100,12 @@ const NAV_GROUPS: {
         icon: IconPalette,
         help: 'Colors, spacing and typography, in one place',
       },
+      {
+        label: 'Page Templates',
+        href: '/admin/page-templates',
+        icon: IconLayoutBoard,
+        help: 'Master pages (shared header and footer) and starting points for new pages',
+      },
     ],
   },
   {
@@ -120,6 +128,12 @@ const NAV_GROUPS: {
         href: '/admin/settings',
         icon: IconSettings,
         help: 'System configuration such as SMTP and site metadata',
+      },
+      {
+        label: 'Trash',
+        href: '/admin/trash',
+        icon: IconTrash,
+        help: 'Deleted content, kept here until restored or permanently deleted',
       },
     ],
   },

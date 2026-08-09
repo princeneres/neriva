@@ -5,7 +5,12 @@ import type { PageTree } from './tree-utils';
 // "type: [object, null]" quirk); at runtime the API returns plain strings.
 // PageDto.tree is generated as an open object; the server validates it into
 // the recursive shape from spec 03, so refine it locally for rendering.
-export type Page = Omit<components['schemas']['PageDto'], 'tree'> & {
+export type Page = Omit<components['schemas']['PageDto'], 'tree' | 'masterPageTemplateId'> & {
+  tree: PageTree;
+  masterPageTemplateId: string | null;
+};
+
+export type PageTemplate = Omit<components['schemas']['PageTemplateDto'], 'tree'> & {
   tree: PageTree;
 };
 

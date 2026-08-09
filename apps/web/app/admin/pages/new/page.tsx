@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   Group,
+  Select,
   Skeleton,
   Stack,
   Text,
@@ -18,19 +19,23 @@ import { notifications } from '@mantine/notifications';
 import { IconAlertCircle, IconBrush } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { HelpTip } from '../../../../components/help-tip';
 import { ApiError, api } from '../../../../lib/api';
 import { useSite } from '../../../../lib/site-context';
 import { PATH_PATTERN } from '../tree-utils';
-import type { Page } from '../types';
+import type { Page, PageTemplate } from '../types';
 
 const PATH_ERROR =
   'The path must start with "/" and use only lowercase letters, digits, "/" and "-".';
 
+// No selection: create the page with an empty tree, same as always.
+const NO_TEMPLATE = null;
+
 interface NewPageValues {
   title: string;
   path: string;
+  templateId: string | null;
 }
 
 const FIELD_NAMES = ['title', 'path'] as const;
@@ -49,9 +54,17 @@ function NewPageForm() {
       : current;
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<PageTemplate[]>([]);
+
+  useEffect(() => {
+    api
+      .get<{ data: PageTemplate[] }>('/page-templates?kind=STANDARD&limit=100')
+      .then(({ data }) => setTemplates(data))
+      .catch(() => setTemplates([]));
+  }, []);
 
   const form = useForm<NewPageValues>({
-    initialValues: { title: '', path: '/' },
+    initialValues: { title: '', path: '/', templateId: NO_TEMPLATE as string | null },
     validate: {
       title: (value) => (value.trim() ? null : 'Give the page a title'),
       path: (value) => (PATH_PATTERN.test(value) ? null : PATH_ERROR),
@@ -90,6 +103,7 @@ function NewPageForm() {
       const { data } = await api.post<{ data: Page }>(`/sites/${site?.id}/pages`, {
         title: values.title.trim(),
         path: values.path,
+        ...(values.templateId !== null ? { templateId: values.templateId } : {}),
       });
       notifications.show({ color: 'green', message: `"${data.title}" was created.` });
       router.push(`/admin/pages/${data.id}/design`);
@@ -154,6 +168,16 @@ function NewPageForm() {
               maxLength={255}
               {...form.getInputProps('path')}
             />
+            {templates.length > 0 ? (
+              <Select
+                label="Start from a template"
+                description="Optional. Copies the template's blocks as a starting point; the page is not linked to it afterward."
+                placeholder="Blank page"
+                clearable
+                data={templates.map((template) => ({ value: template.id, label: template.name }))}
+                {...form.getInputProps('templateId')}
+              />
+            ) : null}
             <Group mt="xs">
               <Button type="submit" loading={busy} leftSection={<IconBrush size={16} />}>
                 Create and design

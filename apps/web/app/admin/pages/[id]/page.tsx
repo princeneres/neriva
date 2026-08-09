@@ -9,6 +9,7 @@ import {
   Card,
   Code,
   Group,
+  Select,
   Skeleton,
   Stack,
   Text,
@@ -32,24 +33,41 @@ import { HelpTip } from '../../../../components/help-tip';
 import { ApiError, api } from '../../../../lib/api';
 import { publicPageUrl, useSite } from '../../../../lib/site-context';
 import { PATH_PATTERN } from '../tree-utils';
-import { type Page, statusColor } from '../types';
+import { type Page, type PageTemplate, statusColor } from '../types';
 
 const PATH_ERROR =
   'The path must start with "/" and use only lowercase letters, digits, "/" and "-".';
 
+// Value the Select uses for "no explicit master, use the site/tenant
+// default"; the API accepts an omitted/null masterPageTemplateId for that.
+const SITE_DEFAULT_MASTER = '__site_default__';
+
 interface SettingsValues {
   title: string;
   path: string;
+  masterPageTemplateId: string;
 }
 
-const FIELD_NAMES = ['title', 'path'] as const;
+const FIELD_NAMES = ['title', 'path', 'masterPageTemplateId'] as const;
 
 function SettingsForm({ page, onSaved }: { page: Page; onSaved: (page: Page) => void }) {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [masters, setMasters] = useState<PageTemplate[]>([]);
+
+  useEffect(() => {
+    api
+      .get<{ data: PageTemplate[] }>('/page-templates?kind=MASTER&limit=100')
+      .then(({ data }) => setMasters(data))
+      .catch(() => setMasters([]));
+  }, []);
 
   const form = useForm<SettingsValues>({
-    initialValues: { title: page.title, path: page.path },
+    initialValues: {
+      title: page.title,
+      path: page.path,
+      masterPageTemplateId: page.masterPageTemplateId ?? SITE_DEFAULT_MASTER,
+    },
     validate: {
       title: (value) => (value.trim() ? null : 'Give the page a title'),
       path: (value) => (PATH_PATTERN.test(value) ? null : PATH_ERROR),
@@ -63,9 +81,15 @@ function SettingsForm({ page, onSaved }: { page: Page; onSaved: (page: Page) => 
       const { data } = await api.patch<{ data: Page }>(`/pages/${page.id}`, {
         title: values.title.trim(),
         path: values.path,
+        masterPageTemplateId:
+          values.masterPageTemplateId === SITE_DEFAULT_MASTER ? null : values.masterPageTemplateId,
       });
       onSaved(data);
-      form.setValues({ title: data.title, path: data.path });
+      form.setValues({
+        title: data.title,
+        path: data.path,
+        masterPageTemplateId: data.masterPageTemplateId ?? SITE_DEFAULT_MASTER,
+      });
       notifications.show({ color: 'green', message: 'Page settings saved.' });
     } catch (err) {
       // class-validator messages start with the property name ("path must match ...").
@@ -116,6 +140,20 @@ function SettingsForm({ page, onSaved }: { page: Page; onSaved: (page: Page) => 
           maxLength={255}
           placeholder="/home"
           {...form.getInputProps('path')}
+        />
+        <Select
+          label={
+            <>
+              Master page
+              <HelpTip label="The shared header and footer this page renders inside. Leave it on the site default unless this page needs a different one." />
+            </>
+          }
+          data={[
+            { value: SITE_DEFAULT_MASTER, label: 'Use the site default' },
+            ...masters.map((master) => ({ value: master.id, label: master.name })),
+          ]}
+          allowDeselect={false}
+          {...form.getInputProps('masterPageTemplateId')}
         />
         <Group mt="xs">
           <Button type="submit" loading={busy}>
