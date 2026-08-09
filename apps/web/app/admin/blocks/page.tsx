@@ -5,22 +5,35 @@ import {
   Badge,
   Button,
   Card,
+  Center,
   Group,
+  Menu,
+  Select,
+  SimpleGrid,
   Skeleton,
   Stack,
-  Table,
   Text,
+  TextInput,
   ThemeIcon,
   Title,
-  Tooltip,
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
-import { IconCube, IconPencil, IconPlus, IconTrash, IconWorldUpload } from '@tabler/icons-react';
+import {
+  IconCube,
+  IconDots,
+  IconPencil,
+  IconPlus,
+  IconSearch,
+  IconTrash,
+  IconWorldUpload,
+} from '@tabler/icons-react';
 import Link from 'next/link';
-import { HelpTip } from '../../../components/help-tip';
+import { useState } from 'react';
+import { blockIconFor } from '../../../components/block-icon';
 import { useCursorList } from '../../../components/data-table';
 import { ApiError, api } from '../../../lib/api';
+import classes from './blocks-gallery.module.css';
 import type { Block } from './types';
 
 const STATUS_COLORS: Record<Block['status'], string> = {
@@ -29,21 +42,67 @@ const STATUS_COLORS: Record<Block['status'], string> = {
   ARCHIVED: 'dark',
 };
 
-const CATEGORY_COLORS: Record<string, string> = {
-  layout: 'indigo',
-  content: 'teal',
-  media: 'grape',
-  navigation: 'orange',
-};
+// Liferay-style fragment library ordering; unknown categories follow
+// alphabetically, uncategorized blocks close the gallery under "Other".
+const CATEGORY_ORDER = ['layout', 'basic', 'content', 'media', 'advanced'];
+const UNCATEGORIZED_KEY = 'other';
+const ALL_CATEGORIES = 'all';
 
 function errorMessage(error: unknown): string {
   return error instanceof ApiError ? error.message : 'Something went wrong. Please try again.';
+}
+
+function categoryKey(block: Block): string {
+  const raw = (block.category ?? '').trim().toLowerCase();
+  return raw === '' ? UNCATEGORIZED_KEY : raw;
+}
+
+function categoryLabel(key: string): string {
+  return key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+function groupRank(key: string): number {
+  if (key === UNCATEGORIZED_KEY) {
+    return CATEGORY_ORDER.length + 1;
+  }
+  const index = CATEGORY_ORDER.indexOf(key);
+  return index === -1 ? CATEGORY_ORDER.length : index;
+}
+
+interface BlockGroup {
+  key: string;
+  label: string;
+  blocks: Block[];
+}
+
+function groupByCategory(blocks: Block[]): BlockGroup[] {
+  const groups = new Map<string, Block[]>();
+  for (const block of blocks) {
+    const key = categoryKey(block);
+    const list = groups.get(key);
+    if (list) {
+      list.push(block);
+    } else {
+      groups.set(key, [block]);
+    }
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => groupRank(a) - groupRank(b) || a.localeCompare(b))
+    .map(([key, list]) => ({
+      key,
+      label: categoryLabel(key),
+      blocks: [...list].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+      ),
+    }));
 }
 
 export default function BlocksPage() {
   const { items, loading, hasMore, refresh, loadMore } = useCursorList<Block>('/blocks', (error) =>
     notifications.show({ color: 'red', message: error.message }),
   );
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState<string>(ALL_CATEGORIES);
 
   function confirmPublish(block: Block) {
     modals.openConfirmModal({
@@ -95,6 +154,29 @@ export default function BlocksPage() {
 
   const showEmptyState = !loading && items.length === 0;
 
+  const categoryOptions = [
+    { value: ALL_CATEGORIES, label: 'All categories' },
+    ...[...new Set(items.map((block) => categoryKey(block)))]
+      .sort((a, b) => groupRank(a) - groupRank(b) || a.localeCompare(b))
+      .map((key) => ({ value: key, label: categoryLabel(key) })),
+  ];
+
+  const query = search.trim().toLowerCase();
+  const visible = items.filter((block) => {
+    if (category !== ALL_CATEGORIES && categoryKey(block) !== category) {
+      return false;
+    }
+    if (query === '') {
+      return true;
+    }
+    return (
+      block.name.toLowerCase().includes(query) ||
+      (block.description ?? '').toLowerCase().includes(query) ||
+      block.externalReferenceCode.toLowerCase().includes(query)
+    );
+  });
+  const groups = groupByCategory(visible);
+
   return (
     <div>
       <Group justify="space-between" mb="lg">
@@ -107,13 +189,10 @@ export default function BlocksPage() {
             editors can fill in.
           </Text>
         </div>
-        <Button component={Link} href="/admin/blocks/new" leftSection={<IconPlus size={16} />}>
-          New block
-        </Button>
       </Group>
 
-      <Card padding={0}>
-        {showEmptyState ? (
+      {showEmptyState ? (
+        <Card>
           <Stack align="center" gap="xs" py={56} px="md">
             <ThemeIcon size={44} radius="md" variant="light">
               <IconCube size={24} stroke={1.7} />
@@ -123,7 +202,7 @@ export default function BlocksPage() {
             </Text>
             <Text size="sm" c="slate.5" ta="center" maw={420}>
               Blocks are the reusable pieces pages are made of, like Liferay fragments. Define one
-              here and every page can use it.
+              here and it appears in this gallery, ready for every page.
             </Text>
             <Button
               component={Link}
@@ -134,127 +213,147 @@ export default function BlocksPage() {
               Create your first block
             </Button>
           </Stack>
-        ) : (
-          <Table highlightOnHover verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Category</Table.Th>
-                <Table.Th>
-                  Status
-                  <HelpTip label="Only published blocks can appear on published pages" />
-                </Table.Th>
-                <Table.Th>
-                  Slots
-                  <HelpTip label="Spaces inside the block where other blocks can be nested" />
-                </Table.Th>
-                <Table.Th>Updated</Table.Th>
-                <Table.Th aria-label="Actions" />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {loading && items.length === 0
-                ? [0, 1, 2].map((row) => (
-                    <Table.Tr key={row}>
-                      {[0, 1, 2, 3, 4, 5].map((cell) => (
-                        <Table.Td key={cell}>
-                          <Skeleton height={12} />
-                        </Table.Td>
-                      ))}
-                    </Table.Tr>
-                  ))
-                : items.map((block) => (
-                    <Table.Tr key={block.id}>
-                      <Table.Td>
-                        <Group gap={6} wrap="nowrap">
-                          <Text size="sm" fw={600}>
+        </Card>
+      ) : (
+        <>
+          <Group justify="space-between" mb="lg" gap="sm">
+            <Group gap="sm">
+              <TextInput
+                placeholder="Search blocks"
+                aria-label="Search blocks"
+                leftSection={<IconSearch size={16} />}
+                value={search}
+                onChange={(event) => setSearch(event.currentTarget.value)}
+                w={260}
+              />
+              <Select
+                aria-label="Filter by category"
+                data={categoryOptions}
+                value={category}
+                onChange={(value) => setCategory(value ?? ALL_CATEGORIES)}
+                allowDeselect={false}
+                w={190}
+              />
+            </Group>
+            <Button component={Link} href="/admin/blocks/new" leftSection={<IconPlus size={16} />}>
+              New block
+            </Button>
+          </Group>
+
+          {loading && items.length === 0 ? (
+            <SimpleGrid cols={{ base: 2, md: 3, lg: 4 }}>
+              {[0, 1, 2, 3].map((tile) => (
+                <Skeleton key={tile} height={168} radius="md" />
+              ))}
+            </SimpleGrid>
+          ) : groups.length === 0 ? (
+            <Card>
+              <Text size="sm" c="slate.5" ta="center" py="xl">
+                No blocks match your search.
+              </Text>
+            </Card>
+          ) : (
+            <Stack gap="xl">
+              {groups.map((group) => (
+                <section key={group.key} aria-label={group.label}>
+                  <Text size="xs" fw={600} c="slate.5" tt="uppercase" lts={0.5} mb="xs">
+                    {group.label}
+                  </Text>
+                  <SimpleGrid cols={{ base: 2, md: 3, lg: 4 }}>
+                    {group.blocks.map((block) => {
+                      const Icon = blockIconFor(block.externalReferenceCode, block.category);
+                      return (
+                        <Card key={block.id} withBorder padding="md" className={classes.card}>
+                          <Card.Section bg="slate.0" py="lg">
+                            <Center>
+                              <ThemeIcon size={44} radius="md" variant="light">
+                                <Icon size={24} stroke={1.7} />
+                              </ThemeIcon>
+                            </Center>
+                          </Card.Section>
+                          <Text
+                            component={Link}
+                            href={`/admin/blocks/${block.id}`}
+                            className={classes.nameLink}
+                            fw={600}
+                            size="sm"
+                            mt="sm"
+                            truncate
+                          >
                             {block.name}
                           </Text>
-                          {block.html ? (
-                            <Tooltip label="Renders through an HTML and CSS template">
+                          <Text size="xs" c="slate.5" lineClamp={1}>
+                            {/* nbsp keeps the row height when there is no description */}
+                            {block.description ?? ' '}
+                          </Text>
+                          <Group gap={4} mt="xs">
+                            <Badge size="xs" color={STATUS_COLORS[block.status]}>
+                              {block.status}
+                            </Badge>
+                            {block.html ? (
                               <Badge size="xs" variant="light" color="slate" tt="none">
                                 Code
                               </Badge>
-                            </Tooltip>
-                          ) : null}
-                        </Group>
-                        {block.description ? (
-                          <Text size="xs" c="slate.5" lineClamp={1}>
-                            {block.description}
-                          </Text>
-                        ) : null}
-                      </Table.Td>
-                      <Table.Td>
-                        {block.category ? (
-                          <Badge color={CATEGORY_COLORS[block.category] ?? 'slate'}>
-                            {block.category}
-                          </Badge>
-                        ) : (
-                          <Text size="sm" c="slate.4">
-                            None
-                          </Text>
-                        )}
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge color={STATUS_COLORS[block.status]}>{block.status}</Badge>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm">{block.slots.length}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm" c="slate.5">
-                          {new Date(block.updatedAt).toLocaleString()}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Group gap={4} justify="flex-end" wrap="nowrap">
-                          {block.status !== 'PUBLISHED' ? (
-                            <Tooltip label="Publish">
+                            ) : null}
+                          </Group>
+                          <Menu position="bottom-end" withinPortal>
+                            <Menu.Target>
                               <ActionIcon
                                 variant="subtle"
-                                aria-label={`Publish ${block.name}`}
-                                onClick={() => confirmPublish(block)}
+                                color="slate"
+                                className={classes.menu}
+                                aria-label={`Actions for ${block.name}`}
                               >
-                                <IconWorldUpload size={16} />
+                                <IconDots size={16} />
                               </ActionIcon>
-                            </Tooltip>
-                          ) : null}
-                          <Tooltip label="Edit">
-                            <ActionIcon
-                              variant="subtle"
-                              component={Link}
-                              href={`/admin/blocks/${block.id}`}
-                              aria-label={`Edit ${block.name}`}
-                            >
-                              <IconPencil size={16} />
-                            </ActionIcon>
-                          </Tooltip>
-                          <Tooltip label="Delete">
-                            <ActionIcon
-                              variant="subtle"
-                              color="red"
-                              aria-label={`Delete ${block.name}`}
-                              onClick={() => confirmDelete(block)}
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-            </Table.Tbody>
-          </Table>
-        )}
-      </Card>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                              <Menu.Item
+                                component={Link}
+                                href={`/admin/blocks/${block.id}`}
+                                leftSection={<IconPencil size={14} />}
+                              >
+                                Edit
+                              </Menu.Item>
+                              {block.status !== 'PUBLISHED' ? (
+                                <Menu.Item
+                                  leftSection={<IconWorldUpload size={14} />}
+                                  onClick={() => confirmPublish(block)}
+                                >
+                                  Publish
+                                </Menu.Item>
+                              ) : null}
+                              <Menu.Item
+                                color="red"
+                                leftSection={<IconTrash size={14} />}
+                                onClick={() => confirmDelete(block)}
+                              >
+                                Delete
+                              </Menu.Item>
+                            </Menu.Dropdown>
+                          </Menu>
+                        </Card>
+                      );
+                    })}
+                  </SimpleGrid>
+                </section>
+              ))}
+            </Stack>
+          )}
 
-      {hasMore ? (
-        <Group justify="center" mt="md">
-          <Button variant="light" loading={loading} onClick={() => void loadMore()}>
-            Load more
-          </Button>
-        </Group>
-      ) : null}
+          {hasMore ? (
+            <Stack align="center" gap={4} mt="lg">
+              <Button variant="light" loading={loading} onClick={() => void loadMore()}>
+                Load more
+              </Button>
+              <Text size="xs" c="slate.5">
+                More blocks exist on the server. Search and filters only cover the blocks loaded so
+                far.
+              </Text>
+            </Stack>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }
