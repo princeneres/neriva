@@ -18,7 +18,7 @@ export default async function AdminSectionPage({
   return (
     <>
       <h1>{title}</h1>
-      <div className="nv-empty">This module ships in Phase B.</div>
+      <p>This section is not available yet.</p>
     </>
   );
 }
