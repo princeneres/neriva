@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { BoltMark } from '../../components/logo';
@@ -107,9 +108,9 @@ export function AdminPill({ siteSlug, pagePath }: { siteSlug: string; pagePath: 
       }}
     >
       <BoltMark size={15} />
-      <a href="/admin" style={linkStyle}>
+      <Link href="/admin" style={linkStyle} prefetch>
         Admin
-      </a>
+      </Link>
       <span aria-hidden="true" style={{ color: '#d5d5d5' }}>
         |
       </span>

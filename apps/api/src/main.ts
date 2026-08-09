@@ -26,7 +26,12 @@ async function bootstrap(): Promise<void> {
   }
 
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
-  await app.register(helmet);
+  await app.register(helmet, {
+    // The web app on another origin embeds media served by this API
+    // (<img src=".../public/media/...">); the default same-origin CORP
+    // makes browsers block those images.
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  });
   configureApp(app);
   const port = Number(process.env.API_PORT ?? 3001);
   await app.listen(port, '0.0.0.0');
