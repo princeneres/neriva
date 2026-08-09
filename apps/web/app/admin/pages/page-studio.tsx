@@ -1,15 +1,17 @@
 'use client';
 
 import {
-  closestCenter,
+  closestCorners,
   DndContext,
   type DragEndEvent,
+  type DragMoveEvent,
   DragOverlay,
   type DragStartEvent,
   PointerSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
+import type { components } from '@neriva/contracts';
 import {
   ActionIcon,
   Alert,
@@ -43,21 +45,30 @@ import {
   IconRocket,
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, api } from '../../../lib/api';
 import { BlockPickerModal } from './block-picker';
-import { type CanvasDevice, EditorCanvas, type InsertTarget, ROOT_DROP_ID } from './editor-canvas';
 import {
+  type CanvasDevice,
+  type CanvasDropData,
+  type DropTarget,
+  EditorCanvas,
+  type InsertTarget,
+} from './editor-canvas';
+import {
+  type ContainerRef,
+  containerKey,
   duplicateNode,
   type EditorNode,
   findNode,
   insertNode,
-  insertRootNodeAt,
+  insertNodeAt,
   moveNode,
+  moveNodeToContainer,
   removeNode,
-  reorderNodes,
   setNodeProp,
   setNodeProps,
+  setNodeStyle,
   stateToTree,
   treeToState,
 } from './editor-state';
@@ -75,6 +86,8 @@ export interface PageStudioValues {
 
 const PATH_ERROR =
   'The path must start with "/" and use only lowercase letters, digits, "/" and "-".';
+
+type StyleBook = components['schemas']['StyleBookDto'];
 
 // The Page Studio: a WYSIWYG editor where the rendered page is the canvas.
 // Left palette inserts blocks, clicking a block on the page selects it, the
@@ -121,9 +134,14 @@ export function PageStudio({
   const [jsonText, setJsonText] = useState('');
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [dragLabel, setDragLabel] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  // Kept alongside the DropTarget: the canvas matches by container key, while
+  // the drop handlers need the structured container reference.
+  const dropContainerRef = useRef<ContainerRef>(null);
 
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [blocksLoading, setBlocksLoading] = useState(true);
+  const [tokens, setTokens] = useState<Record<string, string>>({});
 
   useEffect(() => {
     api
@@ -137,6 +155,22 @@ export function PageStudio({
         });
       })
       .finally(() => setBlocksLoading(false));
+  }, []);
+
+  // Style book tokens for the Styles tab: the most recently updated
+  // PUBLISHED style book wins; none is fine (custom values still work).
+  useEffect(() => {
+    api
+      .get<{ data: StyleBook[] }>('/style-books?limit=100')
+      .then(({ data }) => {
+        const published = data
+          .filter((book) => book.status === 'PUBLISHED')
+          .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+        setTokens(published?.tokens ?? {});
+      })
+      .catch(() => {
+        // Styles tab falls back to custom values only.
+      });
   }, []);
 
   // Esc deselects the current block anywhere in the studio.
@@ -215,7 +249,7 @@ export function PageStudio({
     }
     const result =
       insertTarget.kind === 'root'
-        ? insertRootNodeAt(nodes, insertTarget.index, block.externalReferenceCode)
+        ? insertNodeAt(nodes, null, insertTarget.index, block.externalReferenceCode)
         : insertNode(
             nodes,
             { parentKey: insertTarget.parentKey, slot: insertTarget.slot },
@@ -277,26 +311,83 @@ export function PageStudio({
     setDragLabel(node ? (blocksByErc.get(node.block)?.name ?? node.block) : null);
   }
 
+  function containerChildren(container: ContainerRef): EditorNode[] {
+    if (container === null) {
+      return nodes;
+    }
+    return findNode(nodes, container.parentKey)?.slots[container.slot] ?? [];
+  }
+
+  // Resolves where the dragged item would land right now: over a block frame
+  // it drops before or after it (dragged rect center vs frame midpoint), over
+  // a container it appends at the end. Null when the drop is invalid, e.g. a
+  // block dragged into itself or one of its descendants.
+  function resolveDropTarget(event: DragMoveEvent): {
+    container: ContainerRef;
+    index: number;
+  } | null {
+    if (event.over === null) {
+      return null;
+    }
+    const data = event.over.data.current as CanvasDropData | undefined;
+    if (data === undefined) {
+      return null;
+    }
+    let index: number;
+    if (data.kind === 'node') {
+      const activeRect = event.active.rect.current.translated;
+      const midpoint = event.over.rect.top + event.over.rect.height / 2;
+      const activeCenter = activeRect === null ? midpoint : activeRect.top + activeRect.height / 2;
+      index = activeCenter < midpoint ? data.index : data.index + 1;
+    } else {
+      index = containerChildren(data.container).length;
+    }
+    const activeId = String(event.active.id);
+    if (!activeId.startsWith(PALETTE_ID_PREFIX) && data.container !== null) {
+      const dragged = findNode(nodes, activeId);
+      // findNode over [dragged] matches the node itself and its descendants.
+      if (dragged === null || findNode([dragged], data.container.parentKey) !== null) {
+        return null;
+      }
+    }
+    return { container: data.container, index };
+  }
+
+  function handleDragMove(event: DragMoveEvent) {
+    const resolved = resolveDropTarget(event);
+    if (resolved === null) {
+      dropContainerRef.current = null;
+      setDropTarget(null);
+      return;
+    }
+    dropContainerRef.current = resolved.container;
+    setDropTarget({ containerKey: containerKey(resolved.container), index: resolved.index });
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     setDragLabel(null);
+    const target = dropTarget;
+    const container = dropContainerRef.current;
+    setDropTarget(null);
+    dropContainerRef.current = null;
+    if (event.over === null || target === null) {
+      return;
+    }
     const activeId = String(event.active.id);
-    const overId = event.over === null ? null : String(event.over.id);
     if (activeId.startsWith(PALETTE_ID_PREFIX)) {
-      if (overId === null) {
-        return;
-      }
       const erc = activeId.slice(PALETTE_ID_PREFIX.length);
-      // Dropping over a root block inserts at its position; anywhere else on
-      // the canvas appends at the end.
-      const rootIndex = nodes.findIndex((node) => node.key === overId);
-      const result = insertRootNodeAt(nodes, rootIndex === -1 ? nodes.length : rootIndex, erc);
+      const result = insertNodeAt(nodes, container, target.index, erc);
       setNodes(result.nodes);
       setSelectedKey(result.key);
       return;
     }
-    if (overId !== null && overId !== activeId && overId !== ROOT_DROP_ID) {
-      setNodes(reorderNodes(nodes, activeId, overId));
-    }
+    setNodes(moveNodeToContainer(nodes, activeId, container, target.index));
+  }
+
+  function handleDragCancel() {
+    setDragLabel(null);
+    setDropTarget(null);
+    dropContainerRef.current = null;
   }
 
   function openJsonModal() {
@@ -449,10 +540,11 @@ export function PageStudio({
 
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={closestCorners}
         onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
-        onDragCancel={() => setDragLabel(null)}
+        onDragCancel={handleDragCancel}
       >
         <div className={classes.body}>
           <StudioPalette
@@ -468,7 +560,9 @@ export function PageStudio({
             siteSlug={siteSlug}
             blocksByErc={blocksByErc}
             selectedKey={selectedKey}
+            dropTarget={dropTarget}
             onSelect={setSelectedKey}
+            onSetProp={(key, name, value) => setNodes(setNodeProp(nodes, key, name, value))}
             onMove={(key, direction) => setNodes(moveNode(nodes, key, direction))}
             onDuplicate={handleDuplicate}
             onRemove={handleRemove}
@@ -493,8 +587,10 @@ export function PageStudio({
             selectedNode={selectedNode}
             block={selectedBlock}
             blocksLoading={blocksLoading}
+            tokens={tokens}
             onSetProp={(key, name, value) => setNodes(setNodeProp(nodes, key, name, value))}
             onSetProps={(key, props) => setNodes(setNodeProps(nodes, key, props))}
+            onSetStyle={(key, name, value) => setNodes(setNodeStyle(nodes, key, name, value))}
             onDeselect={() => setSelectedKey(null)}
           />
         </div>

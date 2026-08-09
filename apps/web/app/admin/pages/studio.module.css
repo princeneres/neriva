@@ -301,3 +301,38 @@
   letter-spacing: 0.05em;
   color: var(--mantine-color-slate-4);
 }
+
+/* Brand insertion indicator shown while dragging: marks the exact position
+   the dragged block or palette item would land at. */
+.dropLine {
+  height: 2px;
+  margin: -1px 4px;
+  background: var(--mantine-color-neriva-6);
+  border-radius: 1px;
+  position: relative;
+  z-index: 20;
+  pointer-events: none;
+}
+
+/* Empty slot currently targeted by a drag. */
+.slotDropActive {
+  border-color: var(--mantine-color-neriva-5);
+  border-style: solid;
+  color: var(--mantine-color-neriva-6);
+  background: var(--mantine-color-neriva-0);
+}
+
+/* Inline-editable template bindings of the selected block. */
+.pageSurface [contenteditable] {
+  cursor: text;
+}
+
+.pageSurface [contenteditable]:hover {
+  outline: 1px dashed var(--mantine-color-neriva-4);
+  outline-offset: 2px;
+}
+
+.pageSurface [contenteditable]:focus {
+  outline: 1.5px solid var(--mantine-color-neriva-5);
+  outline-offset: 2px;
+}
