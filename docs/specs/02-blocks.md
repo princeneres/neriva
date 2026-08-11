@@ -1,6 +1,6 @@
 # Spec 02: Blocks
 
-Status: approved for implementation (Phase B). Admin UI screens are out of scope for this iteration; API only.
+Status: implemented, and partly historical. Block authoring is superseded by spec 12 (blocks v2: HTML + CSS templates, native components, per-instance styles); read 12 first. The data model, validation rules and endpoints below still hold, minus the "no string-template HTML editing" constraint, which ADR-003 reversed.
 
 A Block is a typed component (Liferay: Fragment) declared as data: a JSON Schema of configurable props plus named slots. No string-template HTML editing.
 

@@ -18,9 +18,12 @@ Neriva takes the concepts that make Liferay DXP productive (pages composed from 
 ## Features
 
 - **Headless-first.** Every capability of the Admin UI is available through the REST API. The Admin UI is just another API client, with no private backdoors.
-- **Pages are data.** A Page is a JSON tree of typed Block instances. The rendering runtime composes it; headless clients consume the raw JSON.
-- **Typed Blocks, no template soup.** A Block declares a JSON schema of props and named slots. No string-template HTML editing.
+- **Pages are data.** A Page is a JSON tree of Block instances with props, named slots and per-instance styles. The rendering runtime composes it; headless clients consume the raw JSON.
+- **Authorable Blocks.** A Block declares a JSON schema of props plus named slots, and optionally an HTML + CSS template with editable-field bindings authored in the admin. Templates are data: interpolation is escaped and markup is sanitized on write, never executed server-side.
+- **Master Pages and Page Templates.** A Master Page wraps every page that references it; a Page Template is a pre-filled starting point copied into a new page.
 - **Structured content.** Content Types define fields; Content Entries hold the data, with client-defined fields stored as JSONB, never dynamic DDL.
+- **Media library.** Uploaded images and documents in folders, with per-site defaults and public URLs.
+- **Public delivery API.** PUBLISHED pages, content and site CSS served without authentication, for the built-in runtime or any headless consumer.
 - **Scoped RBAC.** Roles grant actions on resource types, scoped to tenant or site, enforced with CASL and deny-by-default.
 - **Style Book.** Versioned design tokens exposed as CSS variables, consumed by every Block.
 - **Standard entity envelope.** UUIDv7 ids, external reference codes for idempotent upserts, tenant scoping in every query from day one.
@@ -31,7 +34,7 @@ Neriva takes the concepts that make Liferay DXP productive (pages composed from 
 
 - Node.js >= 20
 - pnpm 10 (`corepack enable` is the easiest way to get it)
-- Docker (only used to run PostgreSQL locally)
+- Docker (runs PostgreSQL locally, and the throwaway databases the API e2e suites spin up through Testcontainers)
 
 ### Steps
 
@@ -53,7 +56,9 @@ pnpm --filter @neriva/api dev     # REST API on http://localhost:3001
 pnpm --filter @neriva/web dev     # Admin UI on http://localhost:3000
 ```
 
-Open http://localhost:3000 and sign in with the bootstrap credentials: `admin@neriva.com` / `admin`. Neriva forces a password change on first login before anything else is allowed.
+Open http://localhost:3000. The root path serves the default site's published pages; the admin lives at http://localhost:3000/admin. Sign in with the bootstrap credentials: `admin@neriva.com` / `admin`. Neriva forces a password change on first login before anything else is allowed.
+
+Published pages are reachable at `/<path>` for the default site and `/s/<site-slug>/<path>` for any other site.
 
 To run the full verification loop (lint, typecheck, tests, build):
 
@@ -65,11 +70,13 @@ pnpm verify
 
 ```
 apps/
-  api/          NestJS + Fastify REST API (auth, users, roles, system, ...)
-  web/          Next.js admin UI + page rendering runtime
+  api/          NestJS + Fastify REST API. Modules: auth, users, roles, sites,
+                pages, page-templates, blocks, content, objects, stylebook,
+                media, delivery, system
+  web/          Next.js admin UI (/admin) + public page rendering runtime
 packages/
   contracts/    Types generated from the OpenAPI spec (single source)
-  ui/           Shared components + design tokens
+  ui/           Design tokens as CSS variables
 docs/
   specs/        One spec per feature (spec-driven development)
   api/          openapi.yaml, the API contract
@@ -81,7 +88,8 @@ docs/
 | API           | NestJS on Fastify, TypeScript strict                         |
 | Database      | PostgreSQL 16+, Drizzle ORM, JSONB for client-defined fields |
 | Authorization | CASL abilities built from database rows, deny by default     |
-| Admin UI      | Next.js App Router, tokens-first styling                     |
+| Admin UI      | Next.js App Router, Mantine v8 on Style Book tokens          |
+| Tests         | Vitest, Testcontainers PostgreSQL for API e2e                |
 
 ## API-first
 
@@ -92,24 +100,33 @@ The OpenAPI 3.1 document at [`docs/api/openapi.yaml`](docs/api/openapi.yaml) is 
 - Lists paginate with cursors: `?limit=&cursor=` (default 20, max 100).
 - URL ids accept a UUID or `erc:<externalReferenceCode>`.
 
+The spec is generated from the code and verified in CI: `pnpm --filter @neriva/api openapi:generate` followed by `pnpm --filter @neriva/contracts generate` must leave no diff.
+
 ## Roadmap
 
 - [x] Walking skeleton: entity envelope, auth, users, roles and permissions, API conventions, admin shell
 - [x] Sites and Pages API (pages as JSON block trees, tree validation, publish flow)
-- [x] Blocks API (typed components: JSON Schema props + named slots)
+- [x] Blocks API (JSON Schema props + named slots)
 - [x] Content Types and Content Entries API
 - [x] Objects API (client-defined entities over JSONB, dynamic filtering)
 - [x] Style Book API (versioned design tokens, CSS endpoint)
 - [x] System settings API (SMTP, site metadata)
 - [x] Admin UI screens for the feature modules
-- [ ] Page rendering runtime in apps/web
+- [x] Public delivery API and the page rendering runtime in apps/web
+- [x] Media library (folders, uploads, public URLs)
+- [x] Blocks v2: HTML + CSS templates, native component library, per-instance styles
+- [x] Site-first navigation with a default site
+- [x] Page Templates and Master Pages
+- [ ] Trash (Recycle Bin): spec and admin UI done, API pending
+- [ ] Workflow and scheduled publishing
 
 ## Contributing
 
 1. Read `CLAUDE.md` (project constitution) and `docs/specs/`.
 2. Spec before code: new features start as a spec in `docs/specs/` and a change to the OpenAPI contract.
-3. Keep the verification loop green: `pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
-4. Conventional Commits.
+3. Regenerate the contract after touching controllers or DTOs (see API-first above).
+4. Keep the verification loop green: `pnpm verify`.
+5. Conventional Commits.
 
 ## License
 

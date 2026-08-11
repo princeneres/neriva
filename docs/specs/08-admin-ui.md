@@ -1,6 +1,6 @@
 # Spec 08: Admin UI conventions (Phase C)
 
-Status: approved. Applies to every admin screen in apps/web. The rendering runtime is NOT part of Phase C.
+Status: implemented, and partly historical. The visual and dependency conventions here are superseded by spec 09 (Mantine v8 design system); read 09 first. What still applies: the admin is only an API client, it uses the generated `@neriva/contracts` types, and it never reaches the database directly.
 
 ## Principles
 
@@ -19,7 +19,7 @@ Status: approved. Applies to every admin screen in apps/web. The rendering runti
 
 ## Screen conventions
 
-- Routes: list at `app/admin/<section>/page.tsx`, create at `.../new/page.tsx`, edit at `.../[id]/page.tsx`. The catch-all placeholder `app/admin/[section]/page.tsx` stays for unbuilt sections; static routes take precedence.
+- Routes: list at `app/admin/<section>/page.tsx`, create at `.../new/page.tsx`, edit at `.../[id]/page.tsx`. There is no catch-all placeholder: every section in the sidebar has a real screen, and an unknown `/admin/<something>` must 404.
 - List screens: toolbar with title + primary action ("New <thing>"), DataTable, cursor pagination via `useCursorList`, per-row Edit/Delete actions.
 - Deletes: `window.confirm` then `api.del`, then `toast.success` and list refresh. On `ApiError`, `toast.error(error.message)` (the problem `detail` is already the message).
 - Forms: controlled inputs with `Field`, submit disables the button, `ApiError` shows as an inline error box (`.nv-error`) plus per-field mapping when the problem `errors` array names a field.
