@@ -4,15 +4,17 @@ import type { FastifyReply } from 'fastify';
 import { ApiDataResponse, ApiListResponse } from '../../common/api-envelope.decorators';
 import { ListQueryDto } from '../../common/list-query.dto';
 import { Public } from '../auth/auth.decorators';
-import { DeliveryPageQueryDto } from './dto/delivery-query.dto';
+import { DeliveryContentEntriesQueryDto, DeliveryPageQueryDto } from './dto/delivery-query.dto';
 import {
   DeliveredBlockDto,
+  DeliveredContentEntryDto,
   DeliveredPageListItemDto,
   DeliveredPageViewDto,
   DeliveredSiteDto,
 } from './dto/delivery-response.dto';
 import {
   DeliveryService,
+  type DeliveredContentEntry,
   type DeliveredPageListItem,
   type DeliveredPageView,
   type DeliveredSite,
@@ -57,6 +59,22 @@ export class DeliveryController {
     @Query() query: ListQueryDto,
   ): Promise<{ data: DeliveredPageListItem[]; meta: { cursor: string | null; limit: number } }> {
     const page = await this.deliveryService.listPages(slug, query);
+    return { data: page.items, meta: { cursor: page.nextCursor, limit: page.limit } };
+  }
+
+  // Read-only listing of the site's PUBLISHED content entries, newest first,
+  // so a website can render a blog index with search and pagination without a
+  // token (spec 10). No single-entry endpoint: the list carries the full
+  // values payload already.
+  @Public()
+  @Get('sites/:slug/content-entries')
+  @ApiParam(SLUG_PARAM)
+  @ApiListResponse(DeliveredContentEntryDto)
+  async contentEntries(
+    @Param('slug') slug: string,
+    @Query() query: DeliveryContentEntriesQueryDto,
+  ): Promise<{ data: DeliveredContentEntry[]; meta: { cursor: string | null; limit: number } }> {
+    const page = await this.deliveryService.listContentEntries(slug, query);
     return { data: page.items, meta: { cursor: page.nextCursor, limit: page.limit } };
   }
 

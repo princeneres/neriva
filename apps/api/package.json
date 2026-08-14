@@ -9,6 +9,7 @@
     "build": "tsc -p tsconfig.build.json",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "ts-node scripts/migrate.ts",
+    "db:reseed-demo": "ts-node scripts/reseed-demo.ts",
     "openapi:generate": "ts-node scripts/generate-openapi.ts"
   },
   "dependencies": {

@@ -251,7 +251,13 @@ describe('style books (e2e)', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toContain('text/css');
-    expect(res.body).toBe(':root {\n  --nv-color-primary: #cc3d47;\n  --nv-radius-md: 6px;\n}\n');
+    expect(res.body).toContain(
+      ':root {\n  --nv-color-primary: #cc3d47;\n  --nv-radius-md: 6px;\n}\n',
+    );
+    // Dark variant (spec 06 dark-mode amendment): non-color-role tokens like
+    // radius are theme-agnostic and carried over unchanged.
+    expect(res.body).toContain('.nv-site-root:has(#nv-theme-toggle:checked)');
+    expect(res.body).toContain('--nv-radius-md: 6px;');
     expect(res.body).not.toContain('"data"');
   });
 

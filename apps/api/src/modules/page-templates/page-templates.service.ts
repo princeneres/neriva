@@ -10,7 +10,6 @@ import type { InferSelectModel } from 'drizzle-orm';
 import { isUniqueViolation } from '../../common/pg-errors';
 import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
 import { DB, type Database } from '../../db/database';
-import { DEFAULT_MASTER_SETTING_KEY } from '../../db/native-master-page-seed.service';
 import {
   blocks,
   pages,
@@ -29,7 +28,6 @@ import {
   type TreeValidationError,
 } from '../pages/page-tree.validation';
 import { SitesService } from '../sites/sites.service';
-import { SystemSettingsService } from '../system/system-settings.service';
 
 export type PageTemplateRow = InferSelectModel<typeof pageTemplates>;
 
@@ -42,7 +40,6 @@ export class PageTemplatesService {
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly sitesService: SitesService,
-    private readonly systemSettingsService: SystemSettingsService,
   ) {}
 
   private repo(tenantId: string): TenantScopedRepository<typeof pageTemplates> {
@@ -169,10 +166,44 @@ export class PageTemplatesService {
     await this.repo(tenantId).deleteById(existing.id);
   }
 
+  // Marks a MASTER template as the tenant's default (spec 14), unsetting
+  // whatever was previously marked so the "at most one default" invariant
+  // (also enforced by the partial unique index on
+  // page_templates_tenant_default_uq) holds even under a concurrent racing
+  // call. Non-MASTER templates cannot be marked default: the flag is only
+  // meaningful as a fallback for pages, and only a MASTER tree can wrap one.
+  async setDefault(tenantId: string, ref: string): Promise<PageTemplateRow> {
+    const existing = await this.getByRef(tenantId, ref);
+    if (existing.kind !== 'MASTER') {
+      throw new BadRequestException({
+        detail: 'only a MASTER page template can be marked as the tenant default',
+      });
+    }
+    if (existing.isDefault) {
+      return existing;
+    }
+    return this.db.transaction(async (tx) => {
+      await tx
+        .update(pageTemplates)
+        .set({ isDefault: false })
+        .where(and(eq(pageTemplates.tenantId, tenantId), eq(pageTemplates.isDefault, true)));
+      const [updated] = await tx
+        .update(pageTemplates)
+        .set({ isDefault: true })
+        .where(and(eq(pageTemplates.tenantId, tenantId), eq(pageTemplates.id, existing.id)))
+        .returning();
+      if (!updated) {
+        throw new NotFoundException({ detail: `Page template ${ref} not found` });
+      }
+      return updated;
+    });
+  }
+
   // Resolution order (spec 14): the page's own masterPageTemplateId -> the
-  // tenant setting page.default-master-template -> the single MASTER
-  // template with the lowest createdAt -> no master. Exposed for delivery
-  // (and any other render path) to call.
+  // tenant's isDefault MASTER template -> the single MASTER template with
+  // the lowest createdAt (last-resort fallback so a tenant that has not
+  // explicitly marked a default yet does not silently lose its wrapper) ->
+  // no master. Exposed for delivery (and any other render path) to call.
   async findMasterForPage(
     tenantId: string,
     page: { masterPageTemplateId: string | null },
@@ -186,30 +217,22 @@ export class PageTemplatesService {
       // tenant default rather than surfacing an error on a read path.
     }
 
-    const settingErc = await this.readDefaultMasterSetting(tenantId);
-    if (settingErc) {
-      const fromSetting = await this.repo(tenantId).findByErc(settingErc);
-      if (fromSetting && fromSetting.kind === 'MASTER') {
-        return fromSetting;
-      }
+    const defaultRows = await this.db
+      .select()
+      .from(pageTemplates)
+      .where(
+        and(
+          eq(pageTemplates.tenantId, tenantId),
+          eq(pageTemplates.kind, 'MASTER'),
+          eq(pageTemplates.isDefault, true),
+        ),
+      )
+      .limit(1);
+    if (defaultRows[0]) {
+      return defaultRows[0];
     }
 
     return this.findOldestMaster(tenantId);
-  }
-
-  private async readDefaultMasterSetting(tenantId: string): Promise<string | null> {
-    try {
-      const setting = await this.systemSettingsService.getByKey(
-        tenantId,
-        DEFAULT_MASTER_SETTING_KEY,
-      );
-      return typeof setting.value === 'string' ? setting.value : null;
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        return null;
-      }
-      throw error;
-    }
   }
 
   private async findOldestMaster(tenantId: string): Promise<PageTemplateRow | null> {

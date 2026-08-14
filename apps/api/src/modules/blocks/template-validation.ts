@@ -21,6 +21,13 @@ const BINDING_ATTRIBUTES = new Set([
 
 const SLOT_ATTRIBUTE = 'data-nv-slot';
 
+// Reserved engine hook, not a prop binding: the renderer supplies the site's
+// published pages at render time, so its value is the fixed marker "pages"
+// rather than a propsSchema key (spec 12 section 1, header/footer nav
+// amendment; rendering itself is spec 12 section 5).
+const NAV_ATTRIBUTE = 'data-nv-nav';
+const NAV_ATTRIBUTE_VALUE = 'pages';
+
 // HTML void elements never have children, so they are always leaves.
 const VOID_ELEMENTS = new Set([
   'area',
@@ -178,6 +185,7 @@ export function validateBlockTemplate(
 
     const bindings = token.attributes.filter((a) => BINDING_ATTRIBUTES.has(a.name));
     const slotAttribute = token.attributes.find((a) => a.name === SLOT_ATTRIBUTE);
+    const navAttribute = token.attributes.find((a) => a.name === NAV_ATTRIBUTE);
 
     for (const binding of bindings) {
       if (!binding.value) {
@@ -195,18 +203,25 @@ export function validateBlockTemplate(
         return `data-nv-slot="${slotAttribute.value}" references a slot that is not declared in slots`;
       }
     }
+    if (navAttribute !== undefined && navAttribute.value !== NAV_ATTRIBUTE_VALUE) {
+      return `data-nv-nav must be "${NAV_ATTRIBUTE_VALUE}"`;
+    }
 
-    if ((bindings.length === 0 && slotAttribute === undefined) || token.kind === 'self') {
+    const markers = bindings.length + (navAttribute !== undefined ? 1 : 0);
+    if ((markers === 0 && slotAttribute === undefined) || token.kind === 'self') {
       // Self-closing and void elements are leaves and empty by construction.
       continue;
     }
 
     const closeIndex = findMatchingClose(tokens, i);
     if (closeIndex === -1) {
-      const marker = bindings[0]?.name ?? SLOT_ATTRIBUTE;
+      const marker = bindings[0]?.name ?? navAttribute?.name ?? SLOT_ATTRIBUTE;
       return `<${token.name}> carrying ${marker} is never closed`;
     }
     const hasChildTags = closeIndex > i + 1;
+    // data-nv-nav is exempt from the leaf constraint: unlike text/rich, its
+    // entire inner content is discarded and replaced by the renderer, so an
+    // authored placeholder link is a harmless preview default, not a risk.
     if (bindings.length > 0 && hasChildTags) {
       const marker = bindings[0] as Attribute;
       return `${marker.name}="${marker.value ?? ''}" must be on a leaf element, but <${token.name}> contains nested tags`;

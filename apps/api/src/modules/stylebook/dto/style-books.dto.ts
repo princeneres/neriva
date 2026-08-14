@@ -9,6 +9,13 @@ const TOKENS_API_PROPERTY = {
   example: { 'color-primary': '#cc3d47', 'space-4': '1rem' },
 };
 
+const TOKENS_DARK_API_PROPERTY = {
+  ...TOKENS_API_PROPERTY,
+  description:
+    'Optional dark-mode overrides, same shape as tokens. A key absent here falls back to a ' +
+    'derived dark variant (spec 06), never to nothing.',
+};
+
 export class CreateStyleBookDto {
   @ApiProperty()
   @IsString()
@@ -18,6 +25,11 @@ export class CreateStyleBookDto {
   @ApiProperty(TOKENS_API_PROPERTY)
   @IsObject()
   tokens!: Record<string, string>;
+
+  @ApiPropertyOptional(TOKENS_DARK_API_PROPERTY)
+  @IsOptional()
+  @IsObject()
+  tokensDark?: Record<string, string>;
 
   @ApiPropertyOptional({ description: 'Stable code for idempotent upsert; generated when omitted' })
   @IsOptional()
@@ -37,4 +49,9 @@ export class UpdateStyleBookDto {
   @IsOptional()
   @IsObject()
   tokens?: Record<string, string>;
+
+  @ApiPropertyOptional(TOKENS_DARK_API_PROPERTY)
+  @IsOptional()
+  @IsObject()
+  tokensDark?: Record<string, string>;
 }

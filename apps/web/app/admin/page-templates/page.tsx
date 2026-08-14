@@ -271,6 +271,11 @@ function TemplateCard({
             Master
           </Badge>
         ) : null}
+        {template.kind === 'MASTER' && template.isDefault ? (
+          <Badge size="xs" color="green" variant="light">
+            Default
+          </Badge>
+        ) : null}
       </Group>
       <Menu position="bottom-end" withinPortal>
         <Menu.Target>

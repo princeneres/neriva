@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findTokenViolations, renderCss } from './tokens';
+import { findTokenViolations } from './tokens';
 
 describe('findTokenViolations', () => {
   it('accepts a valid token map', () => {
@@ -54,21 +54,5 @@ describe('findTokenViolations', () => {
   it('reports a key under both lists when name and value are invalid', () => {
     const violations = findTokenViolations({ BAD: '' });
     expect(violations).toEqual({ invalidNames: ['BAD'], invalidValues: ['BAD'] });
-  });
-});
-
-describe('renderCss', () => {
-  it('renders tokens as --nv- prefixed custom properties on :root', () => {
-    const css = renderCss({ 'color-primary': '#cc3d47', 'space-4': '1rem' });
-    expect(css).toBe(':root {\n  --nv-color-primary: #cc3d47;\n  --nv-space-4: 1rem;\n}\n');
-  });
-
-  it('sorts token names for deterministic output', () => {
-    const css = renderCss({ 'space-4': '1rem', 'color-primary': '#cc3d47' });
-    expect(css).toBe(':root {\n  --nv-color-primary: #cc3d47;\n  --nv-space-4: 1rem;\n}\n');
-  });
-
-  it('renders an empty map as an empty :root block', () => {
-    expect(renderCss({})).toBe(':root {\n}\n');
   });
 });

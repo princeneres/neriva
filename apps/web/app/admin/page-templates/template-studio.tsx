@@ -86,6 +86,9 @@ export function TemplateStudio({
   busy,
   serverError,
   onSave,
+  isDefault,
+  settingDefault,
+  onSetDefault,
 }: {
   kind: PageTemplateKind;
   initialName: string;
@@ -94,6 +97,12 @@ export function TemplateStudio({
   busy: boolean;
   serverError: ApiError | null;
   onSave: (values: TemplateStudioValues) => void;
+  // Undefined until the template has been saved at least once (no id to mark
+  // default yet, spec 14 section 4): the control only appears once there is
+  // something to mark. isDefault mirrors PageTemplateDto.isDefault.
+  isDefault?: boolean;
+  settingDefault?: boolean;
+  onSetDefault?: () => void;
 }) {
   const [nodes, setNodes] = useState<EditorNode[]>(() => treeToState(initialTree));
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -382,9 +391,21 @@ export function TemplateStudio({
           <Badge color={kind === 'MASTER' ? 'neriva' : 'slate'} style={{ flexShrink: 0 }}>
             {kind === 'MASTER' ? 'Master' : 'Template'}
           </Badge>
+          {kind === 'MASTER' && isDefault ? (
+            <Badge color="green" variant="light" style={{ flexShrink: 0 }}>
+              Default
+            </Badge>
+          ) : null}
         </Group>
 
         <Group gap="xs" wrap="nowrap" justify="flex-end">
+          {kind === 'MASTER' && isDefault === false && onSetDefault ? (
+            <Tooltip label="Pages that set no master page of their own will use this one">
+              <Button size="xs" variant="default" loading={settingDefault} onClick={onSetDefault}>
+                Set as default
+              </Button>
+            </Tooltip>
+          ) : null}
           <Button size="xs" loading={busy} onClick={handleSave}>
             Save
           </Button>

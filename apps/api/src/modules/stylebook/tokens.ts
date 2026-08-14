@@ -26,14 +26,6 @@ export function findTokenViolations(tokens: Record<string, unknown>): TokenViola
   return { invalidNames, invalidValues };
 }
 
-// Names are sorted so the output is deterministic: jsonb does not preserve
-// insertion order.
-export function renderCss(tokens: Record<string, string>): string {
-  const lines = Object.entries(tokens)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([name, value]) => `  --nv-${name}: ${value};`);
-  if (lines.length === 0) {
-    return ':root {\n}\n';
-  }
-  return `:root {\n${lines.join('\n')}\n}\n`;
-}
+// CSS rendering (light + dark token blocks) is shared infrastructure used
+// by both this module and the delivery module: see common/style-tokens.ts.
+export { renderTokensCss as renderCss } from '../../common/style-tokens';

@@ -21,6 +21,10 @@ export interface PageTemplate {
   // null = available to every site; set = offered only for that site.
   siteId: string | null;
   tree: PageTree;
+  // Whether this is the tenant-wide fallback master, resolved for pages
+  // that set no masterPageTemplateId of their own (spec 14). Meaningful
+  // for kind = MASTER only.
+  isDefault: boolean;
 }
 
 export interface PageTemplatePayload {

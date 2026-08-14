@@ -14,7 +14,6 @@ import {
   Text,
   Tooltip,
   UnstyledButton,
-  useMantineColorScheme,
 } from '@mantine/core';
 import {
   IconChevronDown,
@@ -24,16 +23,17 @@ import {
   IconExternalLink,
   IconFileText,
   IconFiles,
+  IconHome2,
   IconLayoutBoard,
   IconLayoutSidebarLeftCollapse,
   IconLayoutSidebarLeftExpand,
+  IconListTree,
   IconLogout,
-  IconMoon,
+  IconMapPin,
   IconPalette,
   IconPhoto,
   IconSettings,
   IconShieldLock,
-  IconSun,
   IconTrash,
   IconUsers,
   IconWorld,
@@ -41,6 +41,7 @@ import {
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { SitePageTree } from '../app/admin/pages/site-page-tree';
 import { logout, type PublicUser } from '../lib/api';
 import { clearTokens, getRefreshToken } from '../lib/auth-storage';
 import { SiteProvider, useSite, visitSiteUrl } from '../lib/site-context';
@@ -156,7 +157,7 @@ function SiteSwitcher({ collapsed }: { collapsed: boolean }) {
         position="right"
       >
         <Box ta="center" py={4}>
-          <IconWorld size={17} stroke={1.7} color="var(--mantine-color-dimmed)" />
+          <IconMapPin size={17} stroke={1.7} color="var(--mantine-color-dimmed)" />
         </Box>
       </Tooltip>
     );
@@ -181,7 +182,7 @@ function SiteSwitcher({ collapsed }: { collapsed: boolean }) {
           }
         }}
         allowDeselect={false}
-        leftSection={<IconWorld size={14} />}
+        leftSection={<IconMapPin size={14} />}
         comboboxProps={{ withinPortal: true }}
         aria-label="Current site"
       />
@@ -199,21 +200,6 @@ function SiteSwitcher({ collapsed }: { collapsed: boolean }) {
         </ActionIcon>
       </Tooltip>
     </Group>
-  );
-}
-
-function ColorSchemeToggle({ collapsed }: { collapsed: boolean }) {
-  const { colorScheme, setColorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === 'dark';
-  const toggle = () => setColorScheme(isDark ? 'light' : 'dark');
-  const icon = isDark ? <IconSun size={16} /> : <IconMoon size={16} />;
-  const label = isDark ? 'Switch to light mode' : 'Switch to dark mode';
-  return (
-    <Tooltip label={label} position={collapsed ? 'right' : 'top'}>
-      <ActionIcon variant="subtle" color="gray" onClick={toggle} aria-label={label}>
-        {icon}
-      </ActionIcon>
-    </Tooltip>
   );
 }
 
@@ -271,6 +257,7 @@ function ShellInner({
   const [collapsed, setCollapsed] = useState(storageNamespace === 'site');
   const [width, setWidth] = useState(248);
   const [resolvingEdit, setResolvingEdit] = useState(false);
+  const [treeOpen, setTreeOpen] = useState(false);
   const dragging = useRef(false);
 
   useEffect(() => {
@@ -362,7 +349,11 @@ function ShellInner({
     <AppShell
       navbar={{ width: navWidth, breakpoint: 0 }}
       padding={storageNamespace === 'admin' ? 'xl' : 0}
-      bg={paintBackground ? 'var(--mantine-color-body)' : undefined}
+      // A soft neutral canvas behind white cards: a plain white-on-white
+      // main area (the previous mantine-color-body) read as flat and washed
+      // out. The navbar stays pure white so it reads as a plane above the
+      // tinted content, not part of it.
+      bg={paintBackground ? 'var(--mantine-color-slate-0)' : undefined}
     >
       <AppShell.Navbar
         p={collapsed ? 'xs' : 'md'}
@@ -387,7 +378,7 @@ function ShellInner({
 
         <AppShell.Section>
           <Group justify={collapsed ? 'center' : 'space-between'} px={collapsed ? 0 : 'xs'} py={6}>
-            <Link href="/admin" aria-label="Neriva home">
+            <Link href="/" aria-label="Neriva home">
               {collapsed ? (
                 <BoltMark size={24} />
               ) : (
@@ -395,27 +386,77 @@ function ShellInner({
               )}
             </Link>
             {!collapsed ? (
-              <Group gap={4} wrap="nowrap">
-                <ColorSchemeToggle collapsed={false} />
-                <Tooltip label="Collapse the menu">
-                  <ActionIcon variant="subtle" color="gray" onClick={toggleCollapsed}>
-                    <IconLayoutSidebarLeftCollapse size={17} />
-                  </ActionIcon>
-                </Tooltip>
-              </Group>
+              <Tooltip label="Collapse the menu">
+                <ActionIcon variant="subtle" color="gray" onClick={toggleCollapsed}>
+                  <IconLayoutSidebarLeftCollapse size={17} />
+                </ActionIcon>
+              </Tooltip>
             ) : null}
           </Group>
           {collapsed ? (
-            <>
-              <Tooltip label="Expand the menu" position="right">
-                <ActionIcon variant="subtle" color="gray" onClick={toggleCollapsed} w="100%" mt={4}>
-                  <IconLayoutSidebarLeftExpand size={17} />
-                </ActionIcon>
-              </Tooltip>
-              <Box mt={4}>
-                <ColorSchemeToggle collapsed />
-              </Box>
-            </>
+            <Tooltip label="Expand the menu" position="right">
+              <ActionIcon variant="subtle" color="gray" onClick={toggleCollapsed} w="100%" mt={4}>
+                <IconLayoutSidebarLeftExpand size={17} />
+              </ActionIcon>
+            </Tooltip>
+          ) : null}
+          {editTarget ? (
+            <Box mt="sm">
+              {collapsed ? (
+                <>
+                  <Tooltip label="Go to the site home" position="right">
+                    <ActionIcon
+                      component={Link}
+                      href={`/s/${editTarget.siteSlug}`}
+                      variant="subtle"
+                      color="gray"
+                      size="lg"
+                      w="100%"
+                      mb={4}
+                      aria-label="Go to the site home"
+                    >
+                      <IconHome2 size={18} stroke={1.7} />
+                    </ActionIcon>
+                  </Tooltip>
+                  <Tooltip label="Page tree" position="right">
+                    <ActionIcon
+                      variant="subtle"
+                      color="gray"
+                      size="lg"
+                      w="100%"
+                      mb={4}
+                      aria-label="Open the page tree"
+                      onClick={() => {
+                        setCollapsed(false);
+                        localStorage.setItem(collapsedKey, 'false');
+                        setTreeOpen(true);
+                      }}
+                    >
+                      <IconListTree size={18} stroke={1.7} />
+                    </ActionIcon>
+                  </Tooltip>
+                </>
+              ) : (
+                <>
+                  <NavLink
+                    component={Link}
+                    href={`/s/${editTarget.siteSlug}`}
+                    label="Home"
+                    leftSection={<IconHome2 size={17} stroke={1.7} />}
+                    style={{ borderRadius: 8 }}
+                  />
+                  <NavLink
+                    label="Page tree"
+                    leftSection={<IconListTree size={17} stroke={1.7} />}
+                    opened={treeOpen}
+                    onClick={() => setTreeOpen((value) => !value)}
+                    style={{ borderRadius: 8 }}
+                  >
+                    <SitePageTree active={treeOpen} siteSlug={editTarget.siteSlug} />
+                  </NavLink>
+                </>
+              )}
+            </Box>
           ) : null}
           {editTarget ? (
             <Tooltip
@@ -537,7 +578,11 @@ function ShellInner({
             <Menu.Dropdown>
               <Menu.Label>Signed in as {user.email}</Menu.Label>
               {storageNamespace === 'site' ? (
-                <Menu.Item component={Link} href="/admin" leftSection={<IconWorld size={15} />}>
+                <Menu.Item
+                  component={Link}
+                  href="/admin/pages"
+                  leftSection={<IconWorld size={15} />}
+                >
                   Go to admin
                 </Menu.Item>
               ) : null}

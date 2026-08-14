@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, asc, eq, gt, inArray, isNull, type InferSelectModel } from 'drizzle-orm';
+import { and, asc, eq, gt, ilike, inArray, isNull, type InferSelectModel } from 'drizzle-orm';
 import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
 import { isUniqueViolation } from '../../common/pg-errors';
 import { DB, type Database } from '../../db/database';
@@ -41,6 +41,14 @@ function toPage<T extends { id: string }>(rows: T[], limit: number): CursorPage<
   const last = items[items.length - 1];
   const nextCursor = rows.length > limit && last ? encodeCursor(last.id) : null;
   return { items, nextCursor, limit };
+}
+
+// Postgres treats \, % and _ as special inside a LIKE/ILIKE pattern
+// (backslash is the default escape character); a raw user search term must
+// have all three escaped so it matches as a literal substring instead of a
+// wildcard pattern.
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
 
 @Injectable()
@@ -212,12 +220,22 @@ export class MediaService {
 
   async listFiles(
     tenantId: string,
-    params: { folder?: string; limit?: number; cursor?: string },
+    params: { folder?: string; search?: string; limit?: number; cursor?: string },
   ): Promise<CursorPage<MediaFileRow>> {
-    const folderCondition =
+    // A search term looks across every folder in the tenant, so folder does
+    // not scope the query; it is still validated when given, so a stale or
+    // mistyped folder ref 404s instead of silently falling back to a
+    // tenant-wide search.
+    const search = params.search?.trim();
+    const folderId =
       params.folder === undefined || params.folder === 'root'
+        ? null
+        : (await this.getFolderByRef(tenantId, params.folder)).id;
+    const folderCondition = search
+      ? undefined
+      : folderId === null
         ? isNull(mediaFiles.folderId)
-        : eq(mediaFiles.folderId, (await this.getFolderByRef(tenantId, params.folder)).id);
+        : eq(mediaFiles.folderId, folderId);
     const limit = clampLimit(params.limit);
     const rows = await this.db
       .select()
@@ -226,6 +244,7 @@ export class MediaService {
         and(
           eq(mediaFiles.tenantId, tenantId),
           folderCondition,
+          search ? ilike(mediaFiles.fileName, `%${escapeLikePattern(search)}%`) : undefined,
           params.cursor ? gt(mediaFiles.id, decodeCursor(params.cursor).id) : undefined,
         ),
       )

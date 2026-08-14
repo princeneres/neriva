@@ -5,6 +5,8 @@ import { blocks, tenants, type BlockSlot } from './schema';
 import { DEFAULT_TENANT_ERC } from './seed.service';
 
 export const NATIVE_BLOCK_ERCS = [
+  'nv-header',
+  'nv-footer',
   'nv-container',
   'nv-columns-2',
   'nv-columns-3',
@@ -17,6 +19,8 @@ export const NATIVE_BLOCK_ERCS = [
   'nv-spacer',
   'nv-video',
   'nv-html',
+  'nv-post-list',
+  'nv-todo-list',
 ] as const;
 
 interface NativeBlockDefinition {
@@ -26,8 +30,10 @@ interface NativeBlockDefinition {
   description: string;
   propsSchema: Record<string, unknown>;
   slots: BlockSlot[];
-  html: string;
-  css: string;
+  // null on the blocks the renderer draws from its own registry instead of a
+  // template (spec 12): they read live data, which a static template cannot.
+  html: string | null;
+  css: string | null;
 }
 
 // The native component library (spec 12 section 2): the Liferay-style basic
@@ -37,6 +43,122 @@ interface NativeBlockDefinition {
 // no required props so a freshly dropped block never fails validation.
 // Exported so tests can assert every template passes the write-time rules.
 export const NATIVE_BLOCKS: NativeBlockDefinition[] = [
+  {
+    erc: 'nv-header',
+    name: 'Header',
+    category: 'layout',
+    description:
+      'Site header with a brand, navigation built from the site’s own pages, and a light/dark toggle',
+    propsSchema: {
+      type: 'object',
+      title: 'Header',
+      description: 'Site header: brand, navigation and a light/dark toggle',
+      additionalProperties: false,
+      properties: {
+        siteName: { type: 'string', title: 'Site name', description: 'Shown as the brand' },
+        tagline: {
+          type: 'string',
+          title: 'Tagline',
+          description: 'Optional short line next to the site name',
+        },
+        logoUrl: {
+          type: 'string',
+          title: 'Logo',
+          description: 'Optional logo image; a default mark is shown until one is set',
+        },
+      },
+    },
+    slots: [],
+    html: [
+      '<header class="nv-header">',
+      '  <div class="nv-header-inner">',
+      '    <div class="nv-header-brand">',
+      '      <img class="nv-header-logo" data-nv-image="logoUrl" alt="" />',
+      '      <span class="nv-header-name" data-nv-text="siteName">Your Site</span>',
+      '      <span class="nv-header-tagline" data-nv-text="tagline"></span>',
+      '    </div>',
+      '    <nav class="nv-header-nav" data-nv-nav="pages" aria-label="Primary">',
+      '      <a href="/">Home</a>',
+      '    </nav>',
+      '    <label class="nv-theme-toggle-label" for="nv-theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">',
+      '      <input type="checkbox" id="nv-theme-toggle" class="nv-theme-toggle-input" />',
+      '      <span class="nv-theme-toggle-icon" aria-hidden="true"></span>',
+      '    </label>',
+      '  </div>',
+      '</header>',
+    ].join('\n'),
+    css: [
+      '.nv-header { background: var(--nv-color-surface, #fff); color: var(--nv-color-text, #1a1917); border-bottom: 1px solid var(--nv-color-border, rgba(0, 0, 0, 0.08)); }',
+      '.nv-header-inner { max-width: 72rem; margin: 0 auto; padding: var(--nv-space-md, 1rem) var(--nv-space-md, 1rem); display: flex; align-items: center; gap: var(--nv-space-lg, 2rem); flex-wrap: wrap; }',
+      '.nv-header-brand { display: flex; align-items: center; gap: var(--nv-space-sm, 0.5rem); font-family: var(--nv-font-body, system-ui); }',
+      '.nv-header-brand::before { content: "⚡"; font-size: 1.25rem; line-height: 1; color: var(--nv-color-primary, #cc3d47); }',
+      '.nv-header-brand:has(.nv-header-logo[src]:not([src=""]))::before { display: none; }',
+      '.nv-header-logo { display: block; width: 1.75rem; height: 1.75rem; border-radius: var(--nv-radius-md, 8px); object-fit: cover; }',
+      '.nv-header-logo:not([src]), .nv-header-logo[src=""] { display: none; }',
+      '.nv-header-name { font-weight: 700; font-size: 1.125rem; letter-spacing: -0.01em; }',
+      '.nv-header-tagline { font-size: 0.875rem; opacity: 0.65; }',
+      '.nv-header-tagline:empty { display: none; }',
+      '.nv-header-nav { display: flex; gap: var(--nv-space-md, 1rem); flex-wrap: wrap; margin-left: auto; font-family: var(--nv-font-body, system-ui); font-size: 0.9375rem; }',
+      '.nv-header-nav a { color: inherit; text-decoration: none; opacity: 0.8; }',
+      '.nv-header-nav a:hover { opacity: 1; text-decoration: underline; }',
+      '.nv-theme-toggle-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }',
+      '.nv-theme-toggle-label { display: inline-flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; flex-shrink: 0; border-radius: 999px; border: 1px solid var(--nv-color-border, rgba(0, 0, 0, 0.12)); cursor: pointer; font-size: 1.0625rem; line-height: 1; }',
+      '.nv-theme-toggle-icon::before { content: "🌙"; }',
+      '.nv-theme-toggle-input:checked ~ .nv-theme-toggle-icon::before { content: "☀️"; }',
+    ].join('\n'),
+  },
+  {
+    erc: 'nv-footer',
+    name: 'Footer',
+    category: 'layout',
+    description:
+      'Site footer with a secondary navigation row and a copyright line, kept at the bottom of the page',
+    propsSchema: {
+      type: 'object',
+      title: 'Footer',
+      description: 'Site footer: secondary navigation and a copyright line',
+      additionalProperties: false,
+      properties: {
+        text: {
+          type: 'string',
+          title: 'Copyright text',
+          description: 'Rich text; allowed markup: p, br, b, strong, i, em, a, ul, ol, li',
+        },
+        pinToBottom: {
+          type: 'string',
+          title: 'Pin to the bottom of the page',
+          description:
+            'Choose "bottom" to keep the footer at the bottom edge of the screen when a page is too short to fill it, instead of leaving an empty gap below the footer. Choose "after-content" to always place the footer right under the last block. Leaving this empty uses "bottom".',
+          enum: ['bottom', 'after-content'],
+          default: 'bottom',
+        },
+      },
+    },
+    slots: [],
+    // nv-pin-bottom is the runtime's bottom-pin marker (spec 12, page shell)
+    // and is always present, because an unset prop interpolates to the empty
+    // string and the pinned behavior is the default. The interpolated class
+    // restates it, or becomes nv-pin-after-content, which cancels the pin.
+    html: [
+      '<footer class="nv-footer nv-pin-bottom nv-pin-{{pinToBottom}}">',
+      '  <div class="nv-footer-inner">',
+      '    <nav class="nv-footer-nav" data-nv-nav="pages" aria-label="Footer">',
+      '      <a href="/">Home</a>',
+      '    </nav>',
+      '    <div class="nv-footer-copy" data-nv-rich="text">© Your Site. All rights reserved.</div>',
+      '  </div>',
+      '</footer>',
+    ].join('\n'),
+    css: [
+      '.nv-footer { background: var(--nv-color-surface-alt, #f1efec); border-top: 1px solid var(--nv-color-border, rgba(0, 0, 0, 0.08)); color: var(--nv-color-text, #1a1917); font-family: var(--nv-font-body, system-ui); }',
+      '.nv-footer-inner { max-width: 72rem; margin: 0 auto; padding: var(--nv-space-lg, 2rem) var(--nv-space-md, 1rem); display: flex; flex-direction: column; align-items: center; gap: var(--nv-space-sm, 0.5rem); text-align: center; }',
+      '.nv-footer-nav { display: flex; gap: var(--nv-space-md, 1rem); flex-wrap: wrap; justify-content: center; font-size: 0.875rem; }',
+      '.nv-footer-nav a { color: inherit; text-decoration: none; opacity: 0.75; }',
+      '.nv-footer-nav a:hover { opacity: 1; text-decoration: underline; }',
+      '.nv-footer-copy { font-size: 0.8125rem; opacity: 0.6; }',
+      '.nv-footer-copy p { margin: 0; }',
+    ].join('\n'),
+  },
   {
     erc: 'nv-container',
     name: 'Container',
@@ -279,7 +401,7 @@ export const NATIVE_BLOCKS: NativeBlockDefinition[] = [
       '</article>',
     ].join('\n'),
     css: [
-      '.nv-card { overflow: hidden; border: 1px solid rgba(26, 25, 23, 0.12); border-radius: var(--nv-radius-md, 8px); background: var(--nv-color-surface, #faf9f7); box-shadow: 0 1px 3px rgba(26, 25, 23, 0.06); }',
+      '.nv-card { overflow: hidden; border: 1px solid var(--nv-color-border, rgba(26, 25, 23, 0.12)); border-radius: var(--nv-radius-md, 8px); background: var(--nv-color-surface-alt, #faf9f7); box-shadow: 0 1px 3px rgba(26, 25, 23, 0.06); }',
       '.nv-card-image { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; }',
       '.nv-card-image:not([src]), .nv-card-image[src=""] { display: none; }',
       '.nv-card-content { padding: var(--nv-space-md, 1rem) var(--nv-space-md, 1rem) var(--nv-space-lg, 2rem); }',
@@ -383,6 +505,131 @@ export const NATIVE_BLOCKS: NativeBlockDefinition[] = [
     // the sanitized prop value unescaped.
     html: '<div class="nv-html" data-nv-html="html"></div>',
     css: '.nv-html { font-family: var(--nv-font-body, system-ui); color: var(--nv-color-text, #1a1917); }',
+  },
+  {
+    erc: 'nv-post-list',
+    name: 'Post List',
+    category: 'content',
+    description:
+      'Searchable, paginated list of published content entries, read from the public delivery API',
+    propsSchema: {
+      type: 'object',
+      title: 'Post List',
+      description: 'Lists published content entries with search and pagination',
+      additionalProperties: false,
+      properties: {
+        heading: {
+          type: 'string',
+          title: 'Heading',
+          description: 'Optional title shown above the list',
+        },
+        contentType: {
+          type: 'string',
+          title: 'Content type',
+          description:
+            'Which content type to list, by reference: erc:<code> or its id. Example: erc:article',
+        },
+        pageSize: {
+          type: 'number',
+          title: 'Posts per page',
+          description: 'How many posts to show before the next page link',
+          minimum: 1,
+          maximum: 24,
+          default: 6,
+        },
+        showSearch: {
+          type: 'boolean',
+          title: 'Show the search box',
+          description: 'Lets visitors filter the posts by words in the title or the fields',
+          default: true,
+        },
+        summaryField: {
+          type: 'string',
+          title: 'Summary field',
+          description: 'Field key holding the short text shown on the card',
+          default: 'summary',
+        },
+        bodyField: {
+          type: 'string',
+          title: 'Body field',
+          description: 'Field key holding the full text, revealed by "Read more"',
+          default: 'body',
+        },
+        dateField: {
+          type: 'string',
+          title: 'Date field',
+          description: 'Field key holding the publication date',
+          default: 'publishedOn',
+        },
+        imageField: {
+          type: 'string',
+          title: 'Image field',
+          description: 'Field key holding an image URL, used as the post thumbnail',
+          default: 'thumbnail',
+        },
+        emptyText: {
+          type: 'string',
+          title: 'Empty message',
+          description: 'Shown when no post matches. Leave empty for the default message',
+        },
+      },
+    },
+    slots: [],
+    html: null,
+    css: null,
+  },
+  {
+    erc: 'nv-todo-list',
+    name: 'To Do List',
+    category: 'content',
+    description:
+      'Interactive to do list over an Object: reads and writes real records through the Objects API',
+    propsSchema: {
+      type: 'object',
+      title: 'To Do List',
+      description: 'Adds, completes and removes records of an Object definition',
+      additionalProperties: false,
+      properties: {
+        heading: {
+          type: 'string',
+          title: 'Heading',
+          description: 'Optional title shown above the list',
+        },
+        objectDefinition: {
+          type: 'string',
+          title: 'Object',
+          description:
+            'Which object to read and write, by reference: erc:<code> or its id. Example: erc:demo-task',
+        },
+        titleField: {
+          type: 'string',
+          title: 'Title field',
+          description: 'Field key holding the text of each item',
+          default: 'title',
+        },
+        doneField: {
+          type: 'string',
+          title: 'Done field',
+          description: 'Field key of the checkbox that marks an item complete',
+          default: 'done',
+        },
+        priorityField: {
+          type: 'string',
+          title: 'Priority field',
+          description: 'Field key of the priority list. Clear this to hide the priority control',
+          default: 'priority',
+        },
+        dueDateField: {
+          type: 'string',
+          title: 'Due date field',
+          description: 'Field key of the due date. Clear this to hide the due date control',
+          default: 'dueDate',
+        },
+      },
+    },
+    slots: [],
+    html: null,
+    css: null,
   },
 ];
 

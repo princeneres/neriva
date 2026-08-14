@@ -147,6 +147,27 @@ describe('validateBlockTemplate', () => {
     expect(validateBlockTemplate('<hr class="rule">', [], { type: 'object' })).toBeNull();
     expect(validateBlockTemplate('<div class="spacer {{level}}"></div>', [], SCHEMA)).toBeNull();
   });
+
+  it('accepts data-nv-nav="pages" even with an authored placeholder link inside', () => {
+    expect(
+      validateBlockTemplate('<nav data-nv-nav="pages"><a href="/">Home</a></nav>', [], SCHEMA),
+    ).toBeNull();
+  });
+
+  it('rejects data-nv-nav with any value other than "pages"', () => {
+    expect(validateBlockTemplate('<nav data-nv-nav="sites"></nav>', [], SCHEMA)).toContain(
+      'data-nv-nav must be "pages"',
+    );
+    expect(validateBlockTemplate('<nav data-nv-nav=""></nav>', [], SCHEMA)).toContain(
+      'data-nv-nav must be "pages"',
+    );
+  });
+
+  it('still rejects an unclosed data-nv-nav element', () => {
+    expect(validateBlockTemplate('<nav data-nv-nav="pages">', [], SCHEMA)).toContain(
+      'is never closed',
+    );
+  });
 });
 
 describe('validateBlockCss', () => {

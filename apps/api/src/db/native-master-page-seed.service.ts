@@ -2,43 +2,29 @@ import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs
 import { and, eq } from 'drizzle-orm';
 import { DROP_ZONE_BLOCK } from '../modules/pages/page-tree.validation';
 import { DB, type Database } from './database';
-import { pageTemplates, systemSettings, tenants, type PageTree } from './schema';
+import { pageTemplates, tenants, type PageTree } from './schema';
 import { DEFAULT_TENANT_ERC } from './seed.service';
 
 export const MASTER_DEFAULT_ERC = 'master-default';
 export const TEMPLATE_BLANK_ERC = 'template-blank';
 
-// Well-known tenant setting resolved by pages/delivery when a page does not
-// set its own master (spec 14). Kebab-cased to satisfy spec 07's key
-// pattern (^[a-z][a-z0-9.-]*$), which rejects camelCase. Defined here
-// (db layer) rather than in the page-templates module, following the same
-// direction as DEFAULT_TENANT_ERC in seed.service.ts: modules import
-// well-known db-seeded constants, not the other way around.
-export const DEFAULT_MASTER_SETTING_KEY = 'page.default-master-template';
-
 // Built from the native blocks catalog (native-blocks-seed.service.ts),
 // which this service assumes is already seeded (registered after it in
-// DbModule). nv-container/nv-heading/nv-paragraph's real prop keys (both
-// use "text") already match what this tree references.
+// DbModule). nv-header renders real, current site navigation (spec 12
+// section 2/5 amendment) and the light/dark toggle on its own (spec 06
+// dark-mode amendment); nv-footer mirrors it with a copyright line.
 function masterDefaultTree(): PageTree {
   const year = new Date().getFullYear();
   return {
     blocks: [
       {
-        block: 'nv-container',
-        slots: {
-          content: [
-            { block: 'nv-heading', props: { text: 'Your Site' } },
-            { block: 'nv-paragraph', props: { text: 'A site built with Neriva CMS' } },
-          ],
-        },
+        block: 'nv-header',
+        props: { siteName: 'Your Site', tagline: 'Built with Neriva' },
       },
       { block: DROP_ZONE_BLOCK },
       {
-        block: 'nv-container',
-        slots: {
-          content: [{ block: 'nv-paragraph', props: { text: `© ${year} · Built with Neriva` } }],
-        },
+        block: 'nv-footer',
+        props: { text: `<p>© ${year} Your Site. All rights reserved.</p>` },
       },
     ],
   };
@@ -46,10 +32,11 @@ function masterDefaultTree(): PageTree {
 
 const TEMPLATE_BLANK_TREE: PageTree = { blocks: [] };
 
-// Seeds the default Master Page template, a blank Standard template, and the
-// page.default-master-template setting that new pages fall back to when
-// they set no master of their own (spec 14). Idempotent by ERC; gated by
-// SEED_NATIVE_BLOCKS=false (it depends on the same native blocks catalog).
+// Seeds the default Master Page template (marked isDefault) and a blank
+// Standard template. New pages that set no master of their own fall back
+// to the tenant's isDefault MASTER template (spec 14). Idempotent by ERC;
+// gated by SEED_NATIVE_BLOCKS=false (it depends on the same native blocks
+// catalog).
 @Injectable()
 export class NativeMasterPageSeedService implements OnApplicationBootstrap {
   private readonly logger = new Logger(NativeMasterPageSeedService.name);
@@ -108,8 +95,9 @@ export class NativeMasterPageSeedService implements OnApplicationBootstrap {
           kind: 'MASTER',
           siteId: null,
           tree: masterDefaultTree(),
+          isDefault: true,
         });
-        this.logger.log('Seeded page template "Default Master"');
+        this.logger.log('Seeded page template "Default Master" as the tenant default');
       }
 
       const blankExists =
@@ -135,30 +123,6 @@ export class NativeMasterPageSeedService implements OnApplicationBootstrap {
           tree: TEMPLATE_BLANK_TREE,
         });
         this.logger.log('Seeded page template "Blank page"');
-      }
-
-      const settingExists =
-        (
-          await tx
-            .select({ id: systemSettings.id })
-            .from(systemSettings)
-            .where(
-              and(
-                eq(systemSettings.tenantId, tenant.id),
-                eq(systemSettings.key, DEFAULT_MASTER_SETTING_KEY),
-              ),
-            )
-            .limit(1)
-        ).length > 0;
-      if (!settingExists) {
-        // Idempotent upsert-if-absent: an admin who already changed this
-        // setting must not have it silently reset on the next boot.
-        await tx.insert(systemSettings).values({
-          tenantId: tenant.id,
-          key: DEFAULT_MASTER_SETTING_KEY,
-          value: MASTER_DEFAULT_ERC,
-        });
-        this.logger.log(`Seeded system setting "${DEFAULT_MASTER_SETTING_KEY}"`);
       }
     });
   }

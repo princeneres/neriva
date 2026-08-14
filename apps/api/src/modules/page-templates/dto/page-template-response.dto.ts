@@ -35,4 +35,11 @@ export class PageTemplateDto {
     description: 'Recursive tree of block instances: { blocks: [...] }',
   })
   tree!: Record<string, unknown>;
+
+  @ApiProperty({
+    description:
+      'Whether this is the tenant-wide fallback master, resolved for pages that set no ' +
+      'masterPageTemplateId of their own (spec 14). Meaningful for kind = MASTER only.',
+  })
+  isDefault!: boolean;
 }

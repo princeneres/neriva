@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
 import { SitesModule } from '../sites/sites.module';
-import { SystemModule } from '../system/system.module';
 import { PageTemplatesController } from './page-templates.controller';
 import { PageTemplatesService } from './page-templates.service';
 
 @Module({
-  imports: [SitesModule, SystemModule],
+  imports: [SitesModule],
   controllers: [PageTemplatesController],
   providers: [PageTemplatesService],
   exports: [PageTemplatesService],

@@ -40,15 +40,24 @@ export class StylebookService {
   async create(
     tenantId: string,
     createdBy: string,
-    input: { name: string; tokens: Record<string, string>; externalReferenceCode?: string },
+    input: {
+      name: string;
+      tokens: Record<string, string>;
+      tokensDark?: Record<string, string>;
+      externalReferenceCode?: string;
+    },
   ): Promise<StyleBookRow> {
     this.assertValidTokens(input.tokens);
+    if (input.tokensDark !== undefined) {
+      this.assertValidTokens(input.tokensDark);
+    }
     try {
       // Intermediate variable: tsc cannot apply the excess-property check to
       // the generic repository parameter and rejects fresh literals here.
       const values = {
         name: input.name,
         tokens: input.tokens,
+        tokensDark: input.tokensDark ?? null,
         createdBy,
         // undefined lets the envelope default generate one
         externalReferenceCode: input.externalReferenceCode,
@@ -67,16 +76,24 @@ export class StylebookService {
   async update(
     tenantId: string,
     ref: string,
-    input: { name?: string; tokens?: Record<string, string> },
+    input: { name?: string; tokens?: Record<string, string>; tokensDark?: Record<string, string> },
   ): Promise<StyleBookRow> {
     const existing = await this.getByRef(tenantId, ref);
-    const values: Partial<{ name: string; tokens: Record<string, string> }> = {};
+    const values: Partial<{
+      name: string;
+      tokens: Record<string, string>;
+      tokensDark: Record<string, string> | null;
+    }> = {};
     if (input.name !== undefined) {
       values.name = input.name;
     }
     if (input.tokens !== undefined) {
       this.assertValidTokens(input.tokens);
       values.tokens = input.tokens;
+    }
+    if (input.tokensDark !== undefined) {
+      this.assertValidTokens(input.tokensDark);
+      values.tokensDark = input.tokensDark;
     }
     if (Object.keys(values).length === 0) {
       return existing;
@@ -113,7 +130,7 @@ export class StylebookService {
 
   async renderCssByRef(tenantId: string, ref: string): Promise<string> {
     const styleBook = await this.getByRef(tenantId, ref);
-    return renderCss(styleBook.tokens);
+    return renderCss(styleBook.tokens, styleBook.tokensDark);
   }
 
   private assertValidTokens(tokens: Record<string, string>): void {

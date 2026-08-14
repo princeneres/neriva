@@ -1,9 +1,13 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, desc, eq, gt, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, ilike, inArray, lt, or, sql, type SQL } from 'drizzle-orm';
+import { parseEntityRef } from '../../common/entity-ref';
 import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
+import { renderTokensCss } from '../../common/style-tokens';
 import { DB, type Database } from '../../db/database';
 import {
   blocks,
+  contentEntries,
+  contentTypes,
   pages,
   sites,
   styleBooks,
@@ -17,10 +21,19 @@ import { composePageTree } from '../pages/page-composition';
 import { collectBlockRefs } from '../pages/page-tree.validation';
 import { SystemSettingsService } from '../system/system-settings.service';
 
+export interface DeliveredSiteNavPage {
+  title: string;
+  path: string;
+}
+
 export interface DeliveredSite {
   name: string;
   slug: string;
 }
+
+// Cap on the auto-generated header/footer nav (spec 10); a real sitemap
+// belongs to a future navigation-menu feature, not the delivery response.
+const NAV_PAGE_LIMIT = 50;
 
 export interface DeliveredBlock {
   name: string;
@@ -34,7 +47,10 @@ export interface DeliveredBlock {
 export const DEFAULT_SITE_SETTING_KEY = 'site.default';
 
 export interface DeliveredPageView {
-  site: DeliveredSite;
+  // pages: the site's own published pages (title/path only), for a
+  // header/footer block's data-nv-nav to render real navigation without a
+  // second request.
+  site: DeliveredSite & { pages: DeliveredSiteNavPage[] };
   page: { title: string; path: string; tree: PageTree; updatedAt: Date };
   blocks: Record<string, DeliveredBlock>;
 }
@@ -45,22 +61,27 @@ export interface DeliveredPageListItem {
   updatedAt: Date;
 }
 
+export interface DeliveredContentEntry {
+  id: string;
+  externalReferenceCode: string;
+  title: string;
+  // The content type's ERC, the stable handle a website templates against.
+  contentType: string;
+  values: Record<string, unknown>;
+  updatedAt: Date;
+}
+
+// Postgres treats \, % and _ as special inside a LIKE/ILIKE pattern
+// (backslash is the default escape character); a raw search term must have
+// all three escaped so it matches as a literal substring instead of a
+// wildcard pattern.
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
 // DRAFT/ARCHIVED pages and non-existent paths share this detail so they are
 // indistinguishable to anonymous visitors (spec 10, no information leaks).
 const PAGE_NOT_FOUND_DETAIL = 'No published page at this path';
-
-// Local copy of the spec 06 token rendering (--nv- prefix on :root). The
-// stylebook module keeps its own; modules never import each other's
-// internals. Names are sorted so the output is deterministic.
-function renderCss(tokens: Record<string, string>): string {
-  const lines = Object.entries(tokens)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([name, value]) => `  --nv-${name}: ${value};`);
-  if (lines.length === 0) {
-    return ':root {\n}\n';
-  }
-  return `:root {\n${lines.join('\n')}\n}\n`;
-}
 
 @Injectable()
 export class DeliveryService {
@@ -205,8 +226,17 @@ export class DeliveryService {
       }
     }
 
+    const navPages = await this.db
+      .select({ title: pages.title, path: pages.path })
+      .from(pages)
+      .where(
+        and(eq(pages.tenantId, tenantId), eq(pages.siteId, site.id), eq(pages.status, 'PUBLISHED')),
+      )
+      .orderBy(asc(pages.path))
+      .limit(NAV_PAGE_LIMIT);
+
     return {
-      site: { name: site.name, slug: site.slug },
+      site: { name: site.name, slug: site.slug, pages: navPages },
       page: { title: page.title, path: page.path, tree: composedTree, updatedAt: page.updatedAt },
       blocks: blockMap,
     };
@@ -243,6 +273,90 @@ export class DeliveryService {
     return { items, nextCursor, limit };
   }
 
+  // Resolves a content type reference without leaking its existence: the
+  // public listing turns a miss into an empty page instead of a 404.
+  private async findContentTypeIdByRef(tenantId: string, ref: string): Promise<string | null> {
+    const parsed = parseEntityRef(ref);
+    const match =
+      parsed.kind === 'id'
+        ? eq(contentTypes.id, parsed.value)
+        : eq(contentTypes.externalReferenceCode, parsed.value);
+    const row = (
+      await this.db
+        .select({ id: contentTypes.id })
+        .from(contentTypes)
+        .where(and(eq(contentTypes.tenantId, tenantId), match))
+        .limit(1)
+    )[0];
+    return row?.id ?? null;
+  }
+
+  // PUBLISHED entries attached to this site, newest first (spec 10). Ids are
+  // UUIDv7 and therefore time-ordered, so ordering by id DESC with an
+  // `id < cursor` keyset walks the list from newest to oldest.
+  async listContentEntries(
+    slug: string,
+    params: { limit?: number; cursor?: string; contentType?: string; q?: string },
+  ): Promise<{ items: DeliveredContentEntry[]; nextCursor: string | null; limit: number }> {
+    const tenantId = await this.resolveTenantId();
+    const site = await this.getSiteBySlug(tenantId, slug);
+    const limit = clampLimit(params.limit);
+
+    let contentTypeCondition: SQL | undefined;
+    if (params.contentType !== undefined) {
+      const contentTypeId = await this.findContentTypeIdByRef(tenantId, params.contentType);
+      if (contentTypeId === null) {
+        return { items: [], nextCursor: null, limit };
+      }
+      contentTypeCondition = eq(contentEntries.contentTypeId, contentTypeId);
+    }
+
+    // Naive substring search (spec 10): the title, or the whole values
+    // payload rendered as text, which also matches field keys.
+    const search = params.q?.trim();
+    const searchPattern = search ? `%${escapeLikePattern(search)}%` : null;
+    const searchCondition = searchPattern
+      ? or(
+          ilike(contentEntries.title, searchPattern),
+          ilike(sql`${contentEntries.values}::text`, searchPattern),
+        )
+      : undefined;
+
+    const rows = await this.db
+      .select({
+        id: contentEntries.id,
+        externalReferenceCode: contentEntries.externalReferenceCode,
+        title: contentEntries.title,
+        contentType: contentTypes.externalReferenceCode,
+        values: contentEntries.values,
+        updatedAt: contentEntries.updatedAt,
+      })
+      .from(contentEntries)
+      .innerJoin(
+        contentTypes,
+        and(eq(contentTypes.id, contentEntries.contentTypeId), eq(contentTypes.tenantId, tenantId)),
+      )
+      .where(
+        and(
+          eq(contentEntries.tenantId, tenantId),
+          // Site-scoped only: tenant-wide entries (siteId null) belong to no
+          // site and never surface in a site's public listing (spec 10).
+          eq(contentEntries.siteId, site.id),
+          eq(contentEntries.status, 'PUBLISHED'),
+          contentTypeCondition,
+          searchCondition,
+          params.cursor ? lt(contentEntries.id, decodeCursor(params.cursor).id) : undefined,
+        ),
+      )
+      .orderBy(desc(contentEntries.id))
+      .limit(limit + 1);
+
+    const window = rows.slice(0, limit);
+    const last = window[window.length - 1];
+    const nextCursor = rows.length > limit && last ? encodeCursor(last.id) : null;
+    return { items: window, nextCursor, limit };
+  }
+
   // CSS variables of the tenant's most recently published Style Book;
   // empty :root {} when none exists (spec 10).
   async renderStyleCss(slug: string): Promise<string> {
@@ -251,12 +365,12 @@ export class DeliveryService {
 
     const latest = (
       await this.db
-        .select({ tokens: styleBooks.tokens })
+        .select({ tokens: styleBooks.tokens, tokensDark: styleBooks.tokensDark })
         .from(styleBooks)
         .where(and(eq(styleBooks.tenantId, tenantId), eq(styleBooks.status, 'PUBLISHED')))
         .orderBy(desc(styleBooks.updatedAt))
         .limit(1)
     )[0];
-    return renderCss(latest?.tokens ?? {});
+    return renderTokensCss(latest?.tokens ?? {}, latest?.tokensDark);
   }
 }

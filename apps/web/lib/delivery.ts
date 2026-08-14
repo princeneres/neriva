@@ -11,6 +11,11 @@ export interface DeliverySite {
   slug: string;
 }
 
+export interface DeliveryNavPage {
+  title: string;
+  path: string;
+}
+
 export interface DeliveryPage {
   title: string;
   path: string;
@@ -20,12 +25,16 @@ export interface DeliveryPage {
 
 export interface DeliveryBlockInfo {
   name: string;
-  category: string;
+  category: string | null;
   slots: string[];
+  html: string | null;
+  css: string | null;
 }
 
 export interface PublicPageData {
-  site: DeliverySite;
+  // pages: the site's own published pages, for a header/footer block's
+  // data-nv-nav to render real navigation.
+  site: DeliverySite & { pages: DeliveryNavPage[] };
   page: DeliveryPage;
   blocks: Record<string, DeliveryBlockInfo>;
 }

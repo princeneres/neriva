@@ -32,11 +32,16 @@ import {
   useRef,
   useState,
 } from 'react';
-import { apiUrl } from '../../../lib/api-url';
 import { rendererFor } from '../../../lib/renderer/registry';
-import { renderTemplate, resolveStyles, sanitizeRich } from '../../../lib/renderer/template';
+import {
+  type NavPage,
+  renderTemplate,
+  resolveStyles,
+  sanitizeRich,
+} from '../../../lib/renderer/template';
 import { type ContainerRef, containerKey, type EditorNode } from './editor-state';
 import classes from './studio.module.css';
+import { useSitePreviewData } from './use-site-preview-data';
 import type { Block } from './types';
 
 // Where the block picker inserts: a root position or a named slot.
@@ -79,6 +84,16 @@ interface CanvasContext {
   onOpenPicker: (target: InsertTarget) => void;
 }
 
+// CanvasContext plus the site's published pages, fetched by EditorCanvas
+// itself (like the preview stylesheet) and threaded down to template blocks
+// so header/footer nav (data-nv-nav="pages") renders real links in the studio.
+interface CanvasContextWithNav extends CanvasContext {
+  sitePages: NavPage[];
+  // Also threaded down so the data-driven registry blocks read the site being
+  // edited, exactly as they do on the published page.
+  siteSlug: string | null;
+}
+
 // The WYSIWYG canvas: the page rendered the same way the public runtime
 // renders it (template engine for template blocks, registry otherwise), with
 // every block wrapped in a selection frame. The site's public stylesheet is
@@ -93,31 +108,13 @@ export function EditorCanvas({
   device: CanvasDevice;
   siteSlug: string | null;
 }) {
-  const [css, setCss] = useState('');
+  const { css, sitePages } = useSitePreviewData(siteSlug);
   const { setNodeRef } = useDroppable({
     id: ROOT_DROP_ID,
     data: { kind: 'container', container: null } satisfies CanvasDropData,
   });
 
-  useEffect(() => {
-    if (siteSlug === null || siteSlug === '') {
-      return;
-    }
-    let cancelled = false;
-    fetch(apiUrl(`/public/sites/${siteSlug}/style.css`))
-      .then((response) => (response.ok ? response.text() : ''))
-      .then((text) => {
-        if (!cancelled) {
-          setCss(text);
-        }
-      })
-      .catch(() => {
-        // No public style endpoint yet: render with the block defaults.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [siteSlug]);
+  const canvasCtx: CanvasContextWithNav = { ...ctx, sitePages, siteSlug };
 
   // The stylesheet declares tokens on :root; rewrite them onto the canvas
   // surface so they do not leak into the admin UI around it.
@@ -132,7 +129,11 @@ export function EditorCanvas({
     <div className={classes.canvasScroll}>
       <div
         ref={setNodeRef}
-        className={`${classes.pageSurface} ${SCOPE_CLASS}`}
+        // nv-site-root: the dark-mode rule renderCss emits is scoped to
+        // .nv-site-root:has(#nv-theme-toggle:checked) (the same class the
+        // public page and the Preview mode use), so the header's toggle
+        // works identically inside the canvas.
+        className={`${classes.pageSurface} ${SCOPE_CLASS} nv-site-root`}
         style={{ maxWidth: DEVICE_WIDTHS[device] }}
         onClick={() => ctx.onSelect(null)}
       >
@@ -156,7 +157,7 @@ export function EditorCanvas({
                   container={null}
                   index={index}
                   count={nodes.length}
-                  ctx={ctx}
+                  ctx={canvasCtx}
                 />
               </Fragment>
             ))}
@@ -238,7 +239,7 @@ function BlockFrame({
   container: ContainerRef;
   index: number;
   count: number;
-  ctx: CanvasContext;
+  ctx: CanvasContextWithNav;
 }) {
   const {
     attributes,
@@ -283,11 +284,19 @@ function BlockFrame({
         slots={slots}
         editable={selected}
         onSetProp={ctx.onSetProp}
+        sitePages={ctx.sitePages}
       />
     );
   } else {
     const Renderer = rendererFor(node.block);
-    content = <Renderer props={node.props} slots={slots} blockName={name} />;
+    content = (
+      <Renderer
+        props={node.props}
+        slots={slots}
+        blockName={name}
+        siteSlug={ctx.siteSlug ?? undefined}
+      />
+    );
   }
 
   // Same wrapper rule as RenderTree: per-instance styles land on a div around
@@ -435,6 +444,7 @@ function TemplateContent({
   slots,
   editable,
   onSetProp,
+  sitePages,
 }: {
   node: EditorNode;
   html: string;
@@ -443,6 +453,7 @@ function TemplateContent({
   slots: Record<string, ReactNode>;
   editable: boolean;
   onSetProp: (key: string, name: string, value: unknown) => void;
+  sitePages: NavPage[];
 }) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [imageTargets, setImageTargets] = useState<ImageTarget[]>([]);
@@ -450,8 +461,16 @@ function TemplateContent({
 
   const declaredSlots = useMemo(() => block.slots.map((slot) => slot.name), [block]);
   const { segments, css: scopedCss } = useMemo(
-    () => renderTemplate({ html, css, erc: node.block, props: node.props, slots: declaredSlots }),
-    [html, css, node.block, node.props, declaredSlots],
+    () =>
+      renderTemplate({
+        html,
+        css,
+        erc: node.block,
+        props: node.props,
+        slots: declaredSlots,
+        sitePages,
+      }),
+    [html, css, node.block, node.props, declaredSlots, sitePages],
   );
 
   // Overlay buttons for image bindings, positioned over each bound element.
@@ -649,7 +668,7 @@ function SlotArea({
   parentKey: string;
   slotName: string;
   nodes: EditorNode[];
-  ctx: CanvasContext;
+  ctx: CanvasContextWithNav;
 }) {
   const container: ContainerRef = { parentKey, slot: slotName };
   const { setNodeRef } = useDroppable({

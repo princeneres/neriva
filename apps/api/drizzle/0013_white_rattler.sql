@@ -1,0 +1,1 @@
+ALTER TABLE "style_books" ADD COLUMN "tokens_dark" jsonb;

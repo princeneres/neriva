@@ -41,8 +41,10 @@ import {
   IconDeviceTablet,
   IconDots,
   IconExternalLink,
+  IconEye,
   IconGripVertical,
   IconRocket,
+  IconSettings,
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -72,6 +74,7 @@ import {
   stateToTree,
   treeToState,
 } from './editor-state';
+import { PagePreview } from './page-preview';
 import { type PageMeta, StudioInspector } from './studio-inspector';
 import { PALETTE_ID_PREFIX, StudioPalette } from './studio-palette';
 import classes from './studio.module.css';
@@ -118,6 +121,7 @@ export function PageStudio({
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [device, setDevice] = useState<CanvasDevice>('desktop');
   const [paletteCollapsed, setPaletteCollapsed] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
 
   const [title, setTitle] = useState(initial.title);
   // The path is configured in the page settings; the studio only echoes it
@@ -196,6 +200,16 @@ export function PageStudio({
 
   const blocksByErc = useMemo(
     () => new Map(blocks.map((block) => [block.externalReferenceCode, block])),
+    [blocks],
+  );
+  const previewBlockInfo = useMemo(
+    () =>
+      Object.fromEntries(
+        blocks.map((block) => [
+          block.externalReferenceCode,
+          { name: block.name, html: block.html, css: block.css, slots: block.slots },
+        ]),
+      ),
     [blocks],
   );
   const selectedNode = selectedKey === null ? null : findNode(nodes, selectedKey);
@@ -396,17 +410,35 @@ export function PageStudio({
     setJsonOpen(false);
   }
 
+  if (previewMode) {
+    return (
+      <PagePreview
+        title={title}
+        siteSlug={siteSlug}
+        tree={stateToTree(nodes)}
+        blockInfo={previewBlockInfo}
+        onExit={() => setPreviewMode(false)}
+      />
+    );
+  }
+
+  // Leaving the editor goes back to the page itself. A page with no public
+  // address yet (draft, or a site with no known slug) has nowhere to go back
+  // to, so it falls back to the pages list; settings has its own gear button.
+  const backHref = viewUrl ?? '/admin/pages';
+  const backLabel = viewUrl === null ? 'Back to pages' : 'Back to the page';
+
   return (
     <div className={classes.studio}>
       <div className={classes.topBar}>
         <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-          <Tooltip label="Back to page settings">
+          <Tooltip label={backLabel}>
             <ActionIcon
               variant="subtle"
               color="slate"
               component={Link}
-              href={settingsHref}
-              aria-label="Back to the page settings"
+              href={backHref}
+              aria-label={backLabel}
             >
               <IconArrowLeft size={18} />
             </ActionIcon>
@@ -485,6 +517,16 @@ export function PageStudio({
         />
 
         <Group gap="xs" wrap="nowrap" justify="flex-end" style={{ flex: 1 }}>
+          <Tooltip label="Preview how the page will look, without leaving the editor">
+            <Button
+              size="xs"
+              variant="default"
+              leftSection={<IconEye size={15} />}
+              onClick={() => setPreviewMode(true)}
+            >
+              Preview
+            </Button>
+          </Tooltip>
           <Button size="xs" loading={busy} onClick={handleSave}>
             Save
           </Button>
@@ -511,6 +553,17 @@ export function PageStudio({
               </ActionIcon>
             </Tooltip>
           ) : null}
+          <Tooltip label="Page settings: title, address and publishing">
+            <ActionIcon
+              variant="subtle"
+              color="slate"
+              component={Link}
+              href={settingsHref}
+              aria-label="Open the page settings"
+            >
+              <IconSettings size={18} />
+            </ActionIcon>
+          </Tooltip>
           <Menu position="bottom-end" width={200}>
             <Menu.Target>
               <ActionIcon variant="subtle" color="slate" aria-label="More actions">

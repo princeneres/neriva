@@ -18,6 +18,7 @@ export default function PageTemplateEditPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  const [settingDefault, setSettingDefault] = useState(false);
 
   useEffect(() => {
     api
@@ -47,6 +48,23 @@ export default function PageTemplateEditPage() {
       });
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function onSetDefault() {
+    setSettingDefault(true);
+    try {
+      const { data } = await api.post<{ data: PageTemplate }>(`/page-templates/${id}/set-default`);
+      setTemplate(data);
+      notifications.show({ color: 'green', message: `"${data.name}" is now the default master.` });
+    } catch (err) {
+      notifications.show({
+        color: 'red',
+        title: 'Could not set the default master',
+        message: err instanceof ApiError ? err.message : 'Request failed',
+      });
+    } finally {
+      setSettingDefault(false);
     }
   }
 
@@ -82,6 +100,9 @@ export default function PageTemplateEditPage() {
       busy={busy}
       serverError={error}
       onSave={(values) => void onSave(values)}
+      isDefault={template.isDefault}
+      settingDefault={settingDefault}
+      onSetDefault={() => void onSetDefault()}
     />
   );
 }

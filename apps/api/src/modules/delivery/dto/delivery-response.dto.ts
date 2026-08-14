@@ -8,6 +8,23 @@ export class DeliveredSiteDto {
   slug!: string;
 }
 
+export class DeliveredSiteNavPageDto {
+  @ApiProperty()
+  title!: string;
+
+  @ApiProperty()
+  path!: string;
+}
+
+export class DeliveredPageViewSiteDto extends DeliveredSiteDto {
+  @ApiProperty({
+    type: [DeliveredSiteNavPageDto],
+    description:
+      "The site's own published pages (title/path only), capped at 50, for a header/footer block's data-nv-nav",
+  })
+  pages!: DeliveredSiteNavPageDto[];
+}
+
 export class DeliveredPageDto {
   @ApiProperty()
   title!: string;
@@ -56,8 +73,8 @@ export class DeliveredBlockDto {
 }
 
 export class DeliveredPageViewDto {
-  @ApiProperty({ type: DeliveredSiteDto })
-  site!: DeliveredSiteDto;
+  @ApiProperty({ type: DeliveredPageViewSiteDto })
+  site!: DeliveredPageViewSiteDto;
 
   @ApiProperty({ type: DeliveredPageDto })
   page!: DeliveredPageDto;
@@ -76,6 +93,32 @@ export class DeliveredPageListItemDto {
 
   @ApiProperty()
   path!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  updatedAt!: string;
+}
+
+export class DeliveredContentEntryDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  externalReferenceCode!: string;
+
+  @ApiProperty()
+  title!: string;
+
+  @ApiProperty({
+    description: "External reference code of the entry's content type",
+  })
+  contentType!: string;
+
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: true,
+    description: 'Field values keyed by the content type field keys',
+  })
+  values!: Record<string, unknown>;
 
   @ApiProperty({ format: 'date-time' })
   updatedAt!: string;

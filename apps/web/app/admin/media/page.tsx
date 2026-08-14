@@ -3,6 +3,15 @@
 import '@mantine/dropzone/styles.css';
 
 import {
+  DndContext,
+  type DragEndEvent,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
   ActionIcon,
   AspectRatio,
   Anchor,
@@ -25,6 +34,7 @@ import {
 } from '@mantine/core';
 import { Dropzone, type FileWithPath } from '@mantine/dropzone';
 import { useForm } from '@mantine/form';
+import { useDebouncedValue } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import {
@@ -34,11 +44,12 @@ import {
   IconFolderSymlink,
   IconPencil,
   IconPhoto,
+  IconSearch,
   IconTrash,
   IconUpload,
   IconX,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { useCursorList } from '../../../components/data-table';
 import { HelpTip } from '../../../components/help-tip';
 import { ApiError, api } from '../../../lib/api';
@@ -82,6 +93,101 @@ async function findSiteFolderPath(siteId: string): Promise<MediaFolder[] | null>
 
 type FolderModalState = { mode: 'create' } | { mode: 'rename'; folder: MediaFolder } | null;
 
+// Drag-and-drop payloads (spec 11 addendum): a folder card is both a drag
+// source and a drop target; a file card is a drag source only. null
+// folderId means the root of the library.
+interface DragItem {
+  kind: 'file' | 'folder';
+  id: string;
+  name: string;
+  currentFolderId?: string | null;
+  currentParentId?: string | null;
+}
+
+interface DropTarget {
+  folderId: string | null;
+}
+
+// Wraps a folder card so it can be dragged onto another folder and can also
+// receive a dropped file or folder. A ring highlights it while something is
+// dragged over it.
+function DraggableFolderCard({ folder, children }: { folder: MediaFolder; children: ReactNode }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    isDragging,
+  } = useDraggable({
+    id: `drag-folder-${folder.id}`,
+    data: {
+      kind: 'folder',
+      id: folder.id,
+      name: folder.name,
+      currentParentId: folder.parentId,
+    } satisfies DragItem,
+  });
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: `drop-folder-${folder.id}`,
+    data: { folderId: folder.id } satisfies DropTarget,
+  });
+  return (
+    <div
+      ref={(element) => {
+        setDragRef(element);
+        setDropRef(element);
+      }}
+      {...attributes}
+      {...listeners}
+      style={{
+        opacity: isDragging ? 0.4 : 1,
+        outline: isOver ? '2px solid var(--mantine-color-neriva-6)' : undefined,
+        borderRadius: 8,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// Wraps a file card so it can be dragged onto a folder card or a breadcrumb.
+function DraggableFileCard({ file, children }: { file: MediaFile; children: ReactNode }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `drag-file-${file.id}`,
+    data: {
+      kind: 'file',
+      id: file.id,
+      name: file.fileName,
+      currentFolderId: file.folderId,
+    } satisfies DragItem,
+  });
+  return (
+    <div ref={setNodeRef} {...attributes} {...listeners} style={{ opacity: isDragging ? 0.4 : 1 }}>
+      {children}
+    </div>
+  );
+}
+
+// A breadcrumb segment as a drop target, so a card can be dragged up to any
+// ancestor folder (or the library root) without navigating there first.
+function DroppableCrumb({ folderId, children }: { folderId: string | null; children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `drop-crumb-${folderId ?? 'root'}`,
+    data: { folderId } satisfies DropTarget,
+  });
+  return (
+    <span
+      ref={setNodeRef}
+      style={{
+        borderRadius: 6,
+        padding: isOver ? '2px 6px' : undefined,
+        outline: isOver ? '2px solid var(--mantine-color-neriva-6)' : undefined,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
 export default function MediaLibraryPage() {
   const { current: site } = useSite();
 
@@ -89,6 +195,12 @@ export default function MediaLibraryPage() {
   const [path, setPath] = useState<MediaFolder[]>([]);
   const currentFolder = path.at(-1) ?? null;
   const folderKey = currentFolder?.id ?? 'root';
+
+  // A search term looks across every folder in the tenant, so the folder
+  // grid (scoped to the current directory) is hidden while one is active.
+  const [search, setSearch] = useState('');
+  const [debouncedSearch] = useDebouncedValue(search, 300);
+  const searching = debouncedSearch.trim() !== '';
 
   const [folders, setFolders] = useState<MediaFolder[]>([]);
   const [foldersLoading, setFoldersLoading] = useState(true);
@@ -115,13 +227,16 @@ export default function MediaLibraryPage() {
     void loadFolders();
   }, [loadFolders]);
 
+  const filesPath = searching
+    ? `/media/files?search=${encodeURIComponent(debouncedSearch.trim())}`
+    : `/media/files?folder=${folderKey}`;
   const {
     items: files,
     loading: filesLoading,
     hasMore,
     refresh: refreshFiles,
     loadMore,
-  } = useCursorList<MediaFile>(`/media/files?folder=${folderKey}`, (error) =>
+  } = useCursorList<MediaFile>(filesPath, (error) =>
     notifications.show({ color: 'red', title: 'Could not load files', message: error.message }),
   );
 
@@ -327,13 +442,53 @@ export default function MediaLibraryPage() {
     void refreshFiles();
   }, [refreshFiles]);
 
+  // Drag a file or folder card onto a folder card or a breadcrumb to move
+  // it there. A small activation distance keeps plain clicks (open folder,
+  // open file details) working.
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  );
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const dragged = event.active.data.current as DragItem | undefined;
+    const target = event.over?.data.current as DropTarget | undefined;
+    if (!dragged || !target) {
+      return;
+    }
+    if (dragged.kind === 'folder' && dragged.id === target.folderId) {
+      return; // Dropped onto itself: no-op.
+    }
+    try {
+      if (dragged.kind === 'file') {
+        if (dragged.currentFolderId === target.folderId) {
+          return;
+        }
+        await api.patch(`/media/files/${dragged.id}`, { folderId: target.folderId });
+      } else {
+        if (dragged.currentParentId === target.folderId) {
+          return;
+        }
+        await api.patch(`/media/folders/${dragged.id}`, { parent: target.folderId });
+      }
+      notifications.show({ color: 'green', message: `Moved "${dragged.name}".` });
+      await Promise.all([loadFolders(), refreshFiles()]);
+    } catch (error) {
+      notifications.show({
+        color: 'red',
+        title: 'Could not move',
+        message: error instanceof ApiError ? error.message : `Failed to move "${dragged.name}".`,
+      });
+    }
+  }
+
   const initialLoading = foldersLoading && filesLoading && files.length === 0;
   const libraryEmpty =
-    !foldersLoading && !filesLoading && folders.length === 0 && files.length === 0;
+    !searching && !foldersLoading && !filesLoading && folders.length === 0 && files.length === 0;
+  const noSearchResults = searching && !filesLoading && files.length === 0;
 
   return (
-    <>
-      <Group justify="space-between" mb="lg">
+    <DndContext sensors={dndSensors} onDragEnd={(event) => void handleDragEnd(event)}>
+      <Group justify="space-between" mb="lg" align="flex-start">
         <div>
           <Group gap={6}>
             <Title order={1} fz="h2">
@@ -346,6 +501,26 @@ export default function MediaLibraryPage() {
           </Text>
         </div>
         <Group gap="xs">
+          <TextInput
+            placeholder="Search files by name"
+            leftSection={<IconSearch size={16} />}
+            value={search}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+            rightSection={
+              search !== '' ? (
+                <ActionIcon
+                  variant="subtle"
+                  color="slate"
+                  size="sm"
+                  aria-label="Clear search"
+                  onClick={() => setSearch('')}
+                >
+                  <IconX size={14} />
+                </ActionIcon>
+              ) : null
+            }
+            w={240}
+          />
           {atRoot && site && siteFolderPath ? (
             <Group gap={4}>
               <Button
@@ -375,30 +550,35 @@ export default function MediaLibraryPage() {
       </Group>
 
       <Breadcrumbs mb="md">
-        {path.length === 0 ? (
-          <Text size="sm" fw={600}>
-            Library
-          </Text>
-        ) : (
-          <Anchor component="button" type="button" size="sm" onClick={() => setPath([])}>
-            Library
-          </Anchor>
-        )}
-        {path.map((folder, index) =>
-          index === path.length - 1 ? (
-            <Text key={folder.id} size="sm" fw={600}>
-              {folder.name}
+        <DroppableCrumb folderId={null}>
+          {path.length === 0 ? (
+            <Text size="sm" fw={600}>
+              Library
             </Text>
           ) : (
-            <Anchor
-              key={folder.id}
-              component="button"
-              type="button"
-              size="sm"
-              onClick={() => setPath(path.slice(0, index + 1))}
-            >
-              {folder.name}
+            <Anchor component="button" type="button" size="sm" onClick={() => setPath([])}>
+              Library
             </Anchor>
+          )}
+        </DroppableCrumb>
+        {path.map((folder, index) =>
+          index === path.length - 1 ? (
+            <DroppableCrumb key={folder.id} folderId={folder.id}>
+              <Text size="sm" fw={600}>
+                {folder.name}
+              </Text>
+            </DroppableCrumb>
+          ) : (
+            <DroppableCrumb key={folder.id} folderId={folder.id}>
+              <Anchor
+                component="button"
+                type="button"
+                size="sm"
+                onClick={() => setPath(path.slice(0, index + 1))}
+              >
+                {folder.name}
+              </Anchor>
+            </DroppableCrumb>
           ),
         )}
       </Breadcrumbs>
@@ -458,66 +638,80 @@ export default function MediaLibraryPage() {
             </Button>
           </Stack>
         </Card>
+      ) : noSearchResults ? (
+        <Card padding={0}>
+          <Stack align="center" gap="sm" py={56} px="md">
+            <ThemeIcon size={44} radius="md" variant="light">
+              <IconSearch size={24} stroke={1.7} />
+            </ThemeIcon>
+            <Text c="slate.5" ta="center" maw={440}>
+              No files match &quot;{debouncedSearch.trim()}&quot;. Search looks across every folder
+              by file name.
+            </Text>
+          </Stack>
+        </Card>
       ) : (
         <Stack gap="lg">
-          {folders.length > 0 ? (
+          {!searching && folders.length > 0 ? (
             <div>
               <Text size="sm" fw={600} c="slate.5" mb="xs">
                 Folders
               </Text>
               <SimpleGrid cols={{ base: 2, sm: 3, lg: 4 }}>
                 {folders.map((folder) => (
-                  <Card key={folder.id} withBorder padding="sm">
-                    <Group justify="space-between" wrap="nowrap">
-                      <UnstyledButton
-                        onClick={() => setPath([...path, folder])}
-                        style={{ flex: 1, minWidth: 0 }}
-                        aria-label={`Open ${folder.name}`}
-                      >
-                        <Group gap="xs" wrap="nowrap">
-                          <IconFolder
-                            size={20}
-                            stroke={1.7}
-                            color="var(--mantine-color-neriva-6)"
-                          />
-                          <Text fw={500} size="sm" truncate>
-                            {folder.name}
-                          </Text>
-                          {folder.siteId ? (
-                            <Badge size="xs" variant="light" color="gray">
-                              Site
-                            </Badge>
-                          ) : null}
-                        </Group>
-                      </UnstyledButton>
-                      <Menu position="bottom-end" withinPortal>
-                        <Menu.Target>
-                          <ActionIcon
-                            variant="subtle"
-                            color="slate"
-                            aria-label={`Actions for ${folder.name}`}
-                          >
-                            <IconDots size={16} />
-                          </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                          <Menu.Item
-                            leftSection={<IconPencil size={14} />}
-                            onClick={() => openRenameFolder(folder)}
-                          >
-                            Rename
-                          </Menu.Item>
-                          <Menu.Item
-                            color="red"
-                            leftSection={<IconTrash size={14} />}
-                            onClick={() => confirmDeleteFolder(folder)}
-                          >
-                            Delete
-                          </Menu.Item>
-                        </Menu.Dropdown>
-                      </Menu>
-                    </Group>
-                  </Card>
+                  <DraggableFolderCard key={folder.id} folder={folder}>
+                    <Card withBorder padding="sm">
+                      <Group justify="space-between" wrap="nowrap">
+                        <UnstyledButton
+                          onClick={() => setPath([...path, folder])}
+                          style={{ flex: 1, minWidth: 0 }}
+                          aria-label={`Open ${folder.name}`}
+                        >
+                          <Group gap="xs" wrap="nowrap">
+                            <IconFolder
+                              size={20}
+                              stroke={1.7}
+                              color="var(--mantine-color-neriva-6)"
+                            />
+                            <Text fw={500} size="sm" truncate>
+                              {folder.name}
+                            </Text>
+                            {folder.siteId ? (
+                              <Badge size="xs" variant="light" color="gray">
+                                Site
+                              </Badge>
+                            ) : null}
+                          </Group>
+                        </UnstyledButton>
+                        <Menu position="bottom-end" withinPortal>
+                          <Menu.Target>
+                            <ActionIcon
+                              variant="subtle"
+                              color="slate"
+                              aria-label={`Actions for ${folder.name}`}
+                            >
+                              <IconDots size={16} />
+                            </ActionIcon>
+                          </Menu.Target>
+                          <Menu.Dropdown>
+                            <Menu.Item
+                              leftSection={<IconPencil size={14} />}
+                              onClick={() => openRenameFolder(folder)}
+                            >
+                              Rename
+                            </Menu.Item>
+                            <Menu.Item
+                              color="red"
+                              leftSection={<IconTrash size={14} />}
+                              onClick={() => confirmDeleteFolder(folder)}
+                            >
+                              Delete
+                            </Menu.Item>
+                          </Menu.Dropdown>
+                        </Menu>
+                      </Group>
+                    </Card>
+                  </DraggableFolderCard>
                 ))}
               </SimpleGrid>
             </div>
@@ -531,9 +725,8 @@ export default function MediaLibraryPage() {
               <SimpleGrid cols={{ base: 2, sm: 3, lg: 5 }}>
                 {files.map((file) => {
                   const TypeIcon = fileTypeIcon(file.contentType);
-                  return (
+                  const card = (
                     <Card
-                      key={file.id}
                       withBorder
                       padding="xs"
                       style={{ cursor: 'pointer' }}
@@ -574,6 +767,13 @@ export default function MediaLibraryPage() {
                         {formatBytes(file.sizeBytes)}
                       </Text>
                     </Card>
+                  );
+                  return searching ? (
+                    <div key={file.id}>{card}</div>
+                  ) : (
+                    <DraggableFileCard key={file.id} file={file}>
+                      {card}
+                    </DraggableFileCard>
                   );
                 })}
                 {filesLoading && files.length === 0
@@ -621,6 +821,6 @@ export default function MediaLibraryPage() {
         onClose={() => setSelectedFile(null)}
         onChanged={onFileChanged}
       />
-    </>
+    </DndContext>
   );
 }

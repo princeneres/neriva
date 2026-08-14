@@ -6,8 +6,42 @@ import { rolePermissions, roles, tenants, userRoles, users } from './schema';
 
 export const DEFAULT_TENANT_ERC = 'default';
 export const ADMIN_ROLE_ERC = 'administrator';
+// "Manager" (not "Editor") because the grant covers the full content
+// lifecycle, publish included, not just drafting; kept distinct from the
+// ad-hoc "Content Editor" role name used in e2e fixtures elsewhere.
+export const CONTENT_MANAGER_ROLE_ERC = 'content-manager';
 export const ADMIN_EMAIL = 'admin@neriva.com';
 export const ADMIN_INITIAL_PASSWORD = 'admin';
+
+// Full CRUD(+publish) on every content-facing resource type; read-only on the
+// resources that define schemas/templates for others to use (object
+// definitions, block templates); no site/tenant administration.
+const CONTENT_MANAGER_PERMISSIONS: ReadonlyArray<{ resourceType: string; action: string }> = [
+  { resourceType: 'page', action: 'read' },
+  { resourceType: 'page', action: 'create' },
+  { resourceType: 'page', action: 'update' },
+  { resourceType: 'page', action: 'delete' },
+  { resourceType: 'page', action: 'publish' },
+  { resourceType: 'content-entry', action: 'read' },
+  { resourceType: 'content-entry', action: 'create' },
+  { resourceType: 'content-entry', action: 'update' },
+  { resourceType: 'content-entry', action: 'delete' },
+  { resourceType: 'content-entry', action: 'publish' },
+  { resourceType: 'content-type', action: 'read' },
+  { resourceType: 'content-type', action: 'create' },
+  { resourceType: 'content-type', action: 'update' },
+  { resourceType: 'content-type', action: 'delete' },
+  { resourceType: 'media', action: 'read' },
+  { resourceType: 'media', action: 'create' },
+  { resourceType: 'media', action: 'update' },
+  { resourceType: 'media', action: 'delete' },
+  { resourceType: 'object-record', action: 'read' },
+  { resourceType: 'object-record', action: 'create' },
+  { resourceType: 'object-record', action: 'update' },
+  { resourceType: 'object-record', action: 'delete' },
+  { resourceType: 'object-definition', action: 'read' },
+  { resourceType: 'block', action: 'read' },
+];
 
 // First-boot seed (CLAUDE.md bootstrap rule). Idempotent: existing rows are
 // never overwritten, so a changed admin password survives restarts.
@@ -69,6 +103,47 @@ export class SeedService implements OnApplicationBootstrap {
       await tx
         .insert(rolePermissions)
         .values({ roleId: adminRole.id, tenantId: tenant.id, resourceType: '*', action: '*' })
+        .onConflictDoNothing();
+
+      let contentManagerRole = (
+        await tx
+          .select()
+          .from(roles)
+          .where(
+            and(
+              eq(roles.tenantId, tenant.id),
+              eq(roles.externalReferenceCode, CONTENT_MANAGER_ROLE_ERC),
+            ),
+          )
+          .limit(1)
+      )[0];
+      if (!contentManagerRole) {
+        [contentManagerRole] = await tx
+          .insert(roles)
+          .values({
+            tenantId: tenant.id,
+            externalReferenceCode: CONTENT_MANAGER_ROLE_ERC,
+            name: 'Content Manager',
+            description:
+              'Manages pages, content, media and object records end to end, without site or tenant administration',
+          })
+          .returning();
+        this.logger.log('Seeded role "Content Manager"');
+      }
+      if (!contentManagerRole) {
+        throw new Error('Failed to seed Content Manager role');
+      }
+
+      await tx
+        .insert(rolePermissions)
+        .values(
+          CONTENT_MANAGER_PERMISSIONS.map((permission) => ({
+            roleId: contentManagerRole.id,
+            tenantId: tenant.id,
+            resourceType: permission.resourceType,
+            action: permission.action,
+          })),
+        )
         .onConflictDoNothing();
 
       let adminUser = (

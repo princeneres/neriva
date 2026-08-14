@@ -17,6 +17,7 @@ interface PageTemplateBody {
   kind: 'MASTER' | 'STANDARD';
   siteId: string | null;
   tree: Record<string, unknown>;
+  isDefault: boolean;
 }
 
 interface Problem {
@@ -338,6 +339,7 @@ describe('page templates (e2e)', () => {
         { method: 'POST' as const, url: '/page-templates' },
         { method: 'GET' as const, url: `/page-templates/${template.id}` },
         { method: 'PATCH' as const, url: `/page-templates/${template.id}` },
+        { method: 'POST' as const, url: `/page-templates/${template.id}/set-default` },
         { method: 'DELETE' as const, url: `/page-templates/${template.id}` },
       ];
       for (const attempt of denied) {
@@ -349,6 +351,72 @@ describe('page templates (e2e)', () => {
         expect(res.statusCode).toBe(403);
         expect((res.json() as Problem).code).toBe('PERMISSION_DENIED');
       }
+    });
+  });
+
+  describe('marking a MASTER template as default', () => {
+    it('creates a template with isDefault false, then marks it default via the action endpoint', async () => {
+      const template = await createTemplate({ name: 'Default Candidate', kind: 'MASTER' });
+      expect(template.isDefault).toBe(false);
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/page-templates/${template.id}/set-default`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(res.statusCode).toBe(200);
+      expect((res.json() as { data: PageTemplateBody }).data.isDefault).toBe(true);
+
+      const reread = await app.inject({
+        method: 'GET',
+        url: `/page-templates/${template.id}`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect((reread.json() as { data: PageTemplateBody }).data.isDefault).toBe(true);
+    });
+
+    it('unsets the previously marked default when a new one is marked (at most one default)', async () => {
+      const first = await createTemplate({ name: 'First Default', kind: 'MASTER' });
+      const second = await createTemplate({ name: 'Second Default', kind: 'MASTER' });
+
+      const markFirst = await app.inject({
+        method: 'POST',
+        url: `/page-templates/${first.id}/set-default`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(markFirst.statusCode).toBe(200);
+
+      const markSecond = await app.inject({
+        method: 'POST',
+        url: `/page-templates/${second.id}/set-default`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(markSecond.statusCode).toBe(200);
+
+      const firstAfter = await app.inject({
+        method: 'GET',
+        url: `/page-templates/${first.id}`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect((firstAfter.json() as { data: PageTemplateBody }).data.isDefault).toBe(false);
+
+      const secondAfter = await app.inject({
+        method: 'GET',
+        url: `/page-templates/${second.id}`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect((secondAfter.json() as { data: PageTemplateBody }).data.isDefault).toBe(true);
+    });
+
+    it('rejects marking a STANDARD template as default (400)', async () => {
+      const standard = await createTemplate({ name: 'Not A Master', kind: 'STANDARD' });
+      const res = await app.inject({
+        method: 'POST',
+        url: `/page-templates/${standard.id}/set-default`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(res.statusCode).toBe(400);
+      expect((res.json() as Problem).detail).toContain('MASTER');
     });
   });
 

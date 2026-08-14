@@ -167,8 +167,18 @@ describe('blocks (e2e)', () => {
       data: BlockBody[];
       meta: { cursor: string | null; limit: number };
     };
-    expect(body.data.some((b) => b.id === heroId)).toBe(true);
     expect(body.meta.limit).toBe(20);
+
+    // The seeded catalog alone fills the default page, so finding this test's
+    // own block needs an explicit limit rather than luck about the count.
+    const all = await app.inject({
+      method: 'GET',
+      url: '/blocks?limit=100',
+      headers: { authorization: `Bearer ${editorToken}` },
+    });
+    expect(all.statusCode).toBe(200);
+    const allBody = all.json() as { data: BlockBody[] };
+    expect(allBody.data.some((b) => b.id === heroId)).toBe(true);
   });
 
   it('updates a block (PATCH)', async () => {

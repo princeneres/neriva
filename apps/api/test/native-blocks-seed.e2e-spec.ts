@@ -93,19 +93,28 @@ describe('native blocks seed (e2e)', () => {
     await testDb.stop();
   });
 
+  const REGISTRY_RENDERED_ERCS: readonly string[] = ['nv-post-list', 'nv-todo-list'];
+
   it('skips seeding entirely when SEED_NATIVE_BLOCKS=false', () => {
     expect(nativeRowsWhenGated).toBe(0);
   });
 
-  it('seeds all twelve native blocks, PUBLISHED, with html and css templates', async () => {
-    expect(NATIVE_BLOCK_ERCS).toHaveLength(12);
+  it('seeds every native block, PUBLISHED, with html and css templates', async () => {
+    expect(NATIVE_BLOCK_ERCS).toHaveLength(16);
     for (const erc of NATIVE_BLOCK_ERCS) {
       const block = await getBlock(erc);
       expect(block.status).toBe('PUBLISHED');
-      expect(block.html).toBeTruthy();
-      expect(block.css).toBeTruthy();
       expect(block.category).toBeTruthy();
       expect(block.description).toBeTruthy();
+      // The registry-rendered blocks read live data, so they ship without a
+      // template on purpose (spec 12); every other block must carry one.
+      if (REGISTRY_RENDERED_ERCS.includes(erc)) {
+        expect(block.html).toBeNull();
+        expect(block.css).toBeNull();
+      } else {
+        expect(block.html).toBeTruthy();
+        expect(block.css).toBeTruthy();
+      }
     }
   });
 
@@ -121,6 +130,9 @@ describe('native blocks seed (e2e)', () => {
     for (const erc of NATIVE_BLOCK_ERCS) {
       const block = byErc.get(erc);
       expect(block, `native block ${erc} missing from the list`).toBeDefined();
+      if (REGISTRY_RENDERED_ERCS.includes(erc)) {
+        continue;
+      }
       expect(block?.html).not.toBeNull();
       expect(block?.css).not.toBeNull();
     }

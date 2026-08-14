@@ -14,6 +14,11 @@ export interface SplitSlotsResult {
   slots: string[];
 }
 
+export interface NavPage {
+  title: string;
+  path: string;
+}
+
 export interface RenderTemplateInput {
   html: string;
   css?: string | null;
@@ -22,6 +27,10 @@ export interface RenderTemplateInput {
   // Declared slot names. When provided, slot markers for undeclared names are
   // dropped from the output instead of producing a slot segment.
   slots?: string[];
+  // The site's published pages, for data-nv-nav (header/footer navigation).
+  // Undefined (not fetched, e.g. a bare block preview) keeps the template's
+  // authored placeholder links; an empty array renders no links at all.
+  sitePages?: NavPage[];
 }
 
 export interface RenderTemplateResult {
@@ -304,6 +313,21 @@ function renderEmbed(value: unknown, className: string | undefined): string {
   );
 }
 
+// --- dynamic navigation -------------------------------------------------------
+
+// data-nv-nav="pages" renders the site's own published pages as a flat list
+// of links, so a header/footer block gets real, current navigation without
+// any script: the render call site (delivery, the studio canvas, the block
+// preview) supplies the list, the template only marks where it goes.
+export function renderNavList(pages: NavPage[] | undefined): string {
+  if (!pages) {
+    return '';
+  }
+  return pages
+    .map((page) => `<a href="${escapeHtml(page.path)}">${escapeHtml(page.title)}</a>`)
+    .join('');
+}
+
 // --- binding application --------------------------------------------------
 
 interface ElementSpan {
@@ -352,7 +376,11 @@ function elementSpan(html: string, name: string, attrsText: string, openEnd: num
 // Applies data-nv-* bindings. When the bound prop key is absent from props the
 // template's authored default is kept (so seeded blocks show their example
 // content); a present value always wins, including the empty string.
-function applyBindings(html: string, props: Record<string, unknown>): string {
+function applyBindings(
+  html: string,
+  props: Record<string, unknown>,
+  sitePages: NavPage[] | undefined,
+): string {
   let out = '';
   let cursor = 0;
   const scanner = new RegExp(TAG_PATTERN.source, 'g');
@@ -361,7 +389,7 @@ function applyBindings(html: string, props: Record<string, unknown>): string {
     const tagText = match[0];
     const rawName = match[1] ?? '';
     const attrsText = match[2] ?? '';
-    if (!/data-nv-(text|rich|image|alt|link|embed)/i.test(attrsText)) {
+    if (!/data-nv-(text|rich|image|alt|link|embed|nav)/i.test(attrsText)) {
       continue;
     }
     const name = rawName.toLowerCase();
@@ -372,6 +400,7 @@ function applyBindings(html: string, props: Record<string, unknown>): string {
       alt: getAttr(attrsText, 'data-nv-alt'),
       link: getAttr(attrsText, 'data-nv-link'),
       embed: getAttr(attrsText, 'data-nv-embed'),
+      nav: getAttr(attrsText, 'data-nv-nav'),
     };
     if (Object.values(binding).every((key) => key === undefined)) {
       continue;
@@ -401,6 +430,8 @@ function applyBindings(html: string, props: Record<string, unknown>): string {
         inner = escapeHtml(props[binding.text]);
       } else if (binding.rich !== undefined && binding.rich in props) {
         inner = sanitizeRich(props[binding.rich]);
+      } else if (binding.nav !== undefined && sitePages !== undefined) {
+        inner = renderNavList(sitePages);
       }
       out += inner + span.closeText;
     }
@@ -683,7 +714,7 @@ export function resolveStyles(
 // slots and scope the css to the block wrapper.
 export function renderTemplate(input: RenderTemplateInput): RenderTemplateResult {
   const props = input.props ?? {};
-  const bound = applyBindings(interpolate(input.html, props), props);
+  const bound = applyBindings(interpolate(input.html, props), props, input.sitePages);
   const { segments } = splitSlots(bound);
   const declared = input.slots;
   const filtered = declared

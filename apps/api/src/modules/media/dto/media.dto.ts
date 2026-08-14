@@ -82,4 +82,12 @@ export class ListMediaFilesQueryDto extends ListQueryDto {
   @IsOptional()
   @IsString()
   folder?: string;
+
+  @ApiPropertyOptional({
+    description: 'Case-insensitive file name search across every folder; ignores folder when set',
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  search?: string;
 }

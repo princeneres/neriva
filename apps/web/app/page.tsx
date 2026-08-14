@@ -16,7 +16,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // Fresh install, no default site or no published home yet: a friendly
-// landing instead of a 404, pointing at the admin (spec 13).
+// landing instead of a 404, pointing at the admin (spec 13). The CTA goes
+// straight to /admin/sites rather than /admin: /admin is now a bare
+// redirect back to /, so an authenticated user with zero sites would
+// otherwise bounce right back to this same screen.
 function WelcomeScreen() {
   return (
     <main
@@ -40,7 +43,7 @@ function WelcomeScreen() {
         There is no published site here yet. Head to the admin to create your first pages.
       </p>
       <a
-        href="/admin"
+        href="/admin/sites"
         style={{
           marginTop: '0.5rem',
           padding: '0.6rem 1.4rem',

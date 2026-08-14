@@ -1,9 +1,6 @@
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import {
-  DEFAULT_MASTER_SETTING_KEY,
-  MASTER_DEFAULT_ERC,
-} from '../src/db/native-master-page-seed.service';
+import { MASTER_DEFAULT_ERC } from '../src/db/native-master-page-seed.service';
 import { createTestApp } from './utils/test-app';
 import { startTestDb, type TestDb } from './utils/test-db';
 
@@ -14,8 +11,8 @@ interface Tokens {
 }
 
 // Exercises the full master resolution order (spec 14): page's own
-// masterPageTemplateId -> the tenant setting page.default-master-template ->
-// the oldest MASTER template -> no master. This gets its own app/database
+// masterPageTemplateId -> the tenant's isDefault MASTER template -> the
+// oldest MASTER template -> no master. This gets its own app/database
 // (unlike page-templates.e2e-spec.ts) so the seeded default master is the
 // only MASTER template present at the start of the run; sharing a database
 // with other template CRUD tests would leave extra MASTER rows around and
@@ -84,6 +81,15 @@ describe('page master resolution order (e2e)', () => {
     return (res.json() as { data: { id: string } }).data;
   }
 
+  async function setDefaultMaster(id: string): Promise<void> {
+    const res = await app.inject({
+      method: 'POST',
+      url: `/page-templates/${id}/set-default`,
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    expect(res.statusCode).toBe(200);
+  }
+
   async function createAndPublishPage(path: string, extra: Record<string, unknown>): Promise<void> {
     const create = await app.inject({
       method: 'POST',
@@ -135,15 +141,9 @@ describe('page master resolution order (e2e)', () => {
     await testDb.stop();
   });
 
-  it('falls back to no master when none is set, no setting, and no MASTER template exists', async () => {
+  it('falls back to no master when the seeded default is removed and no MASTER template exists', async () => {
     // Fresh app instance: the only MASTER template that exists at boot is
-    // the seeded default, and nothing references it yet.
-    const unset = await app.inject({
-      method: 'DELETE',
-      url: `/system/settings/${DEFAULT_MASTER_SETTING_KEY}`,
-      headers: { authorization: `Bearer ${adminToken}` },
-    });
-    expect(unset.statusCode).toBe(204);
+    // the seeded default (isDefault = true), and nothing references it yet.
     const dropMaster = await app.inject({
       method: 'DELETE',
       url: `/page-templates/erc:${MASTER_DEFAULT_ERC}`,
@@ -155,7 +155,7 @@ describe('page master resolution order (e2e)', () => {
     expect(await deliveredTree('/none')).toEqual({ blocks: [{ block: 'page-own' }] });
   });
 
-  it('falls back to the oldest MASTER template when no explicit master and no setting', async () => {
+  it('falls back to the oldest MASTER template when no explicit master and no default marked', async () => {
     await createMasterTemplate('res-master-a', 'marker-a');
 
     await createAndPublishPage('/oldest', {});
@@ -164,29 +164,47 @@ describe('page master resolution order (e2e)', () => {
     });
   });
 
-  it('prefers the tenant default-master-template setting over the oldest MASTER', async () => {
-    // Older than res-master-a would win by createdAt if the setting did not
+  it('prefers the tenant isDefault MASTER template over the oldest MASTER', async () => {
+    // Older than res-master-a would win by createdAt if isDefault did not
     // take precedence; created after it here to make that ordering explicit.
-    await createMasterTemplate('res-master-b', 'marker-b');
-    const setting = await app.inject({
-      method: 'PUT',
-      url: `/system/settings/${DEFAULT_MASTER_SETTING_KEY}`,
-      headers: { authorization: `Bearer ${adminToken}` },
-      payload: { value: 'res-master-b' },
-    });
-    expect([200, 201]).toContain(setting.statusCode);
+    const templateB = await createMasterTemplate('res-master-b', 'marker-b');
+    await setDefaultMaster(templateB.id);
 
-    await createAndPublishPage('/setting', {});
-    expect(await deliveredTree('/setting')).toEqual({
+    await createAndPublishPage('/default', {});
+    expect(await deliveredTree('/default')).toEqual({
       blocks: [{ block: 'marker-b' }, { block: 'page-own' }],
     });
   });
 
-  it("prefers the page's own explicit masterPageTemplateId over the setting", async () => {
+  it('unsets the previous default when a new one is marked', async () => {
+    await createBlock('marker-d');
+    const templateD = await createMasterTemplate('res-master-d', 'marker-d');
+    await setDefaultMaster(templateD.id);
+
+    const list = await app.inject({
+      method: 'GET',
+      url: '/page-templates?kind=MASTER',
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    expect(list.statusCode).toBe(200);
+    const masters = (
+      list.json() as { data: { externalReferenceCode: string; isDefault: boolean }[] }
+    ).data;
+    const defaults = masters.filter((m) => m.isDefault);
+    expect(defaults).toHaveLength(1);
+    expect(defaults[0]?.externalReferenceCode).toBe('res-master-d');
+
+    await createAndPublishPage('/new-default', {});
+    expect(await deliveredTree('/new-default')).toEqual({
+      blocks: [{ block: 'marker-d' }, { block: 'page-own' }],
+    });
+  });
+
+  it("prefers the page's own explicit masterPageTemplateId over the default", async () => {
     const templateC = await createMasterTemplate('res-master-c', 'marker-c');
 
     await createAndPublishPage('/explicit', { masterPageTemplateId: templateC.id });
-    // The setting still points at res-master-b, but this page names C explicitly.
+    // The default still points at res-master-d, but this page names C explicitly.
     expect(await deliveredTree('/explicit')).toEqual({
       blocks: [{ block: 'marker-c' }, { block: 'page-own' }],
     });

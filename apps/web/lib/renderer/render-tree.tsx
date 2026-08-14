@@ -1,6 +1,6 @@
 import { Fragment, type CSSProperties, type ReactNode } from 'react';
 import { rendererFor } from './registry';
-import { renderTemplate, resolveStyles } from './template';
+import { renderTemplate, resolveStyles, type NavPage } from './template';
 
 export interface RenderNode {
   block: string;
@@ -25,17 +25,25 @@ export interface BlockInfo {
 }
 
 // Renders a page tree. blockInfo maps ERC to display metadata and templates
-// (from the delivery API or the admin blocks list).
+// (from the delivery API or the admin blocks list). sitePages feeds
+// data-nv-nav (header/footer navigation); omit it to keep templates'
+// authored placeholder links, e.g. in a bare block preview.
 export function RenderTree({
   tree,
   blockInfo = {},
+  sitePages,
+  siteSlug,
 }: {
   tree: RenderTreeInput;
   blockInfo?: Record<string, BlockInfo>;
+  sitePages?: NavPage[];
+  // Which site's published content the data-driven blocks should read; omit it
+  // in a bare block preview, where those blocks explain themselves instead.
+  siteSlug?: string;
 }) {
   // Tree-level dedupe: one <style> per distinct templated block ERC.
   const emittedCss = new Set<string>();
-  return <>{renderNodes(tree.blocks, blockInfo, 'root', emittedCss)}</>;
+  return <>{renderNodes(tree.blocks, blockInfo, 'root', emittedCss, sitePages, siteSlug)}</>;
 }
 
 function renderNodes(
@@ -43,17 +51,26 @@ function renderNodes(
   blockInfo: Record<string, BlockInfo>,
   keyBase: string,
   emittedCss: Set<string>,
+  sitePages: NavPage[] | undefined,
+  siteSlug: string | undefined,
 ): ReactNode {
   return nodes.map((node, index) => {
     const key = `${keyBase}-${index}-${node.block}`;
     const info = blockInfo[node.block];
     const slots: Record<string, ReactNode> = {};
     for (const [slotName, children] of Object.entries(node.slots ?? {})) {
-      slots[slotName] = renderNodes(children, blockInfo, `${key}-${slotName}`, emittedCss);
+      slots[slotName] = renderNodes(
+        children,
+        blockInfo,
+        `${key}-${slotName}`,
+        emittedCss,
+        sitePages,
+        siteSlug,
+      );
     }
     const content = info?.html
-      ? renderTemplateBlock(node, info.html, info, slots, emittedCss)
-      : renderRegistryBlock(node, info, slots);
+      ? renderTemplateBlock(node, info.html, info, slots, emittedCss, sitePages)
+      : renderRegistryBlock(node, info, slots, siteSlug);
     const nodeStyles = resolveStyles(node.styles);
     return (
       <Fragment key={key}>
@@ -71,9 +88,17 @@ function renderRegistryBlock(
   node: RenderNode,
   info: BlockInfo | undefined,
   slots: Record<string, ReactNode>,
+  siteSlug: string | undefined,
 ): ReactNode {
   const Renderer = rendererFor(node.block);
-  return <Renderer props={node.props ?? {}} slots={slots} blockName={info?.name ?? node.block} />;
+  return (
+    <Renderer
+      props={node.props ?? {}}
+      slots={slots}
+      blockName={info?.name ?? node.block}
+      siteSlug={siteSlug}
+    />
+  );
 }
 
 function renderTemplateBlock(
@@ -82,6 +107,7 @@ function renderTemplateBlock(
   info: BlockInfo,
   slots: Record<string, ReactNode>,
   emittedCss: Set<string>,
+  sitePages: NavPage[] | undefined,
 ): ReactNode {
   const declaredSlots = info.slots?.map((slot) => (typeof slot === 'string' ? slot : slot.name));
   const { segments, css } = renderTemplate({
@@ -90,6 +116,7 @@ function renderTemplateBlock(
     erc: node.block,
     props: node.props ?? {},
     slots: declaredSlots,
+    sitePages,
   });
   let style: ReactNode = null;
   if (css !== '' && !emittedCss.has(node.block)) {

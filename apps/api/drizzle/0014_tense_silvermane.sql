@@ -1,0 +1,2 @@
+ALTER TABLE "page_templates" ADD COLUMN "is_default" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "page_templates_tenant_default_uq" ON "page_templates" USING btree ("tenant_id") WHERE "page_templates"."is_default" = true;

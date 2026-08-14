@@ -21,6 +21,7 @@ Status: complete. Phase A is done; every box below is checked, which unlocks Pha
 - [x] Upsert by externalReferenceCode
 - [x] Cursor pagination (?limit=&cursor=, default 20, max 100)
 - [x] First-boot seed: tenant "default", role "Administrator", admin@neriva.com / admin with mustChangePassword=true
+- [x] Default seeded role "Content Manager" (`content-manager`): full CRUD(+publish) on `page`, `content-entry`, `content-type`, `media`, `object-record`; read-only on `object-definition` and `block`; excludes `site`, `user`, `role`, `system-setting`, `style-book`, `page-template`
 
 ## Step 3: Auth module
 

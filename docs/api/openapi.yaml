@@ -756,72 +756,14 @@ paths:
         - bearer: []
       tags:
         - page-templates
-  /health:
-    get:
-      operationId: HealthController_check
-      parameters: []
-      responses:
-        "200":
-          description: ""
-      tags:
-        - Health
-  /system/settings:
-    get:
-      operationId: SystemSettingsController_list
+  /page-templates/{id}/set-default:
+    post:
+      operationId: PageTemplatesController_setDefault
       parameters:
-        - name: limit
-          required: false
-          in: query
-          schema:
-            minimum: 1
-            maximum: 100
-            default: 20
-            type: number
-        - name: cursor
-          required: false
-          in: query
-          description: Opaque cursor from the previous page meta
-          schema:
-            type: string
-      responses:
-        "200":
-          description: ""
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - data
-                  - meta
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/SystemSettingDto"
-                  meta:
-                    type: object
-                    required:
-                      - cursor
-                      - limit
-                    properties:
-                      cursor:
-                        type:
-                          - string
-                          - "null"
-                      limit:
-                        type: number
-      security:
-        - bearer: []
-      tags:
-        - system
-  /system/settings/{key}:
-    get:
-      operationId: SystemSettingsController_get
-      parameters:
-        - name: key
+        - name: id
           required: true
           in: path
-          description: Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref)
+          description: UUID or erc:<externalReferenceCode>
           schema:
             type: string
       responses:
@@ -835,69 +777,11 @@ paths:
                   - data
                 properties:
                   data:
-                    $ref: "#/components/schemas/SystemSettingDto"
+                    $ref: "#/components/schemas/PageTemplateDto"
       security:
         - bearer: []
       tags:
-        - system
-    put:
-      operationId: SystemSettingsController_upsert
-      parameters:
-        - name: key
-          required: true
-          in: path
-          description: Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref)
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpsertSystemSettingDto"
-      responses:
-        "200":
-          description: ""
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - data
-                properties:
-                  data:
-                    $ref: "#/components/schemas/SystemSettingDto"
-        "201":
-          description: ""
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - data
-                properties:
-                  data:
-                    $ref: "#/components/schemas/SystemSettingDto"
-      security:
-        - bearer: []
-      tags:
-        - system
-    delete:
-      operationId: SystemSettingsController_delete
-      parameters:
-        - name: key
-          required: true
-          in: path
-          description: Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref)
-          schema:
-            type: string
-      responses:
-        "204":
-          description: ""
-      security:
-        - bearer: []
-      tags:
-        - system
+        - page-templates
   /sites/{siteRef}/pages:
     get:
       operationId: PagesController_list
@@ -1699,6 +1583,74 @@ paths:
                         type: number
       tags:
         - delivery
+  /public/sites/{slug}/content-entries:
+    get:
+      operationId: DeliveryController_contentEntries
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          description: Site slug
+          schema:
+            type: string
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+        - name: contentType
+          required: false
+          in: query
+          description: "Filter by content type: UUID or erc:<externalReferenceCode>; an
+            unknown content type yields an empty list"
+          schema:
+            type: string
+        - name: q
+          required: false
+          in: query
+          description: Case-insensitive substring search over the entry title and the text
+            of its values payload
+          schema:
+            maxLength: 200
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DeliveredContentEntryDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      tags:
+        - delivery
   /public/sites/{slug}/style.css:
     get:
       operationId: DeliveryController_css
@@ -1719,6 +1671,148 @@ paths:
                 type: string
       tags:
         - delivery
+  /health:
+    get:
+      operationId: HealthController_check
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags:
+        - Health
+  /system/settings:
+    get:
+      operationId: SystemSettingsController_list
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SystemSettingDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      security:
+        - bearer: []
+      tags:
+        - system
+  /system/settings/{key}:
+    get:
+      operationId: SystemSettingsController_get
+      parameters:
+        - name: key
+          required: true
+          in: path
+          description: Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref)
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SystemSettingDto"
+      security:
+        - bearer: []
+      tags:
+        - system
+    put:
+      operationId: SystemSettingsController_upsert
+      parameters:
+        - name: key
+          required: true
+          in: path
+          description: Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref)
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertSystemSettingDto"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SystemSettingDto"
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SystemSettingDto"
+      security:
+        - bearer: []
+      tags:
+        - system
+    delete:
+      operationId: SystemSettingsController_delete
+      parameters:
+        - name: key
+          required: true
+          in: path
+          description: Setting key, pattern ^[a-z][a-z0-9.-]*$ (not an entity ref)
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      security:
+        - bearer: []
+      tags:
+        - system
   /media/folders:
     get:
       operationId: MediaController_listFolders
@@ -1871,6 +1965,13 @@ paths:
           in: query
           description: 'Folder (UUID or erc:<externalReferenceCode>) or "root" (default):
             folder content listing'
+          schema:
+            type: string
+        - name: search
+          required: false
+          in: query
+          description: Case-insensitive file name search across every folder; ignores
+            folder when set
           schema:
             type: string
       responses:
@@ -2917,6 +3018,11 @@ components:
           type: object
           additionalProperties: true
           description: "Recursive tree of block instances: { blocks: [...] }"
+        isDefault:
+          type: boolean
+          description: Whether this is the tenant-wide fallback master, resolved for pages
+            that set no masterPageTemplateId of their own (spec 14). Meaningful
+            for kind = MASTER only.
       required:
         - id
         - externalReferenceCode
@@ -2928,6 +3034,7 @@ components:
         - kind
         - siteId
         - tree
+        - isDefault
     CreatePageTemplateDto:
       type: object
       properties:
@@ -2971,52 +3078,6 @@ components:
             MASTER tree must contain the reserved drop zone { "block":
             "__page_content__" } exactly once; a STANDARD tree must not contain
             it.'
-    SystemSettingDto:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        externalReferenceCode:
-          type: string
-        tenantId:
-          type: string
-          format: uuid
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-        createdBy:
-          type:
-            - object
-            - "null"
-          format: uuid
-        key:
-          type: string
-          example: site.name
-          description: Unique per tenant, pattern ^[a-z][a-z0-9.-]*$
-        value:
-          type: object
-          description: Any JSON value
-      required:
-        - id
-        - externalReferenceCode
-        - tenantId
-        - createdAt
-        - updatedAt
-        - createdBy
-        - key
-        - value
-    UpsertSystemSettingDto:
-      type: object
-      properties:
-        value:
-          type: object
-          description: Any JSON value (object, array, string, number, boolean)
-      required:
-        - value
     PageDto:
       type: object
       properties:
@@ -3567,6 +3628,33 @@ components:
       required:
         - name
         - slug
+    DeliveredSiteNavPageDto:
+      type: object
+      properties:
+        title:
+          type: string
+        path:
+          type: string
+      required:
+        - title
+        - path
+    DeliveredPageViewSiteDto:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        pages:
+          description: The site's own published pages (title/path only), capped at 50, for
+            a header/footer block's data-nv-nav
+          type: array
+          items:
+            $ref: "#/components/schemas/DeliveredSiteNavPageDto"
+      required:
+        - name
+        - slug
+        - pages
     DeliveredPageDto:
       type: object
       properties:
@@ -3590,7 +3678,7 @@ components:
       type: object
       properties:
         site:
-          $ref: "#/components/schemas/DeliveredSiteDto"
+          $ref: "#/components/schemas/DeliveredPageViewSiteDto"
         page:
           $ref: "#/components/schemas/DeliveredPageDto"
         blocks:
@@ -3617,6 +3705,79 @@ components:
         - title
         - path
         - updatedAt
+    DeliveredContentEntryDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReferenceCode:
+          type: string
+        title:
+          type: string
+        contentType:
+          type: string
+          description: External reference code of the entry's content type
+        values:
+          type: object
+          additionalProperties: true
+          description: Field values keyed by the content type field keys
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - externalReferenceCode
+        - title
+        - contentType
+        - values
+        - updatedAt
+    SystemSettingDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReferenceCode:
+          type: string
+        tenantId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type:
+            - object
+            - "null"
+          format: uuid
+        key:
+          type: string
+          example: site.name
+          description: Unique per tenant, pattern ^[a-z][a-z0-9.-]*$
+        value:
+          type: object
+          description: Any JSON value
+      required:
+        - id
+        - externalReferenceCode
+        - tenantId
+        - createdAt
+        - updatedAt
+        - createdBy
+        - key
+        - value
+    UpsertSystemSettingDto:
+      type: object
+      properties:
+        value:
+          type: object
+          description: Any JSON value (object, array, string, number, boolean)
+      required:
+        - value
     MediaFolderDto:
       type: object
       properties:
@@ -3975,6 +4136,13 @@ components:
           description: Flat map of token name to CSS value
           additionalProperties:
             type: string
+        tokensDark:
+          type:
+            - object
+            - "null"
+          description: Optional dark-mode overrides, same shape as tokens
+          additionalProperties:
+            type: string
       required:
         - id
         - externalReferenceCode
@@ -3986,6 +4154,7 @@ components:
         - name
         - version
         - tokens
+        - tokensDark
     CreateStyleBookDto:
       type: object
       properties:
@@ -3995,6 +4164,16 @@ components:
           type: object
           description: Flat map of token name to CSS value. Names match ^[a-z][a-z0-9-]*$;
             values are non-empty strings.
+          additionalProperties:
+            type: string
+          example:
+            color-primary: "#cc3d47"
+            space-4: 1rem
+        tokensDark:
+          type: object
+          description: Optional dark-mode overrides, same shape as tokens. A key absent
+            here falls back to a derived dark variant (spec 06), never to
+            nothing.
           additionalProperties:
             type: string
           example:
@@ -4015,6 +4194,16 @@ components:
           type: object
           description: Flat map of token name to CSS value. Names match ^[a-z][a-z0-9-]*$;
             values are non-empty strings.
+          additionalProperties:
+            type: string
+          example:
+            color-primary: "#cc3d47"
+            space-4: 1rem
+        tokensDark:
+          type: object
+          description: Optional dark-mode overrides, same shape as tokens. A key absent
+            here falls back to a derived dark variant (spec 06), never to
+            nothing.
           additionalProperties:
             type: string
           example:

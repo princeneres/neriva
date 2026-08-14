@@ -140,6 +140,11 @@ describe('media (e2e)', () => {
     storageDir = mkdtempSync(join(tmpdir(), 'neriva-media-e2e-'));
     process.env.MEDIA_STORAGE_DIR = storageDir;
     process.env.MEDIA_MAX_UPLOAD_BYTES = String(MAX_UPLOAD_BYTES);
+    // This suite asserts exact file counts in storageDir; the demo seed now
+    // writes two real media files of its own (spec 13 "see it in action"
+    // pages), which would throw those counts off, so it is disabled here
+    // like the other demo-content-agnostic suites already do.
+    process.env.SEED_DEMO = 'false';
     testDb = await startTestDb();
     app = await createTestApp(testDb.connectionUri);
     adminToken = await loginFresh('admin@neriva.com', 'admin', 'admin-password-1');
@@ -180,6 +185,7 @@ describe('media (e2e)', () => {
     await testDb.stop();
     delete process.env.MEDIA_STORAGE_DIR;
     delete process.env.MEDIA_MAX_UPLOAD_BYTES;
+    delete process.env.SEED_DEMO;
     rmSync(storageDir, { recursive: true, force: true });
   });
 
@@ -455,6 +461,93 @@ describe('media (e2e)', () => {
       });
       const ids = (listing.json() as { data: FileData[] }).data.map((file) => file.id);
       expect(ids).toContain(movedFile.id);
+    });
+
+    it('searches files by name across every folder, ignoring the folder filter', async () => {
+      // movedFile ("annual-report.pdf") lives in reportsFolder; a root-scoped
+      // search must still find it because search takes priority over folder.
+      const res = await app.inject({
+        method: 'GET',
+        url: `/media/files?folder=root&search=annual-rep`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(res.statusCode).toBe(200);
+      const found = (res.json() as { data: FileData[] }).data;
+      expect(found.map((file) => file.id)).toContain(movedFile.id);
+
+      const noMatch = await app.inject({
+        method: 'GET',
+        url: '/media/files?search=no-such-file-xyz',
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(noMatch.statusCode).toBe(200);
+      expect((noMatch.json() as { data: FileData[] }).data).toEqual([]);
+    });
+
+    it('still 404s on an invalid folder ref even when a search term is also given', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/media/files?folder=erc:no-such-folder&search=annual',
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+
+    it('escapes LIKE wildcard characters in the search term so % and _ match literally', async () => {
+      const percentCreated = await upload(adminToken, {
+        filename: '50%-off.png',
+        contentType: 'image/png',
+        data: Buffer.from('png-bytes'),
+      });
+      expect(percentCreated.statusCode).toBe(201);
+      const percentFile = (percentCreated.json() as { data: FileData }).data;
+
+      // If "%" were treated as a wildcard, searching "50%" would become the
+      // pattern %50%%, matching every file whose name contains "50" followed
+      // by anything (e.g. this suite's other "50X-something" fixtures).
+      const percentDecoy = await upload(adminToken, {
+        filename: '50X-decoy.png',
+        contentType: 'image/png',
+        data: Buffer.from('png-bytes'),
+      });
+      expect(percentDecoy.statusCode).toBe(201);
+
+      const percentMatch = await app.inject({
+        method: 'GET',
+        url: `/media/files?search=${encodeURIComponent('50%-off')}`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(percentMatch.statusCode).toBe(200);
+      expect((percentMatch.json() as { data: FileData[] }).data.map((file) => file.id)).toEqual([
+        percentFile.id,
+      ]);
+
+      // If "_" were treated as a wildcard (matches any single character),
+      // searching "off_final" would also match "offXfinal".
+      const underscoreCreated = await upload(adminToken, {
+        filename: 'off_final.png',
+        contentType: 'image/png',
+        data: Buffer.from('png-bytes'),
+      });
+      expect(underscoreCreated.statusCode).toBe(201);
+      const underscoreFile = (underscoreCreated.json() as { data: FileData }).data;
+
+      const underscoreDecoy = await upload(adminToken, {
+        filename: 'offXfinal.png',
+        contentType: 'image/png',
+        data: Buffer.from('png-bytes'),
+      });
+      expect(underscoreDecoy.statusCode).toBe(201);
+
+      const underscoreMatch = await app.inject({
+        method: 'GET',
+        url: `/media/files?search=${encodeURIComponent('off_final')}`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(underscoreMatch.statusCode).toBe(200);
+      expect((underscoreMatch.json() as { data: FileData[] }).data.map((file) => file.id)).toEqual([
+        underscoreFile.id,
+      ]);
     });
 
     it('deletes a file and removes its bytes from disk', async () => {

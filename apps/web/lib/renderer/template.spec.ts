@@ -3,6 +3,7 @@ import {
   escapeHtml,
   interpolate,
   normalizeEmbedUrl,
+  renderNavList,
   renderTemplate,
   resolveStyles,
   safeUrl,
@@ -259,6 +260,54 @@ describe('data-nv-link binding', () => {
     expect(renderHtml('<a href="#" data-nv-link="url">x</a>', { url: '/docs' })).toBe(
       '<a href="/docs" data-nv-link="url">x</a>',
     );
+  });
+});
+
+describe('renderNavList', () => {
+  it('renders one anchor per page, escaped', () => {
+    expect(
+      renderNavList([
+        { title: 'Home', path: '/' },
+        { title: 'About & Contact', path: '/about' },
+      ]),
+    ).toBe('<a href="/">Home</a><a href="/about">About &amp; Contact</a>');
+  });
+
+  it('renders nothing for an empty list', () => {
+    expect(renderNavList([])).toBe('');
+  });
+
+  it('renders nothing (not the placeholder) when given undefined', () => {
+    expect(renderNavList(undefined)).toBe('');
+  });
+});
+
+describe('data-nv-nav binding', () => {
+  const html = '<nav data-nv-nav="pages"><a href="/">placeholder</a></nav>';
+
+  it('keeps the authored placeholder when sitePages is not provided', () => {
+    const { segments } = renderTemplate({ html, erc: 'nv-header', props: {} });
+    expect((segments[0] as { html: string }).html).toBe(html);
+  });
+
+  it('replaces the inner content with real links when sitePages is provided', () => {
+    const { segments } = renderTemplate({
+      html,
+      erc: 'nv-header',
+      props: {},
+      sitePages: [
+        { title: 'Home', path: '/' },
+        { title: 'Blog', path: '/blog' },
+      ],
+    });
+    expect((segments[0] as { html: string }).html).toBe(
+      '<nav data-nv-nav="pages"><a href="/">Home</a><a href="/blog">Blog</a></nav>',
+    );
+  });
+
+  it('renders an empty nav when the site has no published pages yet', () => {
+    const { segments } = renderTemplate({ html, erc: 'nv-header', props: {}, sitePages: [] });
+    expect((segments[0] as { html: string }).html).toBe('<nav data-nv-nav="pages"></nav>');
   });
 });
 

@@ -34,4 +34,12 @@ export class StyleBookDto {
     additionalProperties: { type: 'string' },
   })
   tokens!: Record<string, string>;
+
+  @ApiProperty({
+    description: 'Optional dark-mode overrides, same shape as tokens',
+    type: 'object',
+    additionalProperties: { type: 'string' },
+    nullable: true,
+  })
+  tokensDark!: Record<string, string> | null;
 }

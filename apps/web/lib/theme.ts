@@ -49,7 +49,7 @@ export const theme = createTheme({
   components: {
     Button: { defaultProps: { fw: 600 } },
     Card: {
-      defaultProps: { withBorder: true, radius: 'lg', shadow: 'none' },
+      defaultProps: { withBorder: true, radius: 'lg', shadow: 'xs' },
     },
     Tooltip: {
       defaultProps: { withArrow: true, multiline: true, maw: 280, openDelay: 150 },

@@ -75,4 +75,16 @@ export class PageTemplatesController {
   async delete(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string): Promise<void> {
     await this.pageTemplatesService.delete(user.tenantId, id);
   }
+
+  @Post(':id/set-default')
+  @ApiParam(ID_PARAM)
+  @ApiDataResponse(PageTemplateDto)
+  @RequirePermission('page-template:update')
+  @HttpCode(200)
+  async setDefault(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<PageTemplateResponse> {
+    return { data: await this.pageTemplatesService.setDefault(user.tenantId, id) };
+  }
 }
