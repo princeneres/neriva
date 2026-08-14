@@ -64,6 +64,8 @@ docs/
   specs/        one spec per feature (SDD)
   api/          openapi.yaml
   adr/          architecture decision records (ADR-NNN-title.md)
+scripts/
+  dev.mjs       one-command dev bootstrap: embedded PostgreSQL + API + web (ADR-004)
 ```
 
 ## Key domain rules
@@ -77,6 +79,7 @@ docs/
 - **Media** files live on disk under `MEDIA_STORAGE_DIR` (default `apps/api/uploads`, gitignored), metadata in `media_files` / `media_folders`.
 - **Permissions:** Role -> allowed actions (create/read/update/delete/publish) on resource types, scoped to tenant or site. Implemented as CASL abilities built from DB rows. Deny by default.
 - **Bootstrap:** first boot seeds tenant "default", roles "Administrator" and "Content Manager", user `admin@neriva.com` / password `admin` with `mustChangePassword=true`, native blocks and a native master page. Login while that flag is set forces a password change before anything else.
+- **Dev bootstrap (ADR-004):** `pnpm dev` starts an embedded PostgreSQL 16 in `.neriva/pgdata` (port 5433) unless `DATABASE_URL` is set, which always wins. Migrations run on API boot outside production (`RUN_MIGRATIONS` defaults to true when `NODE_ENV !== 'production'`). The API dev server uses the SWC builder, so type errors surface in `pnpm typecheck`, not in the dev output.
 - **System settings** (SMTP, site metadata, etc.) are editable in Admin UI and via API; database connection remains environment-level config (env vars), not portal-editable.
 
 ## Feature specs (read the spec before touching the area)
@@ -104,10 +107,13 @@ docs/
 
 ```
 pnpm install
-docker compose up -d                              # local PostgreSQL 16 only
-pnpm --filter @neriva/api db:migrate              # apply migrations
-pnpm --filter @neriva/api dev                     # REST API on :3001
-pnpm --filter @neriva/web dev                     # Admin UI + runtime on :3000
+pnpm dev                                          # embedded PostgreSQL + API :3001 + web :3000
+pnpm dev --no-demo                                # same, without the demo content seed
+pnpm dev --db-only                                # only the database
+docker compose up -d                              # optional production-like PostgreSQL 16
+pnpm --filter @neriva/api db:migrate              # apply migrations (production path)
+pnpm --filter @neriva/api dev                     # REST API alone on :3001
+pnpm --filter @neriva/web dev                     # Admin UI + runtime alone on :3000
 pnpm --filter @neriva/api db:generate             # new migration from schema changes
 pnpm --filter @neriva/api openapi:generate        # regenerate docs/api/openapi.yaml
 pnpm --filter @neriva/contracts generate          # regenerate typed contracts

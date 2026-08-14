@@ -34,29 +34,36 @@ Neriva takes the concepts that make Liferay DXP productive (pages composed from 
 
 - Node.js >= 20
 - pnpm 10 (`corepack enable` is the easiest way to get it)
-- Docker (runs PostgreSQL locally, and the throwaway databases the API e2e suites spin up through Testcontainers)
+- Docker, only to run the API e2e suites (Testcontainers) or to develop against a production-like PostgreSQL
 
 ### Steps
 
 ```bash
 git clone <repo-url> neriva && cd neriva
 pnpm install
+pnpm dev
+```
 
-# 1. Start PostgreSQL (docker-compose.yml runs only the database)
-docker compose up -d
+That single command creates `.env` from `.env.example`, starts an embedded PostgreSQL 16 (data in `.neriva/pgdata`, port 5433), applies migrations, seeds the bootstrap and demo data, and runs the API on http://localhost:3001 alongside the Admin UI and rendering runtime on http://localhost:3000. Variants:
 
-# 2. Configure environment (defaults work out of the box for local dev)
-cp .env.example .env
-
-# 3. Apply database migrations
-pnpm --filter @neriva/api db:migrate
-
-# 4. Run the API and the Admin UI (two terminals)
-pnpm --filter @neriva/api dev     # REST API on http://localhost:3001
-pnpm --filter @neriva/web dev     # Admin UI on http://localhost:3000
+```bash
+pnpm dev --no-demo    # bootstrap data only, no demo site
+pnpm dev --db-only    # only the database, to run the apps yourself
 ```
 
 Open http://localhost:3000. The root path serves the default site's published pages; the admin lives at http://localhost:3000/admin. Sign in with the bootstrap credentials: `admin@neriva.com` / `admin`. Neriva forces a password change on first login before anything else is allowed.
+
+### Running against your own PostgreSQL
+
+Set `DATABASE_URL` in `.env` and `pnpm dev` uses that server instead of the embedded one, waiting for it to accept connections before starting the apps. The bundled `docker-compose.yml` runs a matching PostgreSQL 16:
+
+```bash
+docker compose up -d
+# .env: DATABASE_URL=postgres://neriva:neriva@localhost:5432/neriva
+pnpm dev
+```
+
+Migrations run on boot outside production. In production they stay an explicit step: `pnpm --filter @neriva/api db:migrate`, or `RUN_MIGRATIONS=true` on the API process.
 
 Published pages are reachable at `/<path>` for the default site and `/s/<site-slug>/<path>` for any other site.
 

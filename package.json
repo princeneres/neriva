@@ -9,6 +9,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "dev": "node scripts/dev.mjs",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "typecheck": "pnpm -r typecheck",
@@ -18,6 +19,14 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "@embedded-postgres/darwin-arm64",
+      "@embedded-postgres/darwin-x64",
+      "@embedded-postgres/linux-arm",
+      "@embedded-postgres/linux-arm64",
+      "@embedded-postgres/linux-ia32",
+      "@embedded-postgres/linux-ppc64",
+      "@embedded-postgres/linux-x64",
+      "@embedded-postgres/windows-x64",
       "@swc/core",
       "argon2",
       "esbuild",
@@ -33,6 +42,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",
+    "dotenv": "^17.4.2",
+    "embedded-postgres": "16.14.0-beta.17",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.0",
     "prettier": "^3.4.2",

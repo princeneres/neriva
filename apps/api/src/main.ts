@@ -15,8 +15,21 @@ import { runMigrations } from './db/run-migrations';
 loadEnv({ path: resolve(process.cwd(), '.env') });
 loadEnv({ path: resolve(process.cwd(), '../../.env') });
 
-async function bootstrap(): Promise<void> {
+// Outside production, migrations run on boot so `pnpm dev` needs no separate
+// migrate step. Production keeps them an explicit deploy step (RUN_MIGRATIONS
+// =true), and RUN_MIGRATIONS=false opts out anywhere.
+function shouldRunMigrations(): boolean {
   if (process.env.RUN_MIGRATIONS === 'true') {
+    return true;
+  }
+  if (process.env.RUN_MIGRATIONS === 'false') {
+    return false;
+  }
+  return process.env.NODE_ENV !== 'production';
+}
+
+async function bootstrap(): Promise<void> {
+  if (shouldRunMigrations()) {
     const url = process.env.DATABASE_URL;
     if (!url) {
       throw new Error('DATABASE_URL is not set');

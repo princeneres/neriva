@@ -18,6 +18,9 @@ coverage/
 # Uploaded media (documents and media library)
 uploads/
 
+# Embedded PostgreSQL cluster started by `pnpm dev`
+.neriva/
+
 # Logs
 *.log
 npm-debug.log*
