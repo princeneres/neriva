@@ -11,6 +11,14 @@ function apiBase(): string {
 const nextConfig: NextConfig = {
   transpilePackages: ['@neriva/ui'],
   devIndicators: false,
+  experimental: {
+    // Mantine re-exports its whole surface from one barrel, so an
+    // `import { Button } from '@mantine/core'` pulls every component into the
+    // route in development. Rewriting those to deep imports cuts the module
+    // graph per admin screen. @tabler/icons-react is already handled by the
+    // framework default list.
+    optimizePackageImports: ['@mantine/core', '@mantine/hooks'],
+  },
   async rewrites() {
     return [{ source: '/public/media/:path*', destination: `${apiBase()}/public/media/:path*` }];
   },

@@ -11,12 +11,18 @@ import {
 } from 'react';
 import { api } from './api';
 import { apiUrl } from './api-url';
+import { readCache, writeCache } from './client-cache';
 
 export interface SiteSummary {
   id: string;
   name: string;
   slug: string;
 }
+
+// Both reads are session-stable, so the shell paints its site switcher from
+// the previous answer instead of waiting on two round trips per navigation.
+const SITES_CACHE_KEY = 'site-context:sites';
+const DEFAULT_SLUG_CACHE_KEY = 'site-context:defaultSlug';
 
 interface SiteContextValue {
   sites: SiteSummary[];
@@ -33,35 +39,59 @@ interface SiteContextValue {
 const SiteContext = createContext<SiteContextValue | null>(null);
 const STORAGE_KEY = 'neriva.currentSiteId';
 
+// Server render has no localStorage; the client re-derives on hydration.
+function readStoredSiteId(): string | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  return localStorage.getItem(STORAGE_KEY);
+}
+
+// The active site: an explicit pick that still exists wins, otherwise the
+// first site, so site-scoped screens are usable without a manual choice.
+function pickCurrentId(sites: SiteSummary[], previous?: string | null): string | null {
+  if (sites.length === 0) {
+    return null;
+  }
+  const wanted = previous ?? readStoredSiteId();
+  return sites.find((s) => s.id === wanted)?.id ?? sites[0]?.id ?? null;
+}
+
 export function SiteProvider({ children }: { children: ReactNode }) {
-  const [sites, setSites] = useState<SiteSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [currentId, setCurrentId] = useState<string | null>(null);
-  const [defaultSlug, setDefaultSlug] = useState<string | null>(null);
+  const cachedSites = readCache<SiteSummary[]>(SITES_CACHE_KEY);
+  const [sites, setSites] = useState<SiteSummary[]>(cachedSites ?? []);
+  // Site-scoped screens wait on `loading` before firing their own request; a
+  // cache hit lets them start immediately instead of after this round trip.
+  const [loading, setLoading] = useState(cachedSites === undefined);
+  const [currentId, setCurrentId] = useState<string | null>(
+    () => pickCurrentId(cachedSites ?? []) ?? null,
+  );
+  const [defaultSlug, setDefaultSlug] = useState<string | null>(
+    () => readCache<string>(DEFAULT_SLUG_CACHE_KEY) ?? null,
+  );
 
   useEffect(() => {
-    // Anonymous delivery endpoint, fetched once; the Visit link falls back
-    // to /s/<slug> while (or if) this is unknown.
+    // Anonymous delivery endpoint; the Visit link falls back to /s/<slug>
+    // while (or if) this is unknown. Independent of the sites list below, so
+    // the two run side by side rather than in sequence.
     fetch(apiUrl('/public/site'))
       .then(async (res) => {
         if (!res.ok) {
           return;
         }
         const body = (await res.json()) as { data: { slug: string } };
+        writeCache(DEFAULT_SLUG_CACHE_KEY, body.data.slug);
         setDefaultSlug(body.data.slug);
       })
       .catch(() => undefined);
   }, []);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
     try {
       const page = await api.get<{ data: SiteSummary[] }>('/sites?limit=100');
+      writeCache(SITES_CACHE_KEY, page.data);
       setSites(page.data);
-      const stored = localStorage.getItem(STORAGE_KEY);
-      const valid = page.data.find((s) => s.id === stored);
-      // Default to the first site so screens are usable without a manual pick.
-      setCurrentId(valid?.id ?? page.data[0]?.id ?? null);
+      setCurrentId((previous) => pickCurrentId(page.data, previous));
     } catch {
       setSites([]);
     } finally {

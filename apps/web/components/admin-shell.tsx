@@ -250,6 +250,7 @@ function ShellInner({
   Omit<AdminShellProps, 'storageNamespace' | 'paintBackground'>) {
   const router = useRouter();
   const pathname = usePathname();
+  const { sites } = useSite();
   // Site pages default to a collapsed rail; the admin section defaults open.
   // Keys are namespaced so the two surfaces don't fight over one preference.
   const widthKey = `neriva.navWidth.${storageNamespace}`;
@@ -318,8 +319,9 @@ function ShellInner({
     setResolvingEdit(true);
     try {
       const { api } = await import('../lib/api');
-      const sites = await api.get<{ data: { id: string; slug: string }[] }>('/sites?limit=100');
-      const site = sites.data.find((candidate) => candidate.slug === editTarget.siteSlug);
+      // The site list is already in context: only the page lookup needs the
+      // network, so the button resolves in one round trip instead of two.
+      const site = sites.find((candidate) => candidate.slug === editTarget.siteSlug);
       if (site !== undefined) {
         const pages = await api.get<{ data: { id: string; path: string }[] }>(
           `/sites/${site.id}/pages?limit=100`,
@@ -334,7 +336,7 @@ function ShellInner({
       // Resolution failed (expired session, API error): fall through.
     }
     router.push('/admin/pages?notfound=1');
-  }, [editTarget, router]);
+  }, [editTarget, router, sites]);
 
   const initials = user.displayName
     .split(/\s+/)

@@ -29,8 +29,9 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, api } from '../../../lib/api';
+import { useSite } from '../../../lib/site-context';
 import { buildHierarchy, type HierarchyNode, pathSegment } from './page-hierarchy';
 import { type Page, statusColor } from './types';
 
@@ -69,7 +70,7 @@ function problemMessage(error: unknown, fallback: string): ReactNode {
 // children so it opens in place instead of as a separate overlay.
 export function SitePageTree({ active, siteSlug }: { active: boolean; siteSlug: string }) {
   const router = useRouter();
-  const [siteId, setSiteId] = useState<string | null>(null);
+  const { sites, loading: sitesLoading } = useSite();
   const [pages, setPages] = useState<Page[]>([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
@@ -77,18 +78,22 @@ export function SitePageTree({ active, siteSlug }: { active: boolean; siteSlug: 
   const [addTitle, setAddTitle] = useState('');
   const [addBusy, setAddBusy] = useState(false);
 
-  async function load() {
+  // The shell already holds every site, so the tree resolves its slug from
+  // context instead of spending a /sites round trip before it can even ask
+  // for the pages it exists to show.
+  const siteId = useMemo(
+    () => sites.find((candidate) => candidate.slug === siteSlug)?.id ?? null,
+    [sites, siteSlug],
+  );
+
+  const load = useCallback(async () => {
+    if (siteId === null) {
+      setPages([]);
+      return;
+    }
     setLoading(true);
     try {
-      const sites = await api.get<{ data: { id: string; slug: string }[] }>('/sites?limit=100');
-      const site = sites.data.find((candidate) => candidate.slug === siteSlug);
-      if (site === undefined) {
-        setSiteId(null);
-        setPages([]);
-        return;
-      }
-      setSiteId(site.id);
-      const list = await api.get<{ data: Page[] }>(`/sites/${site.id}/pages?limit=100`);
+      const list = await api.get<{ data: Page[] }>(`/sites/${siteId}/pages?limit=100`);
       setPages(list.data);
     } catch (error) {
       notifications.show({
@@ -99,13 +104,13 @@ export function SitePageTree({ active, siteSlug }: { active: boolean; siteSlug: 
     } finally {
       setLoading(false);
     }
-  }
+  }, [siteId]);
 
   useEffect(() => {
-    if (active) {
+    if (active && !sitesLoading) {
       void load();
     }
-  }, [active, siteSlug]);
+  }, [active, sitesLoading, load]);
 
   const filteredPages = useMemo(() => {
     const q = query.trim().toLowerCase();
