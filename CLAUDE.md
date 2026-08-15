@@ -131,7 +131,7 @@ After changing any controller, DTO, or Swagger decorator, run `openapi:generate`
 - API responses use a standard envelope: `{ data, meta }` for success; RFC 7807 problem+json for errors.
 - Pagination: cursor-based, `?limit=&cursor=`, default limit 20, max 100.
 - IDs in URLs accept either UUID or `erc:<externalReferenceCode>`.
-- API tests: `src/**/*.spec.ts` for units, `test/**/*.e2e-spec.ts` for endpoints. Web tests only run under `apps/web/lib/**/*.spec.ts`, so extract testable logic out of `app/` into `lib/`.
+- API tests: `src/**/*.spec.ts` for units, `test/**/*.e2e-spec.ts` for endpoints. Web tests only run under `apps/web/lib/**/*.spec.ts(x)`, so extract testable logic out of `app/` into `lib/`.
 - Conventional Commits. One feature branch per feature, merged into `master` with a merge commit.
 - Never use em dashes in any prose or docs; use commas, colons, or separate sentences.
 

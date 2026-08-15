@@ -7,12 +7,13 @@
 // and are NEVER trusted: they are escaped ({{prop}}, data-nv-text, attribute
 // bindings) or sanitized against a strict allowlist (data-nv-rich).
 
-export type TemplateSegment = { html: string } | { slot: string };
-
-export interface SplitSlotsResult {
-  segments: TemplateSegment[];
-  slots: string[];
-}
+// A template renders as a tree, not a flat list, so that a slot's children
+// land inside the elements that wrap them (spec 12 section 5). Runs of markup
+// with no slot inside stay raw html and are injected as-is.
+export type TemplateNode =
+  | { kind: 'html'; html: string }
+  | { kind: 'element'; tag: string; attrs: string; children: TemplateNode[] }
+  | { kind: 'slot'; name: string; tag: string; attrs: string };
 
 export interface NavPage {
   title: string;
@@ -34,7 +35,7 @@ export interface RenderTemplateInput {
 }
 
 export interface RenderTemplateResult {
-  segments: TemplateSegment[];
+  nodes: TemplateNode[];
   css: string;
 }
 
@@ -444,40 +445,145 @@ function applyBindings(
 
 // --- slot splitting ---------------------------------------------------------
 
-// Splits the html at elements bearing data-nv-slot. The slot element itself is
-// removed from the html segments (RenderTree recreates the wrapper around the
-// slot children), and any children it had are discarded, matching the spec
-// wording that slot children are replaced by the slot content. Whitespace-only
-// segments are dropped.
-export function splitSlots(html: string): SplitSlotsResult {
-  const segments: TemplateSegment[] = [];
-  const slots: string[] = [];
+// Index just past the close tag that matches the element opened before
+// `from`, counting nested same-name elements. elementSpan's "next close tag"
+// shortcut is only valid for the leaf elements bindings live on; a slot's
+// ancestors can nest the same tag (nv-columns-2 is a div of divs), so the
+// tree builder needs real depth tracking.
+function matchingCloseEnd(
+  html: string,
+  name: string,
+  from: number,
+): { innerEnd: number; end: number } | null {
+  const pattern = new RegExp(`<(/?)${name}((?:"[^"]*"|'[^']*'|[^>"'])*)>`, 'gi');
+  pattern.lastIndex = from;
+  let depth = 1;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(html))) {
+    const closing = match[1] === '/';
+    if (closing) {
+      depth -= 1;
+      if (depth === 0) {
+        return { innerEnd: match.index, end: pattern.lastIndex };
+      }
+      continue;
+    }
+    // A self-closing or void occurrence never opens a level.
+    if (!VOID_ELEMENTS.has(name) && !/\/\s*$/.test(match[2] ?? '')) {
+      depth += 1;
+    }
+  }
+  return null;
+}
+
+function hasSlotMarker(html: string): boolean {
+  const scanner = new RegExp(TAG_PATTERN.source, 'g');
+  let match: RegExpExecArray | null;
+  while ((match = scanner.exec(html))) {
+    const slotName = getAttr(match[2] ?? '', 'data-nv-slot');
+    if (slotName !== undefined && slotName !== '') {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Parses the template into a tree so slot children can be rendered INSIDE the
+// elements that contain them. A flat list of sibling segments cannot express
+// that: an element whose closing tag falls in a later segment gets auto-closed
+// by the HTML parser, so every layout block lost its wrapper (spec 12).
+//
+// Only the ancestors of a slot are materialised as element nodes; markup with
+// no slot inside it stays a raw html run, which keeps the common slotless
+// block on exactly the previous path. Those runs are therefore always balanced.
+export function buildTemplateTree(html: string): TemplateNode[] {
+  if (!hasSlotMarker(html)) {
+    return html.trim() === '' ? [] : [{ kind: 'html', html }];
+  }
+  const nodes: TemplateNode[] = [];
   let cursor = 0;
   const scanner = new RegExp(TAG_PATTERN.source, 'g');
   let match: RegExpExecArray | null;
-  const pushHtml = (segment: string) => {
-    if (segment.trim() !== '') {
-      segments.push({ html: segment });
+  const pushHtml = (chunk: string) => {
+    if (chunk.trim() !== '') {
+      nodes.push({ kind: 'html', html: chunk });
     }
   };
   while ((match = scanner.exec(html))) {
-    const rawName = match[1] ?? '';
-    const attrsText = match[2] ?? '';
-    const slotName = getAttr(attrsText, 'data-nv-slot');
-    if (slotName === undefined || slotName === '') {
+    if (match.index < cursor) {
       continue;
     }
-    const span = elementSpan(html, rawName.toLowerCase(), attrsText, scanner.lastIndex);
-    pushHtml(html.slice(cursor, match.index));
-    segments.push({ slot: slotName });
-    if (!slots.includes(slotName)) {
-      slots.push(slotName);
+    const rawName = match[1] ?? '';
+    const name = rawName.toLowerCase();
+    const attrs = match[2] ?? '';
+    const slotName = getAttr(attrs, 'data-nv-slot');
+    if (slotName !== undefined && slotName !== '') {
+      const span = elementSpan(html, name, attrs, scanner.lastIndex);
+      pushHtml(html.slice(cursor, match.index));
+      // The slot element keeps its own tag and attributes: they carry the
+      // layout (nv-container-inner, nv-columns-2-col). Its authored children
+      // are discarded, per spec 12.
+      nodes.push({ kind: 'slot', name: slotName, tag: name, attrs });
+      cursor = span.end;
+      continue;
     }
-    cursor = span.end;
-    scanner.lastIndex = span.end;
+    if (VOID_ELEMENTS.has(name) || /\/\s*$/.test(attrs)) {
+      continue;
+    }
+    const close = matchingCloseEnd(html, name, scanner.lastIndex);
+    if (close === null) {
+      continue;
+    }
+    const inner = html.slice(scanner.lastIndex, close.innerEnd);
+    if (!hasSlotMarker(inner)) {
+      continue;
+    }
+    pushHtml(html.slice(cursor, match.index));
+    nodes.push({ kind: 'element', tag: name, attrs, children: buildTemplateTree(inner) });
+    cursor = close.end;
   }
   pushHtml(html.slice(cursor));
-  return { segments, slots };
+  return nodes;
+}
+
+// Attributes of an opening tag as a plain map, for the renderer to turn into
+// React props.
+export function parseAttrs(attrsText: string): Record<string, string> {
+  const attrs: Record<string, string> = {};
+  const pattern = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*(?:=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(attrsText))) {
+    const name = match[1];
+    if (name === undefined || name === '/') {
+      continue;
+    }
+    attrs[name.toLowerCase()] = match[2] ?? match[3] ?? match[4] ?? '';
+  }
+  return attrs;
+}
+
+// A CSS declaration string as a React style object. React rejects a string
+// style, and the seeded blocks carry values like
+// "background: var(--nv-color-surface-alt, #f1efec)", so the split has to be
+// on semicolons only, never on the commas inside a var() fallback.
+export function styleStringToObject(style: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const declaration of style.split(';')) {
+    const colon = declaration.indexOf(':');
+    if (colon === -1) {
+      continue;
+    }
+    const property = declaration.slice(0, colon).trim();
+    const value = declaration.slice(colon + 1).trim();
+    if (property === '' || value === '') {
+      continue;
+    }
+    const key = property.startsWith('--')
+      ? property
+      : property.replace(/-([a-z])/g, (_all, letter: string) => letter.toUpperCase());
+    result[key] = value;
+  }
+  return result;
 }
 
 // --- css scoping -------------------------------------------------------------
@@ -710,16 +816,36 @@ export function resolveStyles(
 
 // --- composition --------------------------------------------------------------
 
-// Full pipeline: interpolate escaped props, apply data-nv-* bindings, split at
-// slots and scope the css to the block wrapper.
+// Drops slot nodes whose name was never declared on the block, at any depth.
+// The element itself goes with them: without a declared slot there is nothing
+// to put inside it.
+function filterUndeclaredSlots(nodes: TemplateNode[], declared: string[]): TemplateNode[] {
+  const kept: TemplateNode[] = [];
+  for (const node of nodes) {
+    if (node.kind === 'slot') {
+      if (declared.includes(node.name)) {
+        kept.push(node);
+      }
+      continue;
+    }
+    kept.push(
+      node.kind === 'element'
+        ? { ...node, children: filterUndeclaredSlots(node.children, declared) }
+        : node,
+    );
+  }
+  return kept;
+}
+
+// Full pipeline: interpolate escaped props, apply data-nv-* bindings, build the
+// slot tree and scope the css to the block wrapper.
 export function renderTemplate(input: RenderTemplateInput): RenderTemplateResult {
   const props = input.props ?? {};
   const bound = applyBindings(interpolate(input.html, props), props, input.sitePages);
-  const { segments } = splitSlots(bound);
+  const nodes = buildTemplateTree(bound);
   const declared = input.slots;
-  const filtered = declared
-    ? segments.filter((segment) => !('slot' in segment) || declared.includes(segment.slot))
-    : segments;
-  const css = input.css ? scopeCss(input.css, input.erc) : '';
-  return { segments: filtered, css };
+  return {
+    nodes: declared ? filterUndeclaredSlots(nodes, declared) : nodes,
+    css: input.css ? scopeCss(input.css, input.erc) : '',
+  };
 }

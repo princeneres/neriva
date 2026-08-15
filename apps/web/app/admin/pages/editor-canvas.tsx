@@ -39,6 +39,7 @@ import {
   resolveStyles,
   sanitizeRich,
 } from '../../../lib/renderer/template';
+import { renderTemplateNodes } from '../../../lib/renderer/template-nodes';
 import { type ContainerRef, containerKey, type EditorNode } from './editor-state';
 import classes from './studio.module.css';
 import { useSitePreviewData } from './use-site-preview-data';
@@ -460,7 +461,7 @@ function TemplateContent({
   const [imagePropKey, setImagePropKey] = useState<string | null>(null);
 
   const declaredSlots = useMemo(() => block.slots.map((slot) => slot.name), [block]);
-  const { segments, css: scopedCss } = useMemo(
+  const { nodes, css: scopedCss } = useMemo(
     () =>
       renderTemplate({
         html,
@@ -499,7 +500,7 @@ function TemplateContent({
       targets.push({ propKey, top: rect.top - base.top + 6, left: rect.left - base.left + 6 });
     }
     setImageTargets(targets);
-  }, [editable, segments]);
+  }, [editable, nodes]);
 
   const imageValue =
     imagePropKey !== null && typeof node.props[imagePropKey] === 'string'
@@ -513,24 +514,18 @@ function TemplateContent({
         <style dangerouslySetInnerHTML={{ __html: scopedCss }} />
       ) : null}
       <div data-nv-b={node.block} ref={wrapperRef} style={{ position: 'relative' }}>
-        {segments.map((segment, index) =>
-          'html' in segment ? (
-            <EditableHtml
-              key={index}
-              html={segment.html}
-              editable={editable}
-              onEdit={(kind, propKey, element) => {
-                const value =
-                  kind === 'text' ? (element.textContent ?? '') : sanitizeRich(element.innerHTML);
-                onSetProp(node.key, propKey, value);
-              }}
-            />
-          ) : (
-            <div key={index} data-nv-slot={segment.slot}>
-              {slots[segment.slot] ?? null}
-            </div>
-          ),
-        )}
+        {renderTemplateNodes(nodes, slots, (html, key) => (
+          <EditableHtml
+            key={key}
+            html={html}
+            editable={editable}
+            onEdit={(kind, propKey, element) => {
+              const value =
+                kind === 'text' ? (element.textContent ?? '') : sanitizeRich(element.innerHTML);
+              onSetProp(node.key, propKey, value);
+            }}
+          />
+        ))}
         {imageTargets.map((target) => (
           <Tooltip label="Change image" key={target.propKey}>
             <ActionIcon

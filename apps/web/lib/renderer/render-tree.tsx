@@ -1,6 +1,7 @@
 import { Fragment, type CSSProperties, type ReactNode } from 'react';
 import { rendererFor } from './registry';
 import { renderTemplate, resolveStyles, type NavPage } from './template';
+import { renderTemplateNodes } from './template-nodes';
 
 export interface RenderNode {
   block: string;
@@ -110,7 +111,7 @@ function renderTemplateBlock(
   sitePages: NavPage[] | undefined,
 ): ReactNode {
   const declaredSlots = info.slots?.map((slot) => (typeof slot === 'string' ? slot : slot.name));
-  const { segments, css } = renderTemplate({
+  const { nodes, css } = renderTemplate({
     html,
     css: info.css,
     erc: node.block,
@@ -124,8 +125,8 @@ function renderTemplateBlock(
     // scopeCss escapes "</" so the css cannot close the style element.
     style = <style dangerouslySetInnerHTML={{ __html: css }} />;
   }
-  const first = segments[0];
-  if (segments.length === 1 && first !== undefined && 'html' in first) {
+  const first = nodes[0];
+  if (nodes.length === 1 && first !== undefined && first.kind === 'html') {
     return (
       <>
         {style}
@@ -136,23 +137,7 @@ function renderTemplateBlock(
   return (
     <>
       {style}
-      <div data-nv-b={node.block}>
-        {segments.map((segment, index) =>
-          'html' in segment ? (
-            // display: contents keeps the segment wrapper out of the layout;
-            // template markup behaves as a direct child of the block wrapper.
-            <div
-              key={index}
-              style={{ display: 'contents' }}
-              dangerouslySetInnerHTML={{ __html: segment.html }}
-            />
-          ) : (
-            <div key={index} data-nv-slot={segment.slot}>
-              {slots[segment.slot] ?? null}
-            </div>
-          ),
-        )}
-      </div>
+      <div data-nv-b={node.block}>{renderTemplateNodes(nodes, slots)}</div>
     </>
   );
 }

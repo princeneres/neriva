@@ -9,15 +9,17 @@ import {
   safeUrl,
   sanitizeRich,
   scopeCss,
-  splitSlots,
-  type TemplateSegment,
+  buildTemplateTree,
+  parseAttrs,
+  styleStringToObject,
+  type TemplateNode,
 } from './template';
 
-// Convenience: render a template with no slots and return the single segment.
+// Convenience: render a template with no slots and return its single html run.
 function renderHtml(html: string, props: Record<string, unknown> = {}): string {
-  const { segments } = renderTemplate({ html, erc: 'test-block', props });
-  expect(segments).toHaveLength(1);
-  const first = segments[0] as { html: string };
+  const { nodes } = renderTemplate({ html, erc: 'test-block', props });
+  expect(nodes).toHaveLength(1);
+  const first = nodes[0] as { kind: 'html'; html: string };
   return first.html;
 }
 
@@ -286,12 +288,12 @@ describe('data-nv-nav binding', () => {
   const html = '<nav data-nv-nav="pages"><a href="/">placeholder</a></nav>';
 
   it('keeps the authored placeholder when sitePages is not provided', () => {
-    const { segments } = renderTemplate({ html, erc: 'nv-header', props: {} });
-    expect((segments[0] as { html: string }).html).toBe(html);
+    const { nodes } = renderTemplate({ html, erc: 'nv-header', props: {} });
+    expect((nodes[0] as { html: string }).html).toBe(html);
   });
 
   it('replaces the inner content with real links when sitePages is provided', () => {
-    const { segments } = renderTemplate({
+    const { nodes } = renderTemplate({
       html,
       erc: 'nv-header',
       props: {},
@@ -300,14 +302,14 @@ describe('data-nv-nav binding', () => {
         { title: 'Blog', path: '/blog' },
       ],
     });
-    expect((segments[0] as { html: string }).html).toBe(
+    expect((nodes[0] as { html: string }).html).toBe(
       '<nav data-nv-nav="pages"><a href="/">Home</a><a href="/blog">Blog</a></nav>',
     );
   });
 
   it('renders an empty nav when the site has no published pages yet', () => {
-    const { segments } = renderTemplate({ html, erc: 'nv-header', props: {}, sitePages: [] });
-    expect((segments[0] as { html: string }).html).toBe('<nav data-nv-nav="pages"></nav>');
+    const { nodes } = renderTemplate({ html, erc: 'nv-header', props: {}, sitePages: [] });
+    expect((nodes[0] as { html: string }).html).toBe('<nav data-nv-nav="pages"></nav>');
   });
 });
 
@@ -386,45 +388,124 @@ describe('data-nv-embed binding', () => {
   });
 });
 
-describe('splitSlots', () => {
-  it('returns a single html segment when there are no slots', () => {
-    expect(splitSlots('<p>hello</p>')).toEqual({
-      segments: [{ html: '<p>hello</p>' }],
-      slots: [],
-    });
+describe('buildTemplateTree', () => {
+  it('returns a single html run when there are no slots', () => {
+    expect(buildTemplateTree('<p>hello</p>')).toEqual([{ kind: 'html', html: '<p>hello</p>' }]);
   });
 
-  it('splits at an empty element bearing data-nv-slot', () => {
-    expect(splitSlots('<section><h2>t</h2><div data-nv-slot="content"></div></section>')).toEqual({
-      segments: [{ html: '<section><h2>t</h2>' }, { slot: 'content' }, { html: '</section>' }],
-      slots: ['content'],
-    });
-  });
-
-  it('handles multiple slots', () => {
-    const { segments, slots } = splitSlots(
-      '<div class="a" data-nv-slot="left"></div><hr><div class="b" data-nv-slot="right"></div>',
-    );
-    expect(slots).toEqual(['left', 'right']);
-    expect(segments).toEqual([{ slot: 'left' }, { html: '<hr>' }, { slot: 'right' }]);
-  });
-
-  it('handles self-closing slot elements', () => {
-    expect(splitSlots('<div data-nv-slot="main"/>').segments).toEqual([{ slot: 'main' }]);
-  });
-
-  it('discards children of a non-empty slot element (invalid per spec)', () => {
-    expect(splitSlots('<div data-nv-slot="x"><p>gone</p></div>after').segments).toEqual([
-      { slot: 'x' },
-      { html: 'after' },
+  // The bug this model replaced: a flat segment list put the slot children
+  // after the section, because the section's closing tag lived in a later
+  // segment and the HTML parser auto-closed it.
+  it('nests a slot inside the element that wraps it, keeping that element', () => {
+    expect(
+      buildTemplateTree(
+        '<section class="s"><h2>t</h2><div data-nv-slot="content"></div></section>',
+      ),
+    ).toEqual([
+      {
+        kind: 'element',
+        tag: 'section',
+        attrs: ' class="s"',
+        children: [
+          { kind: 'html', html: '<h2>t</h2>' },
+          { kind: 'slot', name: 'content', tag: 'div', attrs: ' data-nv-slot="content"' },
+        ],
+      },
     ]);
   });
 
-  it('drops whitespace-only segments', () => {
-    const { segments } = splitSlots(
+  it('keeps the slot element own tag and attributes', () => {
+    const nodes = buildTemplateTree('<div class="inner" data-nv-slot="content"></div>');
+    expect(nodes).toEqual([
+      {
+        kind: 'slot',
+        name: 'content',
+        tag: 'div',
+        attrs: ' class="inner" data-nv-slot="content"',
+      },
+    ]);
+  });
+
+  // nv-columns-2 nests a div inside a div, so "the next closing tag" is the
+  // inner one: the tree builder has to count depth.
+  it('matches the right closing tag when the same tag nests', () => {
+    const nodes = buildTemplateTree(
+      '<div class="cols"><div class="col" data-nv-slot="left"></div>' +
+        '<div class="col" data-nv-slot="right"></div></div>',
+    );
+    expect(nodes).toHaveLength(1);
+    const root = nodes[0] as { kind: 'element'; attrs: string; children: TemplateNode[] };
+    expect(root.kind).toBe('element');
+    expect(root.attrs).toBe(' class="cols"');
+    expect(root.children.map((child) => child.kind)).toEqual(['slot', 'slot']);
+  });
+
+  it('keeps content before and after a nested slot in order', () => {
+    const nodes = buildTemplateTree('<div><p>a</p><span data-nv-slot="s"></span><p>b</p></div>');
+    const root = nodes[0] as { children: TemplateNode[] };
+    expect(root.children).toEqual([
+      { kind: 'html', html: '<p>a</p>' },
+      { kind: 'slot', name: 's', tag: 'span', attrs: ' data-nv-slot="s"' },
+      { kind: 'html', html: '<p>b</p>' },
+    ]);
+  });
+
+  it('handles multiple slots at the top level', () => {
+    const nodes = buildTemplateTree(
+      '<div class="a" data-nv-slot="left"></div><hr><div class="b" data-nv-slot="right"></div>',
+    );
+    expect(nodes.map((node) => node.kind)).toEqual(['slot', 'html', 'slot']);
+  });
+
+  it('handles self-closing slot elements', () => {
+    expect(buildTemplateTree('<div data-nv-slot="main"/>')).toEqual([
+      { kind: 'slot', name: 'main', tag: 'div', attrs: ' data-nv-slot="main"/' },
+    ]);
+  });
+
+  it('discards children of a non-empty slot element (invalid per spec)', () => {
+    expect(buildTemplateTree('<div data-nv-slot="x"><p>gone</p></div>after')).toEqual([
+      { kind: 'slot', name: 'x', tag: 'div', attrs: ' data-nv-slot="x"' },
+      { kind: 'html', html: 'after' },
+    ]);
+  });
+
+  it('drops whitespace-only runs', () => {
+    const nodes = buildTemplateTree(
       '  <div data-nv-slot="a"></div>\n  <div data-nv-slot="b"></div>  ',
     );
-    expect(segments).toEqual([{ slot: 'a' }, { slot: 'b' }]);
+    expect(nodes.map((node) => node.kind)).toEqual(['slot', 'slot']);
+  });
+});
+
+describe('parseAttrs', () => {
+  it('reads double, single and unquoted values, and valueless attributes', () => {
+    expect(parseAttrs(' class="a b" id=\'x\' data-k=1 hidden')).toEqual({
+      class: 'a b',
+      id: 'x',
+      'data-k': '1',
+      hidden: '',
+    });
+  });
+});
+
+describe('styleStringToObject', () => {
+  it('camel-cases properties and keeps custom properties as authored', () => {
+    expect(styleStringToObject('background-color: red; --nv-x: 2px')).toEqual({
+      backgroundColor: 'red',
+      '--nv-x': '2px',
+    });
+  });
+
+  // The seeded demo pages pass exactly this, and a comma split would break it.
+  it('keeps the commas inside a var() fallback', () => {
+    expect(styleStringToObject('background: var(--nv-color-surface-alt, #f1efec)')).toEqual({
+      background: 'var(--nv-color-surface-alt, #f1efec)',
+    });
+  });
+
+  it('ignores empty and malformed declarations', () => {
+    expect(styleStringToObject('; color:; :red; margin: 0;')).toEqual({ margin: '0' });
   });
 });
 
@@ -549,12 +630,22 @@ describe('renderTemplate', () => {
       props: { variant: 'dark', title: 'Hello <world>' },
       slots: ['content'],
     });
-    expect(result.segments).toEqual([
+    expect(result.nodes).toEqual([
       {
-        html: '<section class="hero hero-dark"><h1 data-nv-text="title">Hello &lt;world&gt;</h1>',
+        kind: 'element',
+        tag: 'section',
+        attrs: ' class="hero hero-dark"',
+        children: [
+          { kind: 'html', html: '<h1 data-nv-text="title">Hello &lt;world&gt;</h1>' },
+          // The slot element keeps class="body": that class is the layout.
+          {
+            kind: 'slot',
+            name: 'content',
+            tag: 'div',
+            attrs: ' class="body" data-nv-slot="content"',
+          },
+        ],
       },
-      { slot: 'content' },
-      { html: '</section>' },
     ]);
     expect(result.css).toBe(
       '[data-nv-b="my-hero"] .hero { padding: 2rem; } ' +
@@ -562,21 +653,33 @@ describe('renderTemplate', () => {
     );
   });
 
-  it('drops slot segments for undeclared slot names when slots are provided', () => {
-    const { segments } = renderTemplate({
+  it('drops slot nodes for undeclared slot names when slots are provided', () => {
+    const { nodes } = renderTemplate({
       html: '<div data-nv-slot="known"></div><div data-nv-slot="unknown"></div>',
       erc: 'x',
       slots: ['known'],
     });
-    expect(segments).toEqual([{ slot: 'known' }]);
+    expect(nodes.map((node) => node.kind)).toEqual(['slot']);
+    expect((nodes[0] as { name: string }).name).toBe('known');
   });
 
-  it('keeps all slot segments when no declared slot list is provided', () => {
-    const { segments } = renderTemplate({
+  it('drops undeclared slots nested inside an element too', () => {
+    const { nodes } = renderTemplate({
+      html: '<div class="w"><div data-nv-slot="known"></div><div data-nv-slot="gone"></div></div>',
+      erc: 'x',
+      slots: ['known'],
+    });
+    const root = nodes[0] as { children: TemplateNode[] };
+    expect(root.children).toHaveLength(1);
+    expect((root.children[0] as { name: string }).name).toBe('known');
+  });
+
+  it('keeps all slot nodes when no declared slot list is provided', () => {
+    const { nodes } = renderTemplate({
       html: '<div data-nv-slot="anything"></div>',
       erc: 'x',
     });
-    expect(segments).toEqual([{ slot: 'anything' }]);
+    expect(nodes.map((node) => node.kind)).toEqual(['slot']);
   });
 
   it('returns empty css when the block has none', () => {
@@ -585,12 +688,12 @@ describe('renderTemplate', () => {
   });
 
   it('interpolates before bindings without re-processing bound values', () => {
-    const { segments } = renderTemplate({
+    const { nodes } = renderTemplate({
       html: '<p data-nv-text="body">{{body}}</p>',
       erc: 'x',
       props: { body: 'safe {{body}} text' },
     });
-    const first = segments[0] as TemplateSegment & { html: string };
+    const first = nodes[0] as { kind: 'html'; html: string };
     expect(first.html).toBe('<p data-nv-text="body">safe {{body}} text</p>');
   });
 });
