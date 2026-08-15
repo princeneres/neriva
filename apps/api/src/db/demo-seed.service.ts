@@ -257,6 +257,9 @@ export const DEMO_PAGE_TREE: PageTree = {
     {
       block: 'nv-container',
       props: { background: 'var(--nv-color-surface-alt, #f1efec)' },
+      // Per-instance styles (spec 12 section 3) on top of the block's own
+      // padding: the opening section earns more air than a body section.
+      styles: { paddingTop: 'token:space-lg', paddingBottom: 'token:space-lg' },
       slots: {
         content: [
           { block: 'nv-heading', props: { text: 'Publish with Neriva', level: 'h1' } },
@@ -300,6 +303,7 @@ export const DEMO_PAGE_TREE: PageTree = {
               ],
             },
           },
+          { block: 'nv-spacer', props: { size: 'md' } },
           {
             block: 'nv-columns-3',
             props: {},
@@ -377,6 +381,7 @@ export const DEMO_PAGE_TREE: PageTree = {
       props: {},
       slots: {
         content: [
+          { block: 'nv-separator', props: {} },
           {
             block: 'nv-paragraph',
             props: {
@@ -411,6 +416,7 @@ export const DEMO_BLOG_PAGE_TREE: PageTree = {
     },
     {
       block: 'nv-post-list',
+      styles: { paddingBottom: 'token:space-lg' },
       props: {
         heading: 'Latest posts',
         contentType: `erc:${DEMO_CONTENT_TYPE_ERC}`,
@@ -458,6 +464,7 @@ export const DEMO_TODO_PAGE_TREE: PageTree = {
     },
     {
       block: 'nv-todo-list',
+      styles: { paddingBottom: 'token:space-lg' },
       props: {
         heading: 'My to do list',
         objectDefinition: `erc:${DEMO_OBJECT_DEFINITION_ERC}`,
