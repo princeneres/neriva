@@ -203,7 +203,7 @@ function TreeRow({
               {page.title}
             </Text>
           ) : (
-            <Text size="sm" c="slate.4" fs="italic" truncate>
+            <Text size="sm" c="slate.5" fs="italic" truncate>
               {pathSegment(node.path)} (no page at this address)
             </Text>
           )}

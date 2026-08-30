@@ -23,7 +23,11 @@ const slate: MantineColorsTuple = [
   '#e6e3dd',
   '#d4d0c8',
   '#a8a49b',
-  '#7c7870',
+  // Index 5 is the admin's secondary text colour (153 call sites). At #7c7870
+  // it measured 4.18:1 on the slate.0 canvas, under the WCAG AA 4.5:1 floor;
+  // #706c64 measures 4.97:1 there and 5.23:1 on white, close enough in hue and
+  // value that nothing needs redesigning.
+  '#706c64',
   '#5c5850',
   '#403d37',
   '#2b2925',

@@ -63,7 +63,7 @@ function NothingSelected({ kind }: { kind: PageTemplateKind }) {
       <Text size="xs" fw={700} tt="uppercase" c="slate.5" lts="0.05em">
         {kind === 'MASTER' ? 'Master page' : 'Page template'}
       </Text>
-      <Text size="xs" c="slate.4" mt={4}>
+      <Text size="xs" c="slate.5" mt={4}>
         Click a block on the canvas to edit it here.
       </Text>
     </Box>

@@ -228,7 +228,7 @@ function BoxModelGrid({
       </SimpleGrid>
       <Group gap={0} justify="space-between" px={2}>
         {BOX_SIDES.map((side) => (
-          <Text key={side} fz={10} c="slate.4" style={{ width: '25%', textAlign: 'center' }}>
+          <Text key={side} fz={10} c="slate.5" style={{ width: '25%', textAlign: 'center' }}>
             {side}
           </Text>
         ))}

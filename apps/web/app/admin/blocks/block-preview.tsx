@@ -327,11 +327,11 @@ export function BlockPreviewPanel({
       </Group>
 
       {!hasTemplate && fields === null ? (
-        <Text size="sm" c="slate.4">
+        <Text size="sm" c="slate.5">
           Preview unavailable for this schema.
         </Text>
       ) : !hasTemplate && empty ? (
-        <Text size="sm" c="slate.4">
+        <Text size="sm" c="slate.5">
           Add fields or slots to see how this block will look.
         </Text>
       ) : (

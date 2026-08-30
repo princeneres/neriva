@@ -190,7 +190,7 @@ export default function EditStyleBookPage() {
             </Card>
 
             <Card bg="slate.0">
-              <Text size="xs" fw={700} tt="uppercase" c="slate.4" lts="0.06em" mb="xs">
+              <Text size="xs" fw={700} tt="uppercase" c="slate.5" lts="0.06em" mb="xs">
                 Details
               </Text>
               <Stack gap={6}>

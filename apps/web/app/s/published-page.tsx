@@ -45,6 +45,14 @@ const LAYOUT_CSS = [
     ' color: var(--nv-color-text, #1a1917); }',
   '.nv-site-root > main { display: flex; flex-direction: column; flex: 1 1 auto; }',
   '.nv-site-root > main > *:has(.nv-pin-bottom):not(:has(.nv-pin-after-content)) { margin-top: auto; }',
+  // The seeded theme control hides its checkbox as a 1px transparent box, so
+  // the browser drew the focus ring on something invisible: keyboard users lost
+  // focus for one tab stop on every page (WCAG 2.4.7). Lives here rather than
+  // in the block CSS because the block seed only inserts, never updates, so a
+  // fix in the seed would never reach an existing install.
+  '.nv-site-root .nv-theme-toggle-label:has(.nv-theme-toggle-input:focus-visible),' +
+    ' .nv-site-root [data-nv-theme-toggle]:focus-visible' +
+    ' { outline: 2px solid var(--nv-color-primary, #cc3d47); outline-offset: 2px; }',
 ].join('\n');
 
 // Shared rendering of a published page, used by /s/<slug>/... and by the
