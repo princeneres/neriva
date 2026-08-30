@@ -32,6 +32,37 @@ describe('API conventions (e2e)', () => {
     await testDb.stop();
   });
 
+  // The API shipped every response uncompressed until @fastify/compress was
+  // registered. Nothing caught it because the payloads were still correct,
+  // only three times larger than they needed to be, so these two lock the
+  // behaviour and its threshold. Note they do NOT cover the plugin-ordering
+  // half of the fix: app.init() here loads plugins early enough that even the
+  // unawaited registration works, while a cold boot through main.ts does not.
+  it('compresses a response above the size threshold', async () => {
+    // /blocks returns the 16 seeded native blocks with their html and css, so
+    // it is comfortably over the 1 KB threshold. Assert content-encoding and
+    // not vary: the plugin sets vary on everything it inspects, including
+    // responses it then decides to leave alone.
+    const res = await app.inject({
+      method: 'GET',
+      url: '/blocks',
+      headers: { authorization: `Bearer ${adminToken}`, 'accept-encoding': 'gzip' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.rawPayload.length).toBeGreaterThan(1024);
+    expect(res.headers['content-encoding']).toBe('gzip');
+  });
+
+  it('leaves a response below the threshold uncompressed, since gzip would grow it', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/health',
+      headers: { 'accept-encoding': 'gzip' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-encoding']).toBeUndefined();
+  });
+
   it('resolves URL ids by UUID and by erc:<code>', async () => {
     const created = await app.inject({
       method: 'POST',

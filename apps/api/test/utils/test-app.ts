@@ -12,7 +12,7 @@ export async function createTestApp(databaseUrl: string): Promise<NestFastifyApp
 
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
-  configureApp(app);
+  await configureApp(app);
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
   return app;

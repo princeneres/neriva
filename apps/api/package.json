@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@casl/ability": "^7.0.1",
+    "@fastify/compress": "^9.2.0",
     "@fastify/helmet": "^13.1.0",
     "@fastify/multipart": "^10.1.0",
     "@nestjs/common": "^11.0.0",
