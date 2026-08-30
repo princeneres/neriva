@@ -229,6 +229,9 @@ export const DEMO_BLOCKS: DemoBlockDefinition[] = [
 
 const DEMO_STYLE_BOOK_TOKENS: Record<string, string> = {
   'color-primary': '#cc3d47',
+  // deriveDarkValue maps a color-*background* role to the dark page neutral,
+  // so the ground darkens with the toggle without an explicit tokensDark.
+  'color-background': '#ffffff',
   'color-surface': '#faf9f7',
   'color-surface-alt': '#f1efec',
   'color-text': '#1a1917',

@@ -33,6 +33,7 @@ import {
   useState,
 } from 'react';
 import { rendererFor } from '../../../lib/renderer/registry';
+import { scopeSiteCss, SITE_CSS_SCOPE_CLASS } from '../../../lib/renderer/scope-css';
 import {
   type NavPage,
   renderTemplate,
@@ -50,7 +51,6 @@ export type InsertTarget =
   { kind: 'root'; index: number } | { kind: 'slot'; parentKey: string; slot: string };
 
 export const ROOT_DROP_ID = 'studio-root-canvas';
-const SCOPE_CLASS = 'nv-studio-canvas';
 
 export type CanvasDevice = 'desktop' | 'tablet' | 'mobile';
 
@@ -117,9 +117,7 @@ export function EditorCanvas({
 
   const canvasCtx: CanvasContextWithNav = { ...ctx, sitePages, siteSlug };
 
-  // The stylesheet declares tokens on :root; rewrite them onto the canvas
-  // surface so they do not leak into the admin UI around it.
-  const scopedCss = useMemo(() => css.replaceAll(':root', `.${SCOPE_CLASS}`), [css]);
+  const scopedCss = useMemo(() => scopeSiteCss(css), [css]);
 
   const rootDropIndex =
     ctx.dropTarget !== null && ctx.dropTarget.containerKey === containerKey(null)
@@ -130,11 +128,14 @@ export function EditorCanvas({
     <div className={classes.canvasScroll}>
       <div
         ref={setNodeRef}
-        // nv-site-root: the dark-mode rule renderCss emits is scoped to
-        // .nv-site-root:has(#nv-theme-toggle:checked) (the same class the
-        // public page and the Preview mode use), so the header's toggle
-        // works identically inside the canvas.
-        className={`${classes.pageSurface} ${SCOPE_CLASS} nv-site-root`}
+        // nv-site-root: the dark-mode rules renderTokensCss emits are scoped
+        // to it and to :root, and :root is rewritten onto the scope class,
+        // so both resolve against this element.
+        className={`${classes.pageSurface} ${SITE_CSS_SCOPE_CLASS} nv-site-root`}
+        // Explicit, because the rewritten prefers-color-scheme rule reads
+        // :not([data-nv-theme='light']): without the stamp the canvas would
+        // follow the editor's OS theme instead of the page being edited.
+        data-nv-theme="light"
         style={{ maxWidth: DEVICE_WIDTHS[device] }}
         onClick={() => ctx.onSelect(null)}
       >

@@ -1,6 +1,7 @@
 'use client';
 
 import { ActionIcon, Button, Center, Group, SegmentedControl, Text, Tooltip } from '@mantine/core';
+import { scopeSiteCss, SITE_CSS_SCOPE_CLASS } from '../../../lib/renderer/scope-css';
 import {
   IconArrowLeft,
   IconDeviceDesktop,
@@ -112,10 +113,13 @@ export function PagePreview({
 
       <div className={classes.canvasScroll}>
         <div
-          className={`${classes.pageSurface} nv-site-root`}
+          className={`${classes.pageSurface} ${SITE_CSS_SCOPE_CLASS} nv-site-root`}
+          // See editor-canvas: the token stylesheet's prefers-color-scheme
+          // block must not leak the editor's OS theme into the preview.
+          data-nv-theme="light"
           style={{ maxWidth: DEVICE_WIDTHS[device] }}
         >
-          {css !== '' ? <style>{css}</style> : null}
+          {css !== '' ? <style>{scopeSiteCss(css)}</style> : null}
           <RenderTree
             tree={tree}
             blockInfo={blockInfo}

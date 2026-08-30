@@ -43,9 +43,29 @@ Permission resource: `style-book`.
 | POST   | /style-books/:id/publish | style-book:publish | sets PUBLISHED, increments version |
 | GET    | /style-books/:id/css     | style-book:read    | `text/css` body, see below         |
 
-The `/css` endpoint is the consumption surface for the rendering runtime; it must set `content-type: text/css` and bypass the JSON envelope. It always emits two blocks: `:root { --nv-<token>: <value>; }` with the light tokens, then `.nv-site-root:has(#nv-theme-toggle:checked) { --nv-<token>: <dark value>; }` with the dark tokens (see "Dark mode" above). The delivery module's public equivalent, `/public/sites/:slug/style.css`, renders the same two blocks from the same shared helper.
+The `/css` endpoint is the consumption surface for the rendering runtime; it must set `content-type: text/css` and bypass the JSON envelope. It emits three blocks (amended, see "Theme selection" below); a token map with no entries emits only an empty `:root {}` and no dark blocks at all:
 
-A block's header/footer template that carries the theme toggle checkbox (id `nv-theme-toggle`) must be a descendant of an ancestor carrying the `nv-site-root` class for the dark block's `:has()` selector to match; every surface that renders a full page (the public page, the Page Studio canvas, and Preview mode) applies that class to its root element.
+1. `:root { --nv-<token>: <value>; }` with the light tokens.
+2. `:root[data-nv-theme='dark'], .nv-site-root:has(#nv-theme-toggle:checked) { --nv-<token>: <dark value>; }` with the dark tokens. The attribute selector is the mechanism; the `:has()` selector is retained so a header block seeded with the original checkbox control keeps working without a re-seed.
+3. The same dark declarations again inside `@media (prefers-color-scheme: dark) { :root:not([data-nv-theme='light']) { ... } }`, so a visitor whose OS is dark gets a dark first paint even with JavaScript disabled, while an explicit light choice still wins.
+
+The delivery module's public equivalent, `/public/sites/:slug/style.css`, renders the same blocks from the same shared helper.
+
+Every surface that renders a full page (the public page, the Page Studio canvas, and Preview mode) applies the `nv-site-root` class to its root element. The two admin surfaces additionally rewrite `:root` onto their own scope class and stamp an explicit `data-nv-theme`, so the site's tokens never leak into the admin chrome and the editor's OS preference never repaints the page being edited (`apps/web/lib/renderer/scope-css.ts`).
+
+### Theme selection (amendment)
+
+The selected theme is a persisted attribute on the document, not DOM state of a control inside a block template. The earlier checkbox-only mechanism could not persist: every link a block renders is a plain anchor, so each click was a full document load that served the checkbox unchecked and reverted the site to light, and it ignored the visitor's OS preference entirely.
+
+- Source of truth: `data-nv-theme` on `<html>`, value `light` or `dark`.
+- Resolution order: the `neriva.theme` localStorage key, then `prefers-color-scheme`, then light.
+- Applied before first paint by a small inline script in the web root layout, so there is no flash of the wrong theme (`apps/web/lib/theme-script.ts`).
+- Made interactive by a runtime client component mounted on every published page, which owns the click handling and the persistence and keeps the seeded checkbox in sync (`apps/web/app/s/theme-sync.tsx`). Block templates are sanitized data and cannot carry script, so the handler cannot live in the block.
+- Namespaced away from Mantine, which owns `data-mantine-color-scheme` and the `mantine-color-scheme-value` key. The site theme and the admin chrome theme are independent by design.
+
+### Page ground (amendment)
+
+`color-background` is the page ground, distinct from `color-surface` (headers, hero sections, cards) so a dark token set can layer the two. `.nv-site-root` paints from `var(--nv-color-background, var(--nv-color-surface, #ffffff))`; the fallback chain lets a token set that predates `color-background` still darken. The page ground must never be inherited from `body`: the web app binds `body` to neutral tokens precisely so no admin chrome variable can pin a published page to a light canvas.
 
 ## Validation
 
@@ -54,5 +74,5 @@ A block's header/footer template that carries the theme toggle checkbox (id `nv-
 
 ## Tests
 
-- Unit: token map validation, CSS rendering (light + dark blocks, derivation, explicit override), in `apps/api/src/common/style-tokens.spec.ts`.
+- Unit: token map validation, CSS rendering (light + dark blocks, the attribute and `:has()` selectors, the `prefers-color-scheme` block, derivation, explicit override), in `apps/api/src/common/style-tokens.spec.ts`. Theme resolution and the inline init script in `apps/web/lib/theme-script.spec.ts`.
 - e2e: CRUD, publish increments version, /css output shape and content type (including the dark block), permission denied case.
