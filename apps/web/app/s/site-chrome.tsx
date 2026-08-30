@@ -1,9 +1,23 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { type ReactNode, useEffect, useState } from 'react';
-import { AdminShell } from '../../components/admin-shell';
 import { ApiError, me, type PublicUser } from '../../lib/api';
 import { getAccessToken } from '../../lib/auth-storage';
+
+// Loaded on demand, never for an anonymous visitor. A static import put the
+// whole admin rail (Mantine AppShell/Menu/Modal, the site page tree and ~30
+// tabler icons) into the client bundle of every published page, which is the
+// one bundle that must stay small: the render path below already discards it
+// when there is no session, so nothing was gained by shipping it eagerly.
+const AdminProviders = dynamic(
+  () => import('../../components/admin-providers').then((m) => m.AdminProviders),
+  { ssr: false },
+);
+
+const AdminShell = dynamic(() => import('../../components/admin-shell').then((m) => m.AdminShell), {
+  ssr: false,
+});
 
 // Wraps a published page with the real admin navigation, collapsed to an
 // icon rail, when the visitor is a signed-in admin (spec: the lateral menu
@@ -41,13 +55,15 @@ export function SiteChrome({
   }
 
   return (
-    <AdminShell
-      user={user}
-      editTarget={{ siteSlug, pagePath }}
-      storageNamespace="site"
-      paintBackground={false}
-    >
-      {children}
-    </AdminShell>
+    <AdminProviders>
+      <AdminShell
+        user={user}
+        editTarget={{ siteSlug, pagePath }}
+        storageNamespace="site"
+        paintBackground={false}
+      >
+        {children}
+      </AdminShell>
+    </AdminProviders>
   );
 }

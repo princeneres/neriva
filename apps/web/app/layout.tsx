@@ -1,23 +1,15 @@
-import '@mantine/core/styles.css';
-import '@mantine/notifications/styles.css';
 import './globals.css';
-import { ColorSchemeScript, MantineProvider, mantineHtmlProps } from '@mantine/core';
-import { ModalsProvider } from '@mantine/modals';
-import { Notifications } from '@mantine/notifications';
+import { ColorSchemeScript, mantineHtmlProps } from '@mantine/core';
 import type { Metadata } from 'next';
-import { Inter, JetBrains_Mono } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import type { ReactNode } from 'react';
-import { theme } from '../lib/theme';
+import { THEME_INIT_SCRIPT } from '../lib/theme-script';
 
 // Single minimalist family: Inter for headings and body (user preference),
 // with tighter tracking on display sizes handled by the Mantine theme.
-const display = Inter({ subsets: ['latin'], variable: '--font-display' });
+// --font-display is an alias of the same face (see globals.css) rather than a
+// second next/font instance, which only emitted duplicate @font-face CSS.
 const body = Inter({ subsets: ['latin'], variable: '--font-body' });
-const mono = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-mono',
-  weight: ['400', '500'],
-});
 
 export const metadata: Metadata = {
   title: 'Neriva',
@@ -31,19 +23,17 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       {...mantineHtmlProps}
       // Font variables must live on <html>: Mantine's --mantine-font-family
       // is declared at :root and var() inside it resolves there.
-      className={`${display.variable} ${body.variable} ${mono.variable}`}
+      className={body.variable}
     >
       <head>
         <ColorSchemeScript defaultColorScheme="light" />
+        {/* Resolves the site's light/dark choice into data-nv-theme before
+            first paint, so a dark visitor never sees a white flash. Separate
+            from Mantine's scheme on purpose: this one is the Style Book token
+            layer for published pages, Mantine's is the admin chrome. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body>
-        <MantineProvider theme={theme} defaultColorScheme="light">
-          <ModalsProvider>
-            <Notifications position="bottom-right" />
-            {children}
-          </ModalsProvider>
-        </MantineProvider>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

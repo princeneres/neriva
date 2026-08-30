@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useEffect, useState } from 'react';
+import { AdminProviders } from '../../components/admin-providers';
 import { AdminShell } from '../../components/admin-shell';
 import { ApiError, me, type PublicUser } from '../../lib/api';
 import { clearTokens } from '../../lib/auth-storage';
@@ -40,8 +41,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AdminShell user={user} storageNamespace="admin">
-      {children}
-    </AdminShell>
+    <AdminProviders>
+      <AdminShell user={user} storageNamespace="admin">
+        {children}
+      </AdminShell>
+    </AdminProviders>
   );
 }
