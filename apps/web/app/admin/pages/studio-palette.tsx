@@ -133,7 +133,7 @@ export function StudioPalette({
             <Skeleton height={44} radius="md" />
           </Stack>
         ) : filtered.length === 0 ? (
-          <Text size="xs" c="slate.4" py="sm" ta="center">
+          <Text size="xs" c="slate.5" py="sm" ta="center">
             {blocks.length === 0
               ? 'No blocks yet. Create some in the Blocks section first.'
               : 'No blocks match your search.'}
@@ -142,7 +142,7 @@ export function StudioPalette({
           <Stack gap="sm">
             {groups.map(([category, items]) => (
               <Box key={category}>
-                <Text size="xs" fw={700} tt="uppercase" c="slate.4" lts="0.05em" mb={4}>
+                <Text size="xs" fw={700} tt="uppercase" c="slate.5" lts="0.05em" mb={4}>
                   {category.charAt(0).toUpperCase() + category.slice(1)}
                 </Text>
                 <Stack gap={6}>
@@ -202,7 +202,7 @@ function PaletteItem({ block, onAdd }: { block: Block; onAdd: (block: Block) => 
                 {block.category}
               </Badge>
             ) : null}
-            <Text size="xs" c="slate.4">
+            <Text size="xs" c="slate.5">
               {block.slots.length === 0
                 ? 'No slots'
                 : `${block.slots.length} slot${block.slots.length === 1 ? '' : 's'}`}

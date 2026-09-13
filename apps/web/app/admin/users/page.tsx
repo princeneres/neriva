@@ -158,7 +158,7 @@ export default function UsersPage() {
                       <Text size="sm" fw={600} truncate>
                         {user.displayName}
                       </Text>
-                      <Text size="xs" c="slate.4" truncate>
+                      <Text size="xs" c="slate.5" truncate>
                         {user.email}
                       </Text>
                     </Box>

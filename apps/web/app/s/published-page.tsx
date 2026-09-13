@@ -1,6 +1,7 @@
 import type { PublicPageData } from '../../lib/delivery';
 import { RenderTree } from '../../lib/renderer/render-tree';
 import { SiteChrome } from './site-chrome';
+import { ThemeSync } from './theme-sync';
 
 function safeDecode(segment: string): string {
   try {
@@ -30,9 +31,28 @@ export function pagePathFromSegments(segments?: string[]): string {
 // matching on a descendant covers both. Long pages are unaffected: with no
 // leftover space, margin-top: auto is zero.
 const LAYOUT_CSS = [
-  '.nv-site-root { display: flex; flex-direction: column; min-height: 100vh; }',
+  // The page ground is painted here, from the Style Book, and not by `body`:
+  // globals.css binds body to Mantine's --mantine-color-body, which the site's
+  // light/dark toggle cannot reach, so a dark page used to keep a white canvas
+  // and render near-white text on it. color-background is preferred when the
+  // Style Book defines it, with color-surface as the fallback so a token set
+  // that predates it still darkens. Do not add a --nv-color-background default
+  // to packages/ui/src/tokens.css: a var() fallback only applies to a property
+  // that is undefined, so a global light default there would shadow the Style
+  // Book's dark color-surface and pin the ground white again.
+  '.nv-site-root { display: flex; flex-direction: column; min-height: 100vh;' +
+    ' background: var(--nv-color-background, var(--nv-color-surface, #ffffff));' +
+    ' color: var(--nv-color-text, #1a1917); }',
   '.nv-site-root > main { display: flex; flex-direction: column; flex: 1 1 auto; }',
   '.nv-site-root > main > *:has(.nv-pin-bottom):not(:has(.nv-pin-after-content)) { margin-top: auto; }',
+  // The seeded theme control hides its checkbox as a 1px transparent box, so
+  // the browser drew the focus ring on something invisible: keyboard users lost
+  // focus for one tab stop on every page (WCAG 2.4.7). Lives here rather than
+  // in the block CSS because the block seed only inserts, never updates, so a
+  // fix in the seed would never reach an existing install.
+  '.nv-site-root .nv-theme-toggle-label:has(.nv-theme-toggle-input:focus-visible),' +
+    ' .nv-site-root [data-nv-theme-toggle]:focus-visible' +
+    ' { outline: 2px solid var(--nv-color-primary, #cc3d47); outline-offset: 2px; }',
 ].join('\n');
 
 // Shared rendering of a published page, used by /s/<slug>/... and by the
@@ -47,6 +67,7 @@ export function PublishedPage({ data, css }: { data: PublicPageData; css: string
           must wrap every block, including the footer. The site footer is the
           page's own nv-footer block, so the runtime adds no footer of its
           own. */}
+      <ThemeSync />
       <div className="nv-site-root">
         <main>
           <RenderTree

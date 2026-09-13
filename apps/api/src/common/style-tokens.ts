@@ -42,11 +42,27 @@ function deriveDarkValue(name: string, lightValue: string): string {
 }
 
 // Names are sorted so the output is deterministic: jsonb does not preserve
-// insertion order. Emits the light tokens on :root and a dark variant gated
-// behind :has(#nv-theme-toggle:checked) on the nearest .nv-site-root
-// ancestor (spec 06 dark-mode amendment): a header block's toggle checkbox
-// is a descendant of that element, and :has() lets the override reach
-// upward to it without any script.
+// insertion order.
+//
+// Three blocks are emitted (spec 06 dark-mode amendment):
+//   1. the light tokens on :root;
+//   2. the dark tokens for an explicit dark choice. Two selectors carry it: the
+//      persisted [data-nv-theme='dark'] attribute the runtime stamps on the
+//      document before first paint, and the legacy
+//      :has(#nv-theme-toggle:checked) form, kept so a header block that was
+//      seeded with the checkbox control keeps working without a re-seed;
+//   3. the dark tokens under prefers-color-scheme, excluding an explicit
+//      'light' choice, so a visitor whose OS is dark gets a dark first paint
+//      even with JavaScript disabled.
+//
+// The Page Studio canvas rewrites ':root' onto its own surface class, so the
+// attribute selectors resolve against the canvas element there and the same
+// stylesheet drives editing, preview and production.
+const DARK_SELECTORS = [
+  ":root[data-nv-theme='dark']",
+  '.nv-site-root:has(#nv-theme-toggle:checked)',
+].join(',\n');
+
 export function renderTokensCss(
   tokens: Record<string, string>,
   tokensDark?: Record<string, string> | null,
@@ -60,8 +76,14 @@ export function renderTokensCss(
     const value = tokensDark?.[name] ?? deriveDarkValue(name, tokens[name] as string);
     return `  --nv-${name}: ${value};`;
   });
+  const dark = darkLines.join('\n');
+  // Indented one level for the media query copy.
+  const darkIndented = darkLines.map((line) => `  ${line}`).join('\n');
   return (
     `:root {\n${lightLines.join('\n')}\n}\n` +
-    `.nv-site-root:has(#nv-theme-toggle:checked) {\n${darkLines.join('\n')}\n}\n`
+    `${DARK_SELECTORS} {\n${dark}\n}\n` +
+    '@media (prefers-color-scheme: dark) {\n' +
+    `  :root:not([data-nv-theme='light']) {\n${darkIndented}\n  }\n` +
+    '}\n'
   );
 }

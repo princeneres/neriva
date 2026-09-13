@@ -56,12 +56,18 @@
 }
 
 .pageSurface {
-  background: white;
+  /* Painted from the Style Book, like the live page: the canvas carries
+     nv-site-root and the scoped token stylesheet, so a hardcoded white here
+     reproduced the white-canvas bug the runtime just stopped having. */
+  background: var(--nv-color-background, var(--nv-color-surface, #fff));
+  color: var(--nv-color-text, #1a1917);
   margin: 0 auto;
   min-height: 70vh;
   box-shadow: var(--mantine-shadow-sm);
   border: 1px solid var(--mantine-color-slate-2);
-  transition: max-width 200ms ease;
+  /* No max-width transition: the device switch is a discrete mode change, and
+     animating it relayouts and repaints the whole rendered page twelve times
+     over 200ms for motion nobody asked for. */
 }
 
 .inspector {

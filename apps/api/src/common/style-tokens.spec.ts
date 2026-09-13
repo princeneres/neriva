@@ -28,7 +28,7 @@ describe('renderTokensCss', () => {
       'space-4': '1rem',
     });
     expect(css).toContain(
-      '.nv-site-root:has(#nv-theme-toggle:checked) {\n' +
+      ":root[data-nv-theme='dark'],\n.nv-site-root:has(#nv-theme-toggle:checked) {\n" +
         '  --nv-color-primary: #cc3d47;\n' +
         '  --nv-color-surface: #18181b;\n' +
         '  --nv-color-text: #f4f3f1;\n' +
@@ -65,7 +65,7 @@ describe('renderTokensCss', () => {
       'background-position': 'center',
     });
     expect(css).toContain(
-      '.nv-site-root:has(#nv-theme-toggle:checked) {\n' +
+      ":root[data-nv-theme='dark'],\n.nv-site-root:has(#nv-theme-toggle:checked) {\n" +
         '  --nv-background-position: center;\n' +
         '  --nv-border-width: 2px;\n' +
         '  --nv-text-indent: 1rem;\n' +
@@ -77,5 +77,32 @@ describe('renderTokensCss', () => {
     const css = renderTokensCss({ 'color-border': '#e5e3df', 'color-text': '#1a1917' });
     expect(css).toContain('--nv-color-border: rgba(255, 255, 255, 0.12);');
     expect(css).toContain('--nv-color-text: #f4f3f1;');
+  });
+
+  it('emits the dark tokens for the persisted attribute as well as the legacy checkbox selector', () => {
+    const css = renderTokensCss({ 'color-surface': '#faf9f7' });
+    // The attribute is what the runtime stamps before first paint; the
+    // :has() form is kept so a header block seeded with the checkbox control
+    // keeps working without a re-seed.
+    expect(css).toContain(
+      ":root[data-nv-theme='dark'],\n.nv-site-root:has(#nv-theme-toggle:checked) {",
+    );
+  });
+
+  it('repeats the dark tokens under prefers-color-scheme, excluding an explicit light choice', () => {
+    const css = renderTokensCss({ 'color-surface': '#faf9f7' });
+    expect(css).toContain(
+      '@media (prefers-color-scheme: dark) {\n' +
+        "  :root:not([data-nv-theme='light']) {\n" +
+        '    --nv-color-surface: #18181b;\n' +
+        '  }\n' +
+        '}\n',
+    );
+  });
+
+  it('emits no dark blocks at all for an empty token map', () => {
+    const css = renderTokensCss({});
+    expect(css).not.toContain('data-nv-theme');
+    expect(css).not.toContain('prefers-color-scheme');
   });
 });

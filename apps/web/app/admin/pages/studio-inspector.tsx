@@ -120,7 +120,7 @@ function PagePanel({
         <Text size="xs" fw={700} tt="uppercase" c="slate.5" lts="0.05em">
           Page
         </Text>
-        <Text size="xs" c="slate.4">
+        <Text size="xs" c="slate.5">
           Click a block on the page to edit it here.
         </Text>
       </Box>
@@ -152,10 +152,10 @@ function PagePanel({
         </Text>
       </Box>
       <Box>
-        <Text size="xs" c="slate.4">
+        <Text size="xs" c="slate.5">
           ID <Code>{pageMeta.id}</Code>
         </Text>
-        <Text size="xs" c="slate.4" mt={2}>
+        <Text size="xs" c="slate.5" mt={2}>
           Reference <Code>{pageMeta.externalReferenceCode}</Code>
         </Text>
       </Box>

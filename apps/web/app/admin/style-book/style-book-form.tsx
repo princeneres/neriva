@@ -194,7 +194,7 @@ export function StyleBookForm({
             {groups.map((group, groupIndex) => (
               <Box key={group.key}>
                 {groupIndex > 0 ? <Divider mb="md" color="slate.1" /> : null}
-                <Text size="xs" fw={700} tt="uppercase" c="slate.4" lts="0.06em" mb={6}>
+                <Text size="xs" fw={700} tt="uppercase" c="slate.5" lts="0.06em" mb={6}>
                   {group.label}
                 </Text>
                 <Stack gap="xs">

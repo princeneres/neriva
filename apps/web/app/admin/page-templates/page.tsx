@@ -169,7 +169,7 @@ export default function PageTemplatesPage() {
                 <Text size="xs" fw={600} c="slate.5" tt="uppercase" lts={0.5}>
                   {group.label}
                 </Text>
-                <Text size="xs" c="slate.4">
+                <Text size="xs" c="slate.5">
                   {group.description}
                 </Text>
               </Group>

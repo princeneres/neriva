@@ -1,12 +1,33 @@
 @import '@neriva/ui/tokens.css';
 
+:root {
+  /* Display and body are the same face (see app/layout.tsx); the alias keeps
+     the two token names that the theme and the logo already reference. */
+  --font-display: var(--font-body);
+}
+
 body {
   margin: 0;
   font-family: var(--font-body), var(--nv-font-sans);
-  /* Admin chrome follows the light/dark toggle; published pages paint their
-     own backgrounds from the site's Style Book at the block level. */
-  background: var(--mantine-color-body);
-  color: var(--mantine-color-text);
+  /* A neutral ground only. The admin paints its own surface in AdminProviders
+     and a published page paints its own from the Style Book on .nv-site-root,
+     so body must not carry either theme: binding it to Mantine's
+     --mantine-color-body pinned every published page to a white canvas that
+     the site's dark toggle could not reach. */
+  background: var(--nv-color-neutral-0);
+  color: var(--nv-color-neutral-900);
+}
+
+:root[data-nv-theme='dark'] body {
+  /* Only visible outside the page surface (overscroll, short viewports). */
+  background: var(--nv-color-neutral-900);
+  color: var(--nv-color-neutral-0);
+}
+
+/* Scoped to the published page so the admin keeps its own scheme: makes
+   scrollbars and native form controls inside a dark site render dark. */
+:root[data-nv-theme='dark'] .nv-site-root {
+  color-scheme: dark;
 }
 
 a {

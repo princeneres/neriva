@@ -108,7 +108,7 @@ export function BlockPickerModal({
                       {block.description}
                     </Text>
                   ) : null}
-                  <Text size="xs" c="slate.4" mt={4}>
+                  <Text size="xs" c="slate.5" mt={4}>
                     {block.slots.length > 0
                       ? `Has spaces for nested blocks: ${block.slots.map((slot) => slot.name).join(', ')}`
                       : 'Does not nest other blocks'}

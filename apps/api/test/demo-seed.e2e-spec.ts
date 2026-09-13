@@ -208,6 +208,7 @@ describe('demo content seed (e2e)', () => {
     expect(data.status).toBe('PUBLISHED');
     expect(data.tokens).toEqual({
       'color-primary': '#cc3d47',
+      'color-background': '#ffffff',
       'color-surface': '#faf9f7',
       'color-surface-alt': '#f1efec',
       'color-text': '#1a1917',
