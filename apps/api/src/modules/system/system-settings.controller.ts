@@ -7,7 +7,11 @@ import { CurrentUser } from '../auth/auth.decorators';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { RequirePermission } from '../roles/require-permission.decorator';
 import { SystemSettingDto, UpsertSystemSettingDto } from './dto/system-settings.dto';
-import { SystemSettingsService, type SystemSettingRow } from './system-settings.service';
+import {
+  SystemSettingsService,
+  toSystemSettingResponse,
+  type SystemSettingResponse,
+} from './system-settings.service';
 
 const KEY_PARAM = {
   name: 'key',
@@ -26,9 +30,12 @@ export class SystemSettingsController {
   async list(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: ListQueryDto,
-  ): Promise<{ data: SystemSettingRow[]; meta: { cursor: string | null; limit: number } }> {
+  ): Promise<{ data: SystemSettingResponse[]; meta: { cursor: string | null; limit: number } }> {
     const page = await this.settingsService.list(user.tenantId, query);
-    return { data: page.items, meta: { cursor: page.nextCursor, limit: page.limit } };
+    return {
+      data: page.items.map(toSystemSettingResponse),
+      meta: { cursor: page.nextCursor, limit: page.limit },
+    };
   }
 
   @Get(':key')
@@ -38,8 +45,10 @@ export class SystemSettingsController {
   async get(
     @CurrentUser() user: AuthenticatedUser,
     @Param('key') key: string,
-  ): Promise<{ data: SystemSettingRow }> {
-    return { data: await this.settingsService.getByKey(user.tenantId, key) };
+  ): Promise<{ data: SystemSettingResponse }> {
+    return {
+      data: toSystemSettingResponse(await this.settingsService.getByKey(user.tenantId, key)),
+    };
   }
 
   @Put(':key')
@@ -52,7 +61,7 @@ export class SystemSettingsController {
     @Param('key') key: string,
     @Body() dto: UpsertSystemSettingDto,
     @Res({ passthrough: true }) reply: FastifyReply,
-  ): Promise<{ data: SystemSettingRow }> {
+  ): Promise<{ data: SystemSettingResponse }> {
     const { setting, created } = await this.settingsService.upsert(
       user.tenantId,
       user.id,
@@ -60,7 +69,7 @@ export class SystemSettingsController {
       dto.value,
     );
     void reply.status(created ? 201 : 200);
-    return { data: setting };
+    return { data: toSystemSettingResponse(setting) };
   }
 
   @Delete(':key')

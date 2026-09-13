@@ -39,14 +39,14 @@ Unique indexes: `(tenant_id, external_reference_code)`, `(site_id, path)`.
 
 Permission resource: `page`.
 
-| Method | Path                  | Permission   | Notes                                                             |
-| ------ | --------------------- | ------------ | ----------------------------------------------------------------- |
-| GET    | /sites/:siteRef/pages | page:read    | pages of a site, cursor pagination                                |
-| POST   | /sites/:siteRef/pages | page:create  | 201; accepts `templateId` and `masterPageTemplateId`, see spec 14 |
-| GET    | /pages/:id            | page:read    | returns the full tree and the page's own `masterPageTemplateId`   |
-| PATCH  | /pages/:id            | page:update  | title, path, tree, `masterPageTemplateId`                         |
-| DELETE | /pages/:id            | page:delete  | 204                                                               |
-| POST   | /pages/:id/publish    | page:publish | validates the whole tree, sets PUBLISHED                          |
+| Method | Path                  | Permission   | Notes                                                                                               |
+| ------ | --------------------- | ------------ | --------------------------------------------------------------------------------------------------- |
+| GET    | /sites/:siteRef/pages | page:read    | pages of a site, cursor pagination                                                                  |
+| POST   | /sites/:siteRef/pages | page:create  | 201; accepts `templateId` and `masterPageTemplateId`, see spec 14                                   |
+| GET    | /pages/:id            | page:read    | returns the full tree and the page's own `masterPageTemplateId`                                     |
+| PATCH  | /pages/:id            | page:update  | title, path, tree, `masterPageTemplateId`; optional `expectedUpdatedAt` returns 409 for stale edits |
+| DELETE | /pages/:id            | page:delete  | 204                                                                                                 |
+| POST   | /pages/:id/publish    | page:publish | validates the whole tree, sets PUBLISHED                                                            |
 
 Spec 14 amendment: `POST /sites/:siteRef/pages` also accepts an optional create-only `templateId` (a STANDARD page template ref whose tree is copied once as the initial tree) and an optional `masterPageTemplateId` (a MASTER page template ref, PATCH-able afterwards). `GET /pages/:id` returns the page's own `masterPageTemplateId`, or null when it relies on the tenant default; delivery composes the effective master separately (spec 10, spec 14).
 

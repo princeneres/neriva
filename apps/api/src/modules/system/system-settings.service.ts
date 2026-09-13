@@ -6,6 +6,25 @@ import { systemSettings } from '../../db/schema';
 import { TenantScopedRepository, type CursorPage } from '../../db/tenant-scoped.repository';
 
 export type SystemSettingRow = InferSelectModel<typeof systemSettings>;
+export type SystemSettingResponse = Omit<SystemSettingRow, 'value'> & {
+  value: unknown | null;
+  isSensitive: boolean;
+};
+
+const SENSITIVE_SETTING_KEY_PATTERN = /(?:password|secret|token|api-key|private-key)$/i;
+
+export function isSensitiveSettingKey(key: string): boolean {
+  return SENSITIVE_SETTING_KEY_PATTERN.test(key);
+}
+
+export function toSystemSettingResponse(row: SystemSettingRow): SystemSettingResponse {
+  const isSensitive = isSensitiveSettingKey(row.key);
+  return {
+    ...row,
+    value: isSensitive ? null : row.value,
+    isSensitive,
+  };
+}
 
 // Spec 07: keys are lowercase, dot/dash separated, start with a letter.
 const SETTING_KEY_PATTERN = /^[a-z][a-z0-9.-]*$/;

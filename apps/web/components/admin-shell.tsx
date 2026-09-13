@@ -34,7 +34,6 @@ import {
   IconPhoto,
   IconSettings,
   IconShieldLock,
-  IconTrash,
   IconUsers,
   IconWorld,
 } from '@tabler/icons-react';
@@ -130,12 +129,6 @@ const NAV_GROUPS: {
         href: '/admin/settings',
         icon: IconSettings,
         help: 'System configuration such as SMTP and site metadata',
-      },
-      {
-        label: 'Trash',
-        href: '/admin/trash',
-        icon: IconTrash,
-        help: 'Deleted content, kept here until restored or permanently deleted',
       },
     ],
   },

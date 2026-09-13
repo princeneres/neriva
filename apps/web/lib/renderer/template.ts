@@ -32,6 +32,7 @@ export interface RenderTemplateInput {
   // Undefined (not fetched, e.g. a bare block preview) keeps the template's
   // authored placeholder links; an empty array renders no links at all.
   sitePages?: NavPage[];
+  siteBasePath?: string;
 }
 
 export interface RenderTemplateResult {
@@ -320,12 +321,16 @@ function renderEmbed(value: unknown, className: string | undefined): string {
 // of links, so a header/footer block gets real, current navigation without
 // any script: the render call site (delivery, the studio canvas, the block
 // preview) supplies the list, the template only marks where it goes.
-export function renderNavList(pages: NavPage[] | undefined): string {
+export function renderNavList(pages: NavPage[] | undefined, siteBasePath = ''): string {
   if (!pages) {
     return '';
   }
+  const prefix = siteBasePath === '/' ? '' : siteBasePath.replace(/\/$/, '');
   return pages
-    .map((page) => `<a href="${escapeHtml(page.path)}">${escapeHtml(page.title)}</a>`)
+    .map((page) => {
+      const path = page.path === '/' ? prefix || '/' : `${prefix}${page.path}`;
+      return `<a href="${escapeHtml(path)}">${escapeHtml(page.title)}</a>`;
+    })
     .join('');
 }
 
@@ -381,6 +386,7 @@ function applyBindings(
   html: string,
   props: Record<string, unknown>,
   sitePages: NavPage[] | undefined,
+  siteBasePath: string,
 ): string {
   let out = '';
   let cursor = 0;
@@ -432,7 +438,7 @@ function applyBindings(
       } else if (binding.rich !== undefined && binding.rich in props) {
         inner = sanitizeRich(props[binding.rich]);
       } else if (binding.nav !== undefined && sitePages !== undefined) {
-        inner = renderNavList(sitePages);
+        inner = renderNavList(sitePages, siteBasePath);
       }
       out += inner + span.closeText;
     }
@@ -841,7 +847,12 @@ function filterUndeclaredSlots(nodes: TemplateNode[], declared: string[]): Templ
 // slot tree and scope the css to the block wrapper.
 export function renderTemplate(input: RenderTemplateInput): RenderTemplateResult {
   const props = input.props ?? {};
-  const bound = applyBindings(interpolate(input.html, props), props, input.sitePages);
+  const bound = applyBindings(
+    interpolate(input.html, props),
+    props,
+    input.sitePages,
+    input.siteBasePath ?? '',
+  );
   const nodes = buildTemplateTree(bound);
   const declared = input.slots;
   return {

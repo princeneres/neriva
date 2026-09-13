@@ -41,14 +41,14 @@ A pure function (shared by delivery and any other server-side render path), give
 
 Permission resource: `page-template` (read/create/update/delete). Publishing does not apply (templates aren't a lifecycle; they are always "live" the moment they validate).
 
-| Method | Path                            | Permission           | Notes                                                                                                |
-| ------ | ------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------- |
-| GET    | /page-templates                 | page-template:read   | cursor pagination; `?kind=MASTER\|STANDARD` filter; response includes `isDefault`                    |
-| GET    | /page-templates/:id             | page-template:read   | UUID or `erc:<code>`                                                                                 |
-| POST   | /page-templates                 | page-template:create | 201; tree defaults to `{blocks:[]}` for STANDARD, to a single drop-zone node for MASTER when omitted |
-| PATCH  | /page-templates/:id             | page-template:update | name, tree (re-validated per kind); does not accept `isDefault`                                      |
-| POST   | /page-templates/:id/set-default | page-template:update | marks a MASTER template as the tenant default, unsetting the previous one; 400 on a non-MASTER id    |
-| DELETE | /page-templates/:id             | page-template:delete | 409 if any page currently sets it as `masterPageTemplateId`                                          |
+| Method | Path                            | Permission           | Notes                                                                                                                  |
+| ------ | ------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| GET    | /page-templates                 | page-template:read   | cursor pagination; `?kind=MASTER\|STANDARD` filter; response includes `isDefault`                                      |
+| GET    | /page-templates/:id             | page-template:read   | UUID or `erc:<code>`                                                                                                   |
+| POST   | /page-templates                 | page-template:create | 201; tree defaults to `{blocks:[]}` for STANDARD, to a single drop-zone node for MASTER when omitted                   |
+| PATCH  | /page-templates/:id             | page-template:update | name, tree (re-validated per kind), optional `expectedUpdatedAt` for stale-edit detection; does not accept `isDefault` |
+| POST   | /page-templates/:id/set-default | page-template:update | marks a MASTER template as the tenant default, unsetting the previous one; 400 on a non-MASTER id                      |
+| DELETE | /page-templates/:id             | page-template:delete | 409 if any page currently sets it as `masterPageTemplateId`                                                            |
 
 Pages API additions (spec 03 amendment):
 

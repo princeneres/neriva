@@ -1680,6 +1680,15 @@ paths:
           description: ""
       tags:
         - Health
+  /health/ready:
+    get:
+      operationId: HealthController_ready
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags:
+        - Health
   /system/settings:
     get:
       operationId: SystemSettingsController_list
@@ -3068,6 +3077,10 @@ components:
     UpdatePageTemplateDto:
       type: object
       properties:
+        expectedUpdatedAt:
+          type: string
+          format: date-time
+          description: The updatedAt value returned when the template was loaded
         name:
           type: string
           maxLength: 255
@@ -3193,6 +3206,10 @@ components:
     UpdatePageDto:
       type: object
       properties:
+        expectedUpdatedAt:
+          type: string
+          format: date-time
+          description: The updatedAt value returned when the page was loaded
         title:
           type: string
           maxLength: 255
@@ -3564,6 +3581,10 @@ components:
     UpdateContentEntryDto:
       type: object
       properties:
+        expectedUpdatedAt:
+          type: string
+          format: date-time
+          description: The updatedAt value returned when the entry was loaded
         title:
           type: string
           maxLength: 255
@@ -3759,8 +3780,13 @@ components:
           example: site.name
           description: Unique per tenant, pattern ^[a-z][a-z0-9.-]*$
         value:
-          type: object
-          description: Any JSON value
+          type:
+            - object
+            - "null"
+          description: Any JSON value. Null when the setting is sensitive.
+        isSensitive:
+          type: boolean
+          description: Whether the value is redacted from API responses.
       required:
         - id
         - externalReferenceCode
@@ -3770,6 +3796,7 @@ components:
         - createdBy
         - key
         - value
+        - isSensitive
     UpsertSystemSettingDto:
       type: object
       properties:

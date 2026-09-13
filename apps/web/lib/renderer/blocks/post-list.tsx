@@ -167,7 +167,13 @@ export function PostList({ props, siteSlug }: BlockRenderProps) {
                 {image !== null ? (
                   // Arbitrary CMS-authored URLs: next/image would need a
                   // remote-pattern entry per deployment.
-                  <img className="nv-post-card-image" src={image} alt="" />
+                  <img
+                    className="nv-post-card-image"
+                    src={image}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                  />
                 ) : null}
                 <div className="nv-post-card-body">
                   {date !== null ? <span className="nv-post-card-date">{date}</span> : null}

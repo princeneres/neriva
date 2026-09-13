@@ -1,13 +1,15 @@
 # Production-shaped stack: one Postgres, one API container, one web container.
 # Usage:
-#   JWT_ACCESS_SECRET=<random> docker compose -f docker-compose.prod.yml up -d --build
+#   POSTGRES_PASSWORD=<random> JWT_ACCESS_SECRET=<random> \
+#   WEB_ORIGIN=https://cms.example.com NEXT_PUBLIC_API_URL=https://api.example.com \
+#   docker compose -f docker-compose.prod.yml up -d --build
 services:
   postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: neriva
       POSTGRES_USER: neriva
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-neriva}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
     volumes:
       - pgdata-prod:/var/lib/postgresql/data
     healthcheck:
@@ -22,17 +24,28 @@ services:
       target: api
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgres://neriva:${POSTGRES_PASSWORD:-neriva}@postgres:5432/neriva
+      DATABASE_URL: postgres://neriva:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/neriva
       RUN_MIGRATIONS: 'true'
+      SEED_DEMO: 'false'
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET}
+      NERIVA_INITIAL_ADMIN_PASSWORD: ${NERIVA_INITIAL_ADMIN_PASSWORD:?set NERIVA_INITIAL_ADMIN_PASSWORD}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-30d}
-      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      WEB_ORIGIN: ${WEB_ORIGIN:?set WEB_ORIGIN}
       MEDIA_STORAGE_DIR: /data/uploads
     volumes:
       - media-uploads:/data/uploads
     ports:
       - '3001:3001'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:3001/health/ready'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     depends_on:
       postgres:
         condition: service_healthy
@@ -42,11 +55,21 @@ services:
       context: .
       target: web
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL}
     ports:
       - '3000:3000'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:3000'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   pgdata-prod:

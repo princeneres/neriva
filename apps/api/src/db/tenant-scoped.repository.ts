@@ -115,6 +115,22 @@ export class TenantScopedRepository<TTable extends EnvelopeTable> {
     return rows[0] ?? null;
   }
 
+  // Compare-and-set update for editors. The timestamp is returned by every
+  // entity response, so API clients can prevent an older draft from silently
+  // overwriting a newer one.
+  async updateByIdIfUnmodified(
+    id: string,
+    expectedUpdatedAt: Date,
+    values: Partial<Omit<InferInsertModel<TTable>, 'id' | 'tenantId'>>,
+  ): Promise<InferSelectModel<TTable> | null> {
+    const rows = (await this.db
+      .update(this.table)
+      .set({ ...values, updatedAt: new Date() } as PgUpdateSetSource<TTable>)
+      .where(this.scoped(and(eq(this.table.id, id), eq(this.table.updatedAt, expectedUpdatedAt))))
+      .returning()) as InferSelectModel<TTable>[];
+    return rows[0] ?? null;
+  }
+
   async deleteById(id: string): Promise<boolean> {
     const rows = await this.db
       .delete(this.table)

@@ -25,9 +25,13 @@ export class AbilityFactory {
 
     const { can, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
     for (const grant of grants) {
-      // '*' wildcards map to CASL's manage/all keywords. Site-scoped grants
-      // (siteId set) will become CASL conditions when site-aware resources
-      // land in Phase B; until then they behave tenant-wide.
+      // Site-scoped grants are intentionally fail-closed until the request
+      // guard has a resource-aware site context. Treating them as tenant-wide
+      // would turn a narrow grant into a privilege escalation.
+      if (grant.siteId !== null) {
+        continue;
+      }
+      // '*' wildcards map to CASL's manage/all keywords.
       can(
         grant.action === '*' ? 'manage' : grant.action,
         grant.resourceType === '*' ? 'all' : grant.resourceType,

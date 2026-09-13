@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm';
+import { and, eq, sql, type InferSelectModel } from 'drizzle-orm';
 import { isUniqueViolation } from '../../common/pg-errors';
 import { DB, type Database } from '../../db/database';
 import { styleBooks } from '../../db/schema';
@@ -117,15 +117,14 @@ export class StylebookService {
 
   async publish(tenantId: string, ref: string): Promise<StyleBookRow> {
     const existing = await this.getByRef(tenantId, ref);
-    // Explicitly typed variable: tsc cannot run the weak-type overlap check
-    // against the repository's generic update parameter and rejects fresh
-    // literals here.
-    const values: Partial<Omit<InferInsertModel<typeof styleBooks>, 'id' | 'tenantId'>> = {
-      status: 'PUBLISHED',
-      version: existing.version + 1,
-    };
-    const updated = await this.repo(tenantId).updateById(existing.id, values);
-    return updated ?? existing;
+    // Increment in SQL so concurrent publishes cannot both write the same
+    // version calculated from a stale in-memory row.
+    const rows = await this.db
+      .update(styleBooks)
+      .set({ status: 'PUBLISHED', version: sql`${styleBooks.version} + 1`, updatedAt: new Date() })
+      .where(and(eq(styleBooks.tenantId, tenantId), eq(styleBooks.id, existing.id)))
+      .returning();
+    return rows[0] ?? existing;
   }
 
   async renderCssByRef(tenantId: string, ref: string): Promise<string> {

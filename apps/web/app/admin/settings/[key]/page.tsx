@@ -32,7 +32,9 @@ function EditSettingForm({ setting }: { setting: SystemSetting }) {
   const [busy, setBusy] = useState(false);
 
   const form = useForm({
-    initialValues: { value: JSON.stringify(setting.value, null, 2) },
+    initialValues: {
+      value: setting.isSensitive ? '' : JSON.stringify(setting.value, null, 2),
+    },
     validate: {
       value: (value) => (value.trim() === '' ? 'Value is required' : null),
     },
@@ -81,7 +83,11 @@ function EditSettingForm({ setting }: { setting: SystemSetting }) {
                 <HelpTip label="What the setting holds. It can be a single piece of text or a number, or a whole group of related values." />
               </>
             }
-            description={VALUE_DESCRIPTION}
+            description={
+              setting.isSensitive
+                ? 'This value is stored securely and is not returned by the API. Enter a replacement value to update it.'
+                : VALUE_DESCRIPTION
+            }
             validationError="Not valid JSON on its own, so it will be saved as plain text"
             autosize
             minRows={8}

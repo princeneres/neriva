@@ -16,5 +16,6 @@ describe('parseEntityRef', () => {
   it('rejects non-uuid, non-erc input', () => {
     expect(() => parseEntityRef('123')).toThrow(BadRequestException);
     expect(() => parseEntityRef('erc:')).toThrow(BadRequestException);
+    expect(() => parseEntityRef('erc:%')).toThrow(BadRequestException);
   });
 });

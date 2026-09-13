@@ -1,5 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsObject, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import {
+  IsDateString,
+  IsNotEmpty,
+  IsObject,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 
 export const PAGE_PATH_PATTERN = /^\/[a-z0-9/-]*$/;
 
@@ -72,6 +80,14 @@ export class CreatePageDto {
 }
 
 export class UpdatePageDto {
+  @ApiPropertyOptional({
+    format: 'date-time',
+    description: 'The updatedAt value returned when the page was loaded',
+  })
+  @IsOptional()
+  @IsDateString()
+  expectedUpdatedAt?: string;
+
   @ApiPropertyOptional({ maxLength: 255 })
   @IsOptional()
   @IsString()

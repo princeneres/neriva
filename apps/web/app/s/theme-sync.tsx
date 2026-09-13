@@ -57,6 +57,11 @@ export function ThemeSync() {
       if (!(target instanceof Element)) {
         return;
       }
+      // The checkbox also emits `change`; handling both events would toggle
+      // twice and leave the theme where it started.
+      if (target instanceof HTMLInputElement && target.id === 'nv-theme-toggle') {
+        return;
+      }
       if (target.closest('[data-nv-theme-toggle]')) {
         apply(currentTheme() === 'dark' ? 'light' : 'dark', true);
       }

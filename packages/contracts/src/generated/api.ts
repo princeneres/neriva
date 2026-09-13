@@ -532,6 +532,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/health/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HealthController_ready"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/system/settings": {
         parameters: {
             query?: never;
@@ -961,6 +977,11 @@ export interface components {
             externalReferenceCode?: string;
         };
         UpdatePageTemplateDto: {
+            /**
+             * Format: date-time
+             * @description The updatedAt value returned when the template was loaded
+             */
+            expectedUpdatedAt?: string;
             name?: string;
             /** @description Recursive tree of block instances, same shape as a page tree. A MASTER tree must contain the reserved drop zone { "block": "__page_content__" } exactly once; a STANDARD tree must not contain it. */
             tree?: {
@@ -1044,6 +1065,11 @@ export interface components {
             externalReferenceCode?: string;
         };
         UpdatePageDto: {
+            /**
+             * Format: date-time
+             * @description The updatedAt value returned when the page was loaded
+             */
+            expectedUpdatedAt?: string;
             title?: string;
             /** @description Unique per site */
             path?: string;
@@ -1238,6 +1264,11 @@ export interface components {
             externalReferenceCode?: string;
         };
         UpdateContentEntryDto: {
+            /**
+             * Format: date-time
+             * @description The updatedAt value returned when the entry was loaded
+             */
+            expectedUpdatedAt?: string;
             title?: string;
             /** @description Replaces the full values payload; validated against the content type fields */
             values?: {
@@ -1328,8 +1359,10 @@ export interface components {
              * @example site.name
              */
             key: string;
-            /** @description Any JSON value */
-            value: Record<string, never>;
+            /** @description Any JSON value. Null when the setting is sensitive. */
+            value: Record<string, never> | null;
+            /** @description Whether the value is redacted from API responses. */
+            isSensitive: boolean;
         };
         UpsertSystemSettingDto: {
             /** @description Any JSON value (object, array, string, number, boolean) */
@@ -2982,6 +3015,23 @@ export interface operations {
         };
     };
     HealthController_check: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HealthController_ready: {
         parameters: {
             query?: never;
             header?: never;

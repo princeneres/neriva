@@ -8,6 +8,7 @@ import {
 import { and, asc, eq, gt, inArray } from 'drizzle-orm';
 import type { InferSelectModel } from 'drizzle-orm';
 import { isUniqueViolation } from '../../common/pg-errors';
+import { expectedUpdatedAt, staleResource } from '../../common/optimistic-concurrency';
 import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
 import { DB, type Database } from '../../db/database';
 import {
@@ -123,7 +124,7 @@ export class PageTemplatesService {
   async update(
     tenantId: string,
     ref: string,
-    input: { name?: string; tree?: Record<string, unknown> },
+    input: { name?: string; tree?: Record<string, unknown>; expectedUpdatedAt?: string },
   ): Promise<PageTemplateRow> {
     const existing = await this.getByRef(tenantId, ref);
     const values: Partial<{ name: string; tree: PageTree }> = {};
@@ -138,7 +139,13 @@ export class PageTemplatesService {
     }
 
     try {
-      const updated = await this.repo(tenantId).updateById(existing.id, values);
+      const expected = expectedUpdatedAt(input.expectedUpdatedAt);
+      const updated = expected
+        ? await this.repo(tenantId).updateByIdIfUnmodified(existing.id, expected, values)
+        : await this.repo(tenantId).updateById(existing.id, values);
+      if (expected && !updated) {
+        throw staleResource('Page template');
+      }
       return updated ?? existing;
     } catch (error) {
       if (isUniqueViolation(error)) {
@@ -177,6 +184,11 @@ export class PageTemplatesService {
     if (existing.kind !== 'MASTER') {
       throw new BadRequestException({
         detail: 'only a MASTER page template can be marked as the tenant default',
+      });
+    }
+    if (existing.siteId !== null) {
+      throw new BadRequestException({
+        detail: 'A site-scoped MASTER page template cannot be the tenant default',
       });
     }
     if (existing.isDefault) {

@@ -32,6 +32,12 @@ export class SystemSettingDto {
   })
   key!: string;
 
-  @ApiProperty({ description: 'Any JSON value' })
-  value!: unknown;
+  @ApiProperty({
+    description: 'Any JSON value. Null when the setting is sensitive.',
+    nullable: true,
+  })
+  value!: unknown | null;
+
+  @ApiProperty({ description: 'Whether the value is redacted from API responses.' })
+  isSensitive!: boolean;
 }

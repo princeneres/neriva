@@ -2,6 +2,7 @@ import { ConflictException, Inject, Injectable, NotFoundException } from '@nestj
 import { and, asc, eq, gt, type InferSelectModel, type SQL } from 'drizzle-orm';
 import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
 import { isUniqueViolation } from '../../common/pg-errors';
+import { expectedUpdatedAt, staleResource } from '../../common/optimistic-concurrency';
 import { DB, type Database } from '../../db/database';
 import { contentEntries } from '../../db/schema';
 import { TenantScopedRepository, type CursorPage } from '../../db/tenant-scoped.repository';
@@ -105,7 +106,12 @@ export class ContentEntriesService {
   async update(
     tenantId: string,
     ref: string,
-    input: { title?: string; values?: Record<string, unknown>; site?: string | null },
+    input: {
+      title?: string;
+      values?: Record<string, unknown>;
+      site?: string | null;
+      expectedUpdatedAt?: string;
+    },
   ): Promise<ContentEntryRow> {
     const existing = await this.getByRef(tenantId, ref);
     const values: Partial<{
@@ -129,7 +135,13 @@ export class ContentEntriesService {
     if (Object.keys(values).length === 0) {
       return existing;
     }
-    const updated = await this.repo(tenantId).updateById(existing.id, values);
+    const expected = expectedUpdatedAt(input.expectedUpdatedAt);
+    const updated = expected
+      ? await this.repo(tenantId).updateByIdIfUnmodified(existing.id, expected, values)
+      : await this.repo(tenantId).updateById(existing.id, values);
+    if (expected && !updated) {
+      throw staleResource('Content entry');
+    }
     return updated ?? existing;
   }
 

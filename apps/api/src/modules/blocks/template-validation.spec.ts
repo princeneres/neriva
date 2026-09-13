@@ -141,6 +141,15 @@ describe('validateBlockTemplate', () => {
     expect(validateBlockTemplate('<a href="data:text/html,<b>x</b>">x</a>', [], SCHEMA)).toContain(
       'data:text',
     );
+    expect(validateBlockTemplate('<a href="j&#x61;vascript:alert(1)">x</a>', [], SCHEMA)).toContain(
+      'javascript:',
+    );
+    expect(validateBlockTemplate('<a href="java&#115;cript:alert(1)">x</a>', [], SCHEMA)).toContain(
+      'javascript:',
+    );
+    expect(
+      validateBlockTemplate('<svg><a xlink:href="javascript:x"></a></svg>', [], SCHEMA),
+    ).toContain('javascript:');
   });
 
   it('accepts plain markup without any nv attributes', () => {

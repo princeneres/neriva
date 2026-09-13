@@ -13,6 +13,19 @@ export const CONTENT_MANAGER_ROLE_ERC = 'content-manager';
 export const ADMIN_EMAIL = 'admin@neriva.com';
 export const ADMIN_INITIAL_PASSWORD = 'admin';
 
+export function initialAdminPassword(env: NodeJS.ProcessEnv = process.env): string {
+  const configured = env.NERIVA_INITIAL_ADMIN_PASSWORD;
+  if (env.NODE_ENV === 'production') {
+    if (!configured || configured.length < 15) {
+      throw new Error(
+        'NERIVA_INITIAL_ADMIN_PASSWORD must be set to at least 15 characters in production',
+      );
+    }
+    return configured;
+  }
+  return configured ?? ADMIN_INITIAL_PASSWORD;
+}
+
 // Full CRUD(+publish) on every content-facing resource type; read-only on the
 // resources that define schemas/templates for others to use (object
 // definitions, block templates); no site/tenant administration.
@@ -154,7 +167,7 @@ export class SeedService implements OnApplicationBootstrap {
           .limit(1)
       )[0];
       if (!adminUser) {
-        const passwordHash = await argon2.hash(ADMIN_INITIAL_PASSWORD);
+        const passwordHash = await argon2.hash(initialAdminPassword());
         [adminUser] = await tx
           .insert(users)
           .values({

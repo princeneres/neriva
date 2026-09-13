@@ -28,5 +28,5 @@ export default async function PublicSitePage({ params }: { params: Promise<Route
     notFound();
   }
   const css = await fetchSiteCss(site);
-  return <PublishedPage data={data} css={css} />;
+  return <PublishedPage data={data} css={css} siteBasePath={`/s/${encodeURIComponent(site)}`} />;
 }

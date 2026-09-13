@@ -57,7 +57,15 @@ const LAYOUT_CSS = [
 
 // Shared rendering of a published page, used by /s/<slug>/... and by the
 // default-site root routes (spec 13) so both stay pixel-identical.
-export function PublishedPage({ data, css }: { data: PublicPageData; css: string }) {
+export function PublishedPage({
+  data,
+  css,
+  siteBasePath = '',
+}: {
+  data: PublicPageData;
+  css: string;
+  siteBasePath?: string;
+}) {
   return (
     <SiteChrome siteSlug={data.site.slug} pagePath={data.page.path}>
       <style>{LAYOUT_CSS}</style>
@@ -75,6 +83,7 @@ export function PublishedPage({ data, css }: { data: PublicPageData; css: string
             blockInfo={data.blocks}
             sitePages={data.site.pages}
             siteSlug={data.site.slug}
+            siteBasePath={siteBasePath}
           />
         </main>
       </div>

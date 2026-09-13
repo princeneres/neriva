@@ -1,5 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsNotEmpty, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsDateString,
+  IsIn,
+  IsNotEmpty,
+  IsObject,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 import { ListQueryDto } from '../../../common/list-query.dto';
 
 export const PAGE_TEMPLATE_KINDS = ['MASTER', 'STANDARD'] as const;
@@ -51,6 +59,14 @@ export class CreatePageTemplateDto {
 }
 
 export class UpdatePageTemplateDto {
+  @ApiPropertyOptional({
+    format: 'date-time',
+    description: 'The updatedAt value returned when the template was loaded',
+  })
+  @IsOptional()
+  @IsDateString()
+  expectedUpdatedAt?: string;
+
   @ApiPropertyOptional({ maxLength: 255 })
   @IsOptional()
   @IsString()

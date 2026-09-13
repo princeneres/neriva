@@ -11,7 +11,12 @@ export interface EntityRef {
 // (CLAUDE.md API convention).
 export function parseEntityRef(raw: string): EntityRef {
   if (raw.startsWith('erc:')) {
-    const value = decodeURIComponent(raw.slice(4));
+    let value: string;
+    try {
+      value = decodeURIComponent(raw.slice(4));
+    } catch {
+      throw new BadRequestException({ detail: 'Invalid percent-encoding in erc: reference' });
+    }
     if (!value) {
       throw new BadRequestException({ detail: 'Empty externalReferenceCode in erc: reference' });
     }

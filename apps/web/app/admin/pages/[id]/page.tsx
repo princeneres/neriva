@@ -79,6 +79,7 @@ function SettingsForm({ page, onSaved }: { page: Page; onSaved: (page: Page) => 
     setFormError(null);
     try {
       const { data } = await api.patch<{ data: Page }>(`/pages/${page.id}`, {
+        expectedUpdatedAt: page.updatedAt,
         title: values.title.trim(),
         path: values.path,
         masterPageTemplateId:

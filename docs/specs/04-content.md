@@ -39,13 +39,13 @@ Unique `(tenant_id, external_reference_code)` on both tables.
 
 Permission resources: `content-type`, `content-entry`.
 
-| Method           | Path                         | Permission                                                                         |
-| ---------------- | ---------------------------- | ---------------------------------------------------------------------------------- |
-| GET/POST         | /content-types               | content-type:read / content-type:create                                            |
-| GET/PATCH/DELETE | /content-types/:id           | content-type:read / update / delete                                                |
-| GET/POST         | /content-entries             | content-entry:read / create; `?contentType=<ref>` and `?site=<ref>` filters on GET |
-| GET/PATCH/DELETE | /content-entries/:id         | content-entry:read / update / delete                                               |
-| POST             | /content-entries/:id/publish | content-entry:publish                                                              |
+| Method           | Path                         | Permission                                                                                                       |
+| ---------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| GET/POST         | /content-types               | content-type:read / content-type:create                                                                          |
+| GET/PATCH/DELETE | /content-types/:id           | content-type:read / update / delete                                                                              |
+| GET/POST         | /content-entries             | content-entry:read / create; `?contentType=<ref>` and `?site=<ref>` filters on GET                               |
+| GET/PATCH/DELETE | /content-entries/:id         | content-entry:read / update / delete; PATCH accepts optional `expectedUpdatedAt` and returns 409 for stale edits |
+| POST             | /content-entries/:id/publish | content-entry:publish                                                                                            |
 
 ## Validation
 

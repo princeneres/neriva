@@ -1,9 +1,10 @@
 @import '@neriva/ui/tokens.css';
 
 :root {
-  /* Display and body are the same face (see app/layout.tsx); the alias keeps
-     the two token names that the theme and the logo already reference. */
+  /* Keep production builds independent of external font downloads. */
+  --font-body: var(--nv-font-sans);
   --font-display: var(--font-body);
+  --font-mono: var(--nv-font-mono);
 }
 
 body {

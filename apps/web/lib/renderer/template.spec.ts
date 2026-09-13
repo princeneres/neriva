@@ -282,6 +282,18 @@ describe('renderNavList', () => {
   it('renders nothing (not the placeholder) when given undefined', () => {
     expect(renderNavList(undefined)).toBe('');
   });
+
+  it('prefixes links for a secondary site', () => {
+    expect(
+      renderNavList(
+        [
+          { title: 'Home', path: '/' },
+          { title: 'Blog', path: '/blog' },
+        ],
+        '/s/docs',
+      ),
+    ).toBe('<a href="/s/docs">Home</a><a href="/s/docs/blog">Blog</a>');
+  });
 });
 
 describe('data-nv-nav binding', () => {
@@ -310,6 +322,17 @@ describe('data-nv-nav binding', () => {
   it('renders an empty nav when the site has no published pages yet', () => {
     const { nodes } = renderTemplate({ html, erc: 'nv-header', props: {}, sitePages: [] });
     expect((nodes[0] as { html: string }).html).toBe('<nav data-nv-nav="pages"></nav>');
+  });
+
+  it('uses the secondary-site prefix for generated links', () => {
+    const { nodes } = renderTemplate({
+      html,
+      erc: 'nv-header',
+      props: {},
+      sitePages: [{ title: 'Blog', path: '/blog' }],
+      siteBasePath: '/s/docs',
+    });
+    expect((nodes[0] as { html: string }).html).toContain('href="/s/docs/blog"');
   });
 });
 

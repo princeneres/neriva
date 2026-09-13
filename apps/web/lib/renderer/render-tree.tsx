@@ -34,6 +34,7 @@ export function RenderTree({
   blockInfo = {},
   sitePages,
   siteSlug,
+  siteBasePath,
 }: {
   tree: RenderTreeInput;
   blockInfo?: Record<string, BlockInfo>;
@@ -41,10 +42,15 @@ export function RenderTree({
   // Which site's published content the data-driven blocks should read; omit it
   // in a bare block preview, where those blocks explain themselves instead.
   siteSlug?: string;
+  siteBasePath?: string;
 }) {
   // Tree-level dedupe: one <style> per distinct templated block ERC.
   const emittedCss = new Set<string>();
-  return <>{renderNodes(tree.blocks, blockInfo, 'root', emittedCss, sitePages, siteSlug)}</>;
+  return (
+    <>
+      {renderNodes(tree.blocks, blockInfo, 'root', emittedCss, sitePages, siteSlug, siteBasePath)}
+    </>
+  );
 }
 
 function renderNodes(
@@ -54,6 +60,7 @@ function renderNodes(
   emittedCss: Set<string>,
   sitePages: NavPage[] | undefined,
   siteSlug: string | undefined,
+  siteBasePath: string | undefined,
 ): ReactNode {
   return nodes.map((node, index) => {
     const key = `${keyBase}-${index}-${node.block}`;
@@ -67,11 +74,16 @@ function renderNodes(
         emittedCss,
         sitePages,
         siteSlug,
+        siteBasePath,
       );
     }
-    const content = info?.html
-      ? renderTemplateBlock(node, info.html, info, slots, emittedCss, sitePages)
-      : renderRegistryBlock(node, info, slots, siteSlug);
+    // Heading is a native semantic renderer. It used to be seeded as a
+    // template with a hard-coded h2, which made the level control visual-only
+    // and could leave a published page without its intended h1.
+    const content =
+      info?.html && node.block !== 'nv-heading'
+        ? renderTemplateBlock(node, info.html, info, slots, emittedCss, sitePages, siteBasePath)
+        : renderRegistryBlock(node, info, slots, siteSlug);
     const nodeStyles = resolveStyles(node.styles);
     return (
       <Fragment key={key}>
@@ -109,6 +121,7 @@ function renderTemplateBlock(
   slots: Record<string, ReactNode>,
   emittedCss: Set<string>,
   sitePages: NavPage[] | undefined,
+  siteBasePath: string | undefined,
 ): ReactNode {
   const declaredSlots = info.slots?.map((slot) => (typeof slot === 'string' ? slot : slot.name));
   const { nodes, css } = renderTemplate({
@@ -118,6 +131,7 @@ function renderTemplateBlock(
     props: node.props ?? {},
     slots: declaredSlots,
     sitePages,
+    siteBasePath,
   });
   let style: ReactNode = null;
   if (css !== '' && !emittedCss.has(node.block)) {

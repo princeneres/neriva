@@ -190,7 +190,10 @@ describe('media (e2e)', () => {
   });
 
   describe('upload and public delivery', () => {
-    const pngBytes = Buffer.from('89504e470d0a1a0a-fake-png-bytes', 'utf8');
+    const pngBytes = Buffer.concat([
+      Buffer.from('89504e470d0a1a0a', 'hex'),
+      Buffer.from('fixture'),
+    ]);
     let uploaded: FileData;
 
     it('uploads a file to the library root', async () => {
@@ -305,7 +308,11 @@ describe('media (e2e)', () => {
 
       const res = await upload(
         adminToken,
-        { filename: 'hero.jpg', contentType: 'image/jpeg', data: Buffer.from('jpeg-bytes') },
+        {
+          filename: 'hero.jpg',
+          contentType: 'image/jpeg',
+          data: Buffer.concat([Buffer.from('ffd8ff', 'hex'), Buffer.from('jpeg-bytes')]),
+        },
         { site: siteId },
       );
       expect(res.statusCode).toBe(201);
@@ -342,7 +349,11 @@ describe('media (e2e)', () => {
     it('reuses the same folder on the second upload (idempotent)', async () => {
       const res = await upload(
         adminToken,
-        { filename: 'hero2.jpg', contentType: 'image/jpeg', data: Buffer.from('more-jpeg') },
+        {
+          filename: 'hero2.jpg',
+          contentType: 'image/jpeg',
+          data: Buffer.concat([Buffer.from('ffd8ff', 'hex'), Buffer.from('more-jpeg')]),
+        },
         { site: siteId },
       );
       expect(res.statusCode).toBe(201);
@@ -352,7 +363,11 @@ describe('media (e2e)', () => {
     it('returns 404 for an unknown site ref', async () => {
       const res = await upload(
         adminToken,
-        { filename: 'lost.jpg', contentType: 'image/jpeg', data: Buffer.from('lost') },
+        {
+          filename: 'lost.jpg',
+          contentType: 'image/jpeg',
+          data: Buffer.concat([Buffer.from('ffd8ff', 'hex'), Buffer.from('lost')]),
+        },
         { site: 'erc:no-such-site' },
       );
       expect(res.statusCode).toBe(404);
@@ -437,7 +452,7 @@ describe('media (e2e)', () => {
       const created = await upload(adminToken, {
         filename: 'report.pdf',
         contentType: 'application/pdf',
-        data: Buffer.from('pdf-bytes'),
+        data: Buffer.from('%PDF-1.7\nfixture'),
       });
       movedFile = (created.json() as { data: FileData }).data;
 
@@ -497,7 +512,7 @@ describe('media (e2e)', () => {
       const percentCreated = await upload(adminToken, {
         filename: '50%-off.png',
         contentType: 'image/png',
-        data: Buffer.from('png-bytes'),
+        data: Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from('fixture')]),
       });
       expect(percentCreated.statusCode).toBe(201);
       const percentFile = (percentCreated.json() as { data: FileData }).data;
@@ -508,7 +523,7 @@ describe('media (e2e)', () => {
       const percentDecoy = await upload(adminToken, {
         filename: '50X-decoy.png',
         contentType: 'image/png',
-        data: Buffer.from('png-bytes'),
+        data: Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from('fixture')]),
       });
       expect(percentDecoy.statusCode).toBe(201);
 
@@ -527,7 +542,7 @@ describe('media (e2e)', () => {
       const underscoreCreated = await upload(adminToken, {
         filename: 'off_final.png',
         contentType: 'image/png',
-        data: Buffer.from('png-bytes'),
+        data: Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from('fixture')]),
       });
       expect(underscoreCreated.statusCode).toBe(201);
       const underscoreFile = (underscoreCreated.json() as { data: FileData }).data;
@@ -535,7 +550,7 @@ describe('media (e2e)', () => {
       const underscoreDecoy = await upload(adminToken, {
         filename: 'offXfinal.png',
         contentType: 'image/png',
-        data: Buffer.from('png-bytes'),
+        data: Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from('fixture')]),
       });
       expect(underscoreDecoy.statusCode).toBe(201);
 

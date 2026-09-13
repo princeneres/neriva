@@ -1,5 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsDateString,
+  IsNotEmpty,
+  IsObject,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 import { ListQueryDto } from '../../../common/list-query.dto';
 
 export const CONTENT_ENTRY_STATUSES = ['DRAFT', 'PUBLISHED', 'ARCHIVED'] as const;
@@ -43,6 +50,14 @@ export class CreateContentEntryDto {
 }
 
 export class UpdateContentEntryDto {
+  @ApiPropertyOptional({
+    format: 'date-time',
+    description: 'The updatedAt value returned when the entry was loaded',
+  })
+  @IsOptional()
+  @IsDateString()
+  expectedUpdatedAt?: string;
+
   @ApiPropertyOptional({ maxLength: 255 })
   @IsOptional()
   @IsString()

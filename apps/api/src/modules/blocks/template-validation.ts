@@ -134,6 +134,26 @@ function schemaPropertyKeys(propsSchema: Record<string, unknown>): Set<string> {
   return new Set(Object.keys(properties));
 }
 
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: '&',
+  colon: ':',
+  semi: ';',
+  sol: '/',
+};
+
+// Browsers decode character references before interpreting URL attributes.
+// Decode the common named and numeric forms before checking protocols, or an
+// attacker can hide `javascript:` behind `j&#x61;vascript:`.
+function decodeHtmlEntities(value: string): string {
+  return value.replace(/&(?:#x([0-9a-fA-F]+)|#(\d+)|([a-zA-Z]+));?/g, (whole, hex, dec, named) => {
+    if (hex || dec) {
+      const code = hex ? parseInt(hex as string, 16) : parseInt(dec as string, 10);
+      return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
+    }
+    return NAMED_ENTITIES[(named as string).toLowerCase()] ?? whole;
+  });
+}
+
 // Sanitization (spec 12): templates are authored by permissioned users but
 // still must not carry executable content into every visitor's page.
 function findSanitizationViolation(html: string, tokens: TagToken[]): string | null {
@@ -148,11 +168,13 @@ function findSanitizationViolation(html: string, tokens: TagToken[]): string | n
       if (/^on/i.test(attribute.name)) {
         return `Template html may not contain event handler attributes ("${attribute.name}")`;
       }
-      const value = (attribute.value ?? '').replace(/\s+/g, '').toLowerCase();
-      if (value.includes('javascript:')) {
+      const value = decodeHtmlEntities(attribute.value ?? '')
+        .replace(/\s+/g, '')
+        .toLowerCase();
+      if (/^(?:javascript|vbscript):/.test(value) || value.includes('javascript:')) {
         return `Template html may not contain javascript: URLs ("${attribute.name}")`;
       }
-      if (value.includes('data:text')) {
+      if (/^data:(?:text|image\/svg\+xml)/.test(value)) {
         return `Template html may not contain data:text URLs ("${attribute.name}")`;
       }
     }
