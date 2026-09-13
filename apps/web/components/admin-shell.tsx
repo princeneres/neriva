@@ -46,6 +46,7 @@ import { logout, type PublicUser } from '../lib/api';
 import { clearTokens, getRefreshToken } from '../lib/auth-storage';
 import { SiteProvider, useSite, visitSiteUrl } from '../lib/site-context';
 import { BoltMark, NerivaLogo } from './logo';
+import classes from './admin-shell.module.css';
 
 const NAV_GROUPS: {
   label: string;
@@ -193,6 +194,7 @@ function SiteSwitcher({ collapsed }: { collapsed: boolean }) {
           target="_blank"
           variant="subtle"
           color="gray"
+          className={classes.iconButton}
           disabled={!current}
           aria-label="Visit site"
         >
@@ -349,19 +351,16 @@ function ShellInner({
 
   return (
     <AppShell
+      className={classes.shell}
       navbar={{ width: navWidth, breakpoint: 0 }}
       padding={storageNamespace === 'admin' ? 'xl' : 0}
       // A soft neutral canvas behind white cards: a plain white-on-white
       // main area (the previous mantine-color-body) read as flat and washed
-      // out. The navbar stays pure white so it reads as a plane above the
-      // tinted content, not part of it.
+      // out. The navbar has its own dark surface so it reads as a deliberate
+      // navigation plane above the tinted content, not part of it.
       bg={paintBackground ? 'var(--mantine-color-slate-0)' : undefined}
     >
-      <AppShell.Navbar
-        p={collapsed ? 'xs' : 'md'}
-        bg="var(--mantine-color-body)"
-        style={{ overflow: 'visible', zIndex: 200 }}
-      >
+      <AppShell.Navbar p={collapsed ? 'xs' : 'md'} style={{ overflow: 'visible', zIndex: 200 }}>
         {!collapsed ? (
           <Box
             onMouseDown={startResize}
@@ -379,17 +378,28 @@ function ShellInner({
         ) : null}
 
         <AppShell.Section>
-          <Group justify={collapsed ? 'center' : 'space-between'} px={collapsed ? 0 : 'xs'} py={6}>
+          <Group
+            className={classes.brandRow}
+            justify={collapsed ? 'center' : 'space-between'}
+            px={collapsed ? 0 : 'xs'}
+            py={6}
+          >
             <Link href="/" aria-label="Neriva home">
               {collapsed ? (
                 <BoltMark size={24} />
               ) : (
-                <NerivaLogo size={26} textColor="var(--mantine-color-text)" />
+                <NerivaLogo size={26} textColor="var(--admin-nav-text)" />
               )}
             </Link>
             {!collapsed ? (
               <Tooltip label="Collapse the menu">
-                <ActionIcon variant="subtle" color="gray" onClick={toggleCollapsed}>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  className={classes.iconButton}
+                  onClick={toggleCollapsed}
+                  aria-label="Collapse the menu"
+                >
                   <IconLayoutSidebarLeftCollapse size={17} />
                 </ActionIcon>
               </Tooltip>
@@ -397,7 +407,15 @@ function ShellInner({
           </Group>
           {collapsed ? (
             <Tooltip label="Expand the menu" position="right">
-              <ActionIcon variant="subtle" color="gray" onClick={toggleCollapsed} w="100%" mt={4}>
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                className={classes.iconButton}
+                onClick={toggleCollapsed}
+                w="100%"
+                mt={4}
+                aria-label="Expand the menu"
+              >
                 <IconLayoutSidebarLeftExpand size={17} />
               </ActionIcon>
             </Tooltip>
@@ -412,6 +430,7 @@ function ShellInner({
                       href={`/s/${editTarget.siteSlug}`}
                       variant="subtle"
                       color="gray"
+                      className={classes.iconButton}
                       size="lg"
                       w="100%"
                       mb={4}
@@ -424,6 +443,7 @@ function ShellInner({
                     <ActionIcon
                       variant="subtle"
                       color="gray"
+                      className={classes.iconButton}
                       size="lg"
                       w="100%"
                       mb={4}
@@ -445,6 +465,7 @@ function ShellInner({
                     href={`/s/${editTarget.siteSlug}`}
                     label="Home"
                     leftSection={<IconHome2 size={17} stroke={1.7} />}
+                    className={classes.navLink}
                     style={{ borderRadius: 8 }}
                   />
                   <NavLink
@@ -452,6 +473,7 @@ function ShellInner({
                     leftSection={<IconListTree size={17} stroke={1.7} />}
                     opened={treeOpen}
                     onClick={() => setTreeOpen((value) => !value)}
+                    className={classes.navLink}
                     style={{ borderRadius: 8 }}
                   >
                     <SitePageTree active={treeOpen} siteSlug={editTarget.siteSlug} />
@@ -486,10 +508,9 @@ function ShellInner({
                   w="100%"
                   py={6}
                   px="xs"
+                  className={classes.editButton}
                   style={{
                     borderRadius: 8,
-                    background: 'var(--mantine-color-neriva-6)',
-                    color: 'white',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
@@ -503,14 +524,24 @@ function ShellInner({
               )}
             </Tooltip>
           ) : null}
-          <SiteSwitcher collapsed={collapsed} />
+          <Box className={classes.siteSwitcher}>
+            <SiteSwitcher collapsed={collapsed} />
+          </Box>
         </AppShell.Section>
 
         <AppShell.Section grow component={ScrollArea} mt="md">
           {NAV_GROUPS.map((group) => (
             <Box key={group.label} mb="md">
               {!collapsed ? (
-                <Text size="xs" fw={700} tt="uppercase" c="dimmed" px="xs" mb={4} lts="0.06em">
+                <Text
+                  className={classes.navGroupLabel}
+                  size="xs"
+                  fw={700}
+                  tt="uppercase"
+                  px="xs"
+                  mb={4}
+                  lts="0.06em"
+                >
                   {group.label}
                 </Text>
               ) : null}
@@ -524,6 +555,7 @@ function ShellInner({
                         href={item.href}
                         variant={active ? 'light' : 'subtle'}
                         color={active ? 'neriva' : 'gray'}
+                        className={`${classes.iconButton} ${active ? classes.iconButtonActive : ''}`}
                         size="lg"
                         w="100%"
                         mb={4}
@@ -544,6 +576,7 @@ function ShellInner({
                     leftSection={<item.icon size={17} stroke={1.7} />}
                     active={active}
                     variant="light"
+                    className={classes.navLink}
                     style={{ borderRadius: 8 }}
                   />
                 );
@@ -553,10 +586,15 @@ function ShellInner({
         </AppShell.Section>
 
         <AppShell.Section>
-          <Divider mb="sm" />
+          <Divider className={classes.divider} mb="sm" />
           <Menu position="top-start" width={220} shadow="md">
             <Menu.Target>
-              <UnstyledButton w="100%" p={collapsed ? 4 : 'xs'} style={{ borderRadius: 8 }}>
+              <UnstyledButton
+                className={classes.accountButton}
+                w="100%"
+                p={collapsed ? 4 : 'xs'}
+                style={{ borderRadius: 8 }}
+              >
                 <Group gap="sm" wrap="nowrap" justify={collapsed ? 'center' : 'flex-start'}>
                   <Avatar color="neriva" radius="xl" size={collapsed ? 28 : 32}>
                     {initials}
@@ -567,7 +605,7 @@ function ShellInner({
                         <Text size="sm" fw={600} truncate>
                           {user.displayName}
                         </Text>
-                        <Text size="xs" c="dimmed" truncate>
+                        <Text className={classes.accountEmail} size="xs" truncate>
                           {user.email}
                         </Text>
                       </Box>

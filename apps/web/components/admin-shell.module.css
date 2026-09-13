@@ -1,0 +1,142 @@
+.shell {
+  --admin-nav-bg: #17181c;
+  --admin-nav-surface: #202126;
+  --admin-nav-surface-hover: #292a30;
+  --admin-nav-border: rgba(255, 255, 255, 0.1);
+  --admin-nav-text: #f4f3f1;
+  --admin-nav-muted: #a5a7b0;
+  --admin-nav-label: #858894;
+  --admin-nav-accent: #e06a70;
+}
+
+.shell :global(.mantine-AppShell-navbar) {
+  background: var(--admin-nav-bg) !important;
+  border-inline-end-color: var(--admin-nav-border);
+  color: var(--admin-nav-text);
+  color-scheme: dark;
+}
+
+.shell :global(.mantine-AppShell-navbar) :global(.mantine-ScrollArea-viewport) {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.shell :global(.mantine-AppShell-navbar) :global(.mantine-ScrollArea-scrollbar) {
+  background: transparent;
+}
+
+.brandRow {
+  color: var(--admin-nav-text);
+}
+
+.iconButton {
+  color: var(--admin-nav-muted) !important;
+}
+
+.iconButton:hover,
+.iconButton:focus-visible {
+  background: var(--admin-nav-surface-hover) !important;
+  color: var(--admin-nav-text) !important;
+}
+
+.iconButtonActive {
+  background: var(--admin-nav-surface) !important;
+  color: var(--admin-nav-accent) !important;
+}
+
+.navGroupLabel {
+  color: var(--admin-nav-label) !important;
+}
+
+.navLink {
+  color: var(--admin-nav-muted) !important;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.navLink:hover,
+.navLink:focus-visible {
+  background: var(--admin-nav-surface-hover) !important;
+  color: var(--admin-nav-text) !important;
+}
+
+.navLink[data-active='true'] {
+  background: var(--admin-nav-surface) !important;
+  box-shadow: inset 2px 0 0 var(--admin-nav-accent);
+  color: var(--admin-nav-text) !important;
+}
+
+.navLink :global(.mantine-NavLink-label),
+.navLink :global(.mantine-NavLink-section),
+.navLink :global(.mantine-NavLink-chevron),
+.navLink :global(.mantine-NavLink-children) {
+  color: inherit;
+}
+
+.editButton {
+  background: var(--mantine-color-neriva-6);
+  color: #fff;
+  transition:
+    background-color 140ms ease,
+    transform 140ms ease;
+}
+
+.editButton:hover {
+  background: var(--mantine-color-neriva-7);
+  transform: translateY(-1px);
+}
+
+.editButton:focus-visible {
+  outline: 2px solid var(--admin-nav-accent);
+  outline-offset: 2px;
+}
+
+.siteSwitcher :global(.mantine-Select-input) {
+  background: var(--admin-nav-surface);
+  border-color: var(--admin-nav-border);
+  color: var(--admin-nav-text);
+}
+
+.siteSwitcher :global(.mantine-Select-input)::placeholder,
+.siteSwitcher :global(.mantine-Select-section) {
+  color: var(--admin-nav-muted);
+}
+
+.siteSwitcher :global(.mantine-Select-input):focus,
+.siteSwitcher :global(.mantine-Select-input):focus-within {
+  border-color: var(--admin-nav-accent);
+}
+
+.siteSwitcher :global(.mantine-Input-section) {
+  color: var(--admin-nav-muted);
+}
+
+.divider {
+  border-color: var(--admin-nav-border) !important;
+}
+
+.accountButton {
+  color: var(--admin-nav-text);
+  transition: background-color 140ms ease;
+}
+
+.accountButton:hover,
+.accountButton:focus-visible {
+  background: var(--admin-nav-surface-hover);
+}
+
+.accountEmail {
+  color: var(--admin-nav-muted) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navLink,
+  .editButton,
+  .accountButton {
+    transition: none;
+  }
+
+  .editButton:hover {
+    transform: none;
+  }
+}
