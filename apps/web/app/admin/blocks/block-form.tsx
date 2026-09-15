@@ -30,12 +30,14 @@ import { randomId, useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconAlertTriangle,
+  IconCheck,
   IconChevronDown,
   IconChevronRight,
   IconCopy,
   IconInfoCircle,
   IconPlus,
   IconTrash,
+  IconWand,
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -153,6 +155,114 @@ function TemplateSyntaxHelp() {
           </Text>
         </Stack>
       </Collapse>
+    </Card>
+  );
+}
+
+function starterTemplate(fields: BuilderField[], slotNames: string[]): string {
+  const usable = fields.filter((field) => field.key.trim()).slice(0, 4);
+  const heading = usable.find((field) => /title|heading|name/i.test(field.key)) ?? usable[0];
+  const body = usable.find(
+    (field) => field !== heading && /body|text|description|summary/i.test(field.key),
+  );
+  const lines = ['<section class="block">'];
+  if (heading) lines.push(`  <h2 data-nv-text="${heading.key}">{{${heading.key}}}</h2>`);
+  if (body) lines.push(`  <p data-nv-rich="${body.key}"></p>`);
+  for (const field of usable) {
+    if (field !== heading && field !== body) {
+      lines.push(
+        `  <div class="block-field"><span>${field.label || field.key}</span><strong data-nv-text="${field.key}">{{${field.key}}}</strong></div>`,
+      );
+    }
+  }
+  for (const slot of slotNames) lines.push(`  <div data-nv-slot="${slot}"></div>`);
+  lines.push('</section>');
+  return lines.join('\n');
+}
+
+function TemplateMapping({
+  fields,
+  slotNames,
+  html,
+  onUseStarter,
+}: {
+  fields: BuilderField[];
+  slotNames: string[];
+  html: string;
+  onUseStarter: () => void;
+}) {
+  const bindingFor = (key: string) => {
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = html.match(
+      new RegExp(
+        `(?:data-nv-(text|rich|image|link|embed)=["']${escaped}["']|\\{\\{${escaped}\\}\\})`,
+      ),
+    );
+    return match?.[1] ? `data-nv-${match[1]}` : match ? 'interpolation' : null;
+  };
+  const connected = fields.filter((field) => bindingFor(field.key)).length;
+  return (
+    <Card padding="md" radius="md" bg="slate.0" withBorder>
+      <Group justify="space-between" align="flex-start" gap="sm">
+        <Box>
+          <Group gap={6}>
+            <Title order={4} fz="h5">
+              Data mapping
+            </Title>
+            <HelpTip label="See how each field in the data contract reaches the HTML preview" />
+          </Group>
+          <Text size="xs" c="slate.5" mt={2}>
+            {connected} of {fields.length} fields connected. A field becomes visible when its key is
+            bound in the template.
+          </Text>
+        </Box>
+        <Button
+          type="button"
+          size="xs"
+          variant="light"
+          leftSection={<IconWand size={14} />}
+          onClick={onUseStarter}
+        >
+          Use starter template
+        </Button>
+      </Group>
+      <Stack gap={6} mt="sm">
+        {fields.length === 0 ? (
+          <Text size="xs" c="slate.5">
+            Add fields in Builder to create a data contract.
+          </Text>
+        ) : (
+          fields.map((field) => {
+            const binding = bindingFor(field.key);
+            return (
+              <Group key={field.key} gap="xs" wrap="nowrap">
+                {binding ? (
+                  <IconCheck size={15} color="var(--mantine-color-green-6)" />
+                ) : (
+                  <span style={{ width: 15 }} />
+                )}
+                <Code>{field.key}</Code>
+                <Text size="xs" c="slate.5">
+                  →
+                </Text>
+                <Text size="xs" fw={600} c={binding ? 'slate.7' : 'slate.5'}>
+                  {binding ?? 'Not used yet'}
+                </Text>
+              </Group>
+            );
+          })
+        )}
+        {slotNames.length > 0 ? (
+          <Text size="xs" c="slate.5" mt={4}>
+            Slots:{' '}
+            {slotNames.map((slot) => (
+              <Code key={slot} mr={4}>
+                {slot}
+              </Code>
+            ))}
+          </Text>
+        ) : null}
+      </Stack>
     </Card>
   );
 }
@@ -411,6 +521,7 @@ export function BlockForm({
               pages.
             </Text>
             <Button
+              type="button"
               size="xs"
               variant="light"
               leftSection={<IconCopy size={14} />}
@@ -506,7 +617,13 @@ export function BlockForm({
                       This schema was edited manually, so the form is in advanced mode. The builder
                       can only represent a simple list of fields.
                     </Text>
-                    <Button size="xs" variant="light" color="yellow" onClick={backToBuilder}>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="light"
+                      color="yellow"
+                      onClick={backToBuilder}
+                    >
                       Try the builder anyway
                     </Button>
                   </Alert>
@@ -587,6 +704,7 @@ export function BlockForm({
                     ))}
                     <Box>
                       <Button
+                        type="button"
                         variant="light"
                         leftSection={<IconPlus size={16} />}
                         onClick={() => form.insertListItem('fields', emptyField())}
@@ -631,9 +749,9 @@ export function BlockForm({
               <Tabs.Panel value="code">
                 <Stack gap="sm">
                   <Text size="sm" c="slate.5">
-                    Optional HTML and CSS template, Liferay-fragment style. With a template the
-                    block renders exactly this markup; without one it falls back to the generic
-                    rendering.
+                    Define the block as a small, portable template. The preview on the right uses
+                    the same HTML engine as the public site, so every mapping is visible while you
+                    work.
                   </Text>
                   <Textarea
                     label={
@@ -666,6 +784,17 @@ export function BlockForm({
                     onChange={(event) => setCss(event.currentTarget.value)}
                   />
                   <TemplateSyntaxHelp />
+                  <TemplateMapping
+                    fields={previewFields ?? []}
+                    slotNames={previewSlotNames}
+                    html={html}
+                    onUseStarter={() => {
+                      setHtml(starterTemplate(previewFields ?? [], previewSlotNames));
+                      if (css.trim() === '') {
+                        setCss(CSS_PLACEHOLDER);
+                      }
+                    }}
+                  />
                 </Stack>
               </Tabs.Panel>
             </Tabs>
@@ -712,6 +841,7 @@ export function BlockForm({
               ))}
               <Box>
                 <Button
+                  type="button"
                   variant="light"
                   leftSection={<IconPlus size={16} />}
                   onClick={() => form.insertListItem('slots', { uid: randomId(), name: '' })}
@@ -726,7 +856,13 @@ export function BlockForm({
             <Button type="submit" loading={submitting}>
               {block ? 'Save changes' : 'Create block'}
             </Button>
-            <Button component={Link} href="/admin/blocks" variant="subtle" color="gray">
+            <Button
+              type="button"
+              component={Link}
+              href="/admin/blocks"
+              variant="subtle"
+              color="gray"
+            >
               Cancel
             </Button>
           </Group>

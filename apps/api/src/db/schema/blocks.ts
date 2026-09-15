@@ -1,6 +1,16 @@
-import { foreignKey, jsonb, pgTable, text, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
+import {
+  foreignKey,
+  index,
+  jsonb,
+  pgTable,
+  text,
+  uniqueIndex,
+  uuid,
+  varchar,
+} from 'drizzle-orm/pg-core';
 import { envelopeColumns, statusColumn } from './envelope';
 import { tenants } from './tenants';
+import { resourceFolders } from './resource-folders';
 
 export interface BlockSlot {
   name: string;
@@ -21,9 +31,11 @@ export const blocks = pgTable(
     // through the template engine; null keeps the registry/generic path.
     html: text('html'),
     css: text('css'),
+    folderId: uuid('folder_id').references(() => resourceFolders.id, { onDelete: 'set null' }),
   },
   (t) => [
     uniqueIndex('blocks_tenant_erc_uq').on(t.tenantId, t.externalReferenceCode),
+    index('blocks_tenant_folder_id_idx').on(t.tenantId, t.folderId, t.id),
     foreignKey({ columns: [t.tenantId], foreignColumns: [tenants.id], name: 'blocks_tenant_fk' }),
   ],
 );

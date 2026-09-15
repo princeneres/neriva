@@ -116,6 +116,38 @@ export interface paths {
         patch: operations["RolesController_update"];
         trace?: never;
     };
+    "/resource-folders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ResourceFoldersController_list"];
+        put?: never;
+        post: operations["ResourceFoldersController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/resource-folders/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ResourceFoldersController_get"];
+        put?: never;
+        post?: never;
+        delete: operations["ResourceFoldersController_delete"];
+        options?: never;
+        head?: never;
+        patch: operations["ResourceFoldersController_update"];
+        trace?: never;
+    };
     "/users": {
         parameters: {
             query?: never;
@@ -877,6 +909,36 @@ export interface components {
             /** @description Replaces the full permission set */
             permissions?: components["schemas"]["PermissionDto"][];
         };
+        ResourceFolderDto: {
+            /** Format: uuid */
+            id: string;
+            externalReferenceCode: string;
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: uuid */
+            createdBy: Record<string, never> | null;
+            /** @enum {string} */
+            resource: "blocks" | "content-types" | "content-entries" | "objects";
+            name: string;
+        };
+        CreateResourceFolderDto: {
+            /** @example Marketing */
+            name: string;
+            /**
+             * @example blocks
+             * @enum {string}
+             */
+            resource: "blocks" | "content-types" | "content-entries" | "objects";
+            /** @description Stable code for idempotent upsert; generated when omitted */
+            externalReferenceCode?: string;
+        };
+        UpdateResourceFolderDto: {
+            name: string;
+        };
         CreateUserDto: {
             /** Format: email */
             email: string;
@@ -1122,7 +1184,7 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             /** Format: uuid */
-            createdBy: Record<string, never> | null;
+            createdBy: string | null;
             /** @enum {string} */
             status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
             name: string;
@@ -1137,6 +1199,8 @@ export interface components {
             html: string | null;
             /** @description Template CSS, scoped at render time */
             css: string | null;
+            /** Format: uuid */
+            folderId: string | null;
         };
         CreateBlockDto: {
             /** @example Hero Banner */
@@ -1166,6 +1230,8 @@ export interface components {
             css?: string | null;
             /** @description Stable code for idempotent upsert; generated when omitted */
             externalReferenceCode?: string;
+            /** Format: uuid */
+            folderId?: string | null;
         };
         UpdateBlockDto: {
             name?: string;
@@ -1181,6 +1247,8 @@ export interface components {
             html?: string | null;
             /** @description Template CSS; explicit null removes it */
             css?: string | null;
+            /** Format: uuid */
+            folderId?: string | null;
         };
         ContentFieldDto: {
             /** @example headline */
@@ -1203,16 +1271,20 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             /** Format: uuid */
-            createdBy: Record<string, never> | null;
+            createdBy: string | null;
             name: string;
             description: Record<string, never> | null;
             fields: components["schemas"]["ContentFieldDto"][];
+            /** Format: uuid */
+            folderId: string | null;
         };
         CreateContentTypeDto: {
             name: string;
             description?: string;
             /** @description Stable code for idempotent upsert; generated when omitted */
             externalReferenceCode?: string;
+            /** Format: uuid */
+            folderId?: string | null;
             fields: components["schemas"]["ContentFieldDto"][];
         };
         UpdateContentTypeDto: {
@@ -1220,6 +1292,8 @@ export interface components {
             description?: string;
             /** @description Replaces the full field list */
             fields?: components["schemas"]["ContentFieldDto"][];
+            /** Format: uuid */
+            folderId?: string | null;
         };
         ContentEntryDto: {
             /** Format: uuid */
@@ -1249,6 +1323,8 @@ export interface components {
             customFields: {
                 [key: string]: unknown;
             };
+            /** Format: uuid */
+            folderId: string | null;
         };
         CreateContentEntryDto: {
             /** @description Content type reference: UUID or erc:<externalReferenceCode> */
@@ -1262,6 +1338,8 @@ export interface components {
             };
             /** @description Stable code for idempotent upsert; generated when omitted */
             externalReferenceCode?: string;
+            /** Format: uuid */
+            folderId?: string | null;
         };
         UpdateContentEntryDto: {
             /**
@@ -1276,6 +1354,8 @@ export interface components {
             };
             /** @description Site reference: UUID or erc:<externalReferenceCode>; null detaches the entry to tenant-wide */
             site?: Record<string, never> | null;
+            /** Format: uuid */
+            folderId?: string | null;
         };
         DeliveredBlockSlotDto: {
             name: string;
@@ -1461,11 +1541,13 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             /** Format: uuid */
-            createdBy: Record<string, never> | null;
+            createdBy: string | null;
             name: string;
             pluralName: string;
             description: Record<string, never> | null;
             fields: components["schemas"]["ObjectFieldDto"][];
+            /** Format: uuid */
+            folderId: string | null;
         };
         CreateObjectDefinitionDto: {
             name: string;
@@ -1473,6 +1555,8 @@ export interface components {
             description?: string;
             /** @description Stable code for idempotent upsert; generated when omitted */
             externalReferenceCode?: string;
+            /** Format: uuid */
+            folderId?: string | null;
             fields: components["schemas"]["ObjectFieldDto"][];
         };
         UpdateObjectDefinitionDto: {
@@ -1481,6 +1565,8 @@ export interface components {
             description?: string;
             /** @description Replaces the full field list */
             fields?: components["schemas"]["ObjectFieldDto"][];
+            /** Format: uuid */
+            folderId?: string | null;
         };
         ObjectRecordDto: {
             /** Format: uuid */
@@ -1835,6 +1921,133 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["RoleDto"];
+                    };
+                };
+            };
+        };
+    };
+    ResourceFoldersController_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque cursor from the previous page meta */
+                cursor?: string;
+                resource?: "blocks" | "content-types" | "content-entries" | "objects";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ResourceFolderDto"][];
+                        meta: {
+                            cursor: string | null;
+                            limit: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    ResourceFoldersController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateResourceFolderDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ResourceFolderDto"];
+                    };
+                };
+            };
+        };
+    };
+    ResourceFoldersController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ResourceFolderDto"];
+                    };
+                };
+            };
+        };
+    };
+    ResourceFoldersController_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ResourceFoldersController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateResourceFolderDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ResourceFolderDto"];
                     };
                 };
             };
@@ -2451,6 +2664,8 @@ export interface operations {
                 /** @description Opaque cursor from the previous page meta */
                 cursor?: string;
                 status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+                /** @description Only blocks assigned to this folder */
+                folder?: string;
             };
             header?: never;
             path?: never;
@@ -2601,6 +2816,8 @@ export interface operations {
                 limit?: number;
                 /** @description Opaque cursor from the previous page meta */
                 cursor?: string;
+                /** @description Only content types assigned to this folder */
+                folder?: string;
             };
             header?: never;
             path?: never;
@@ -2731,6 +2948,8 @@ export interface operations {
                 contentType?: string;
                 /** @description Filter by site: UUID or erc:<externalReferenceCode> */
                 site?: string;
+                /** @description Only entries assigned to this folder */
+                folder?: string;
             };
             header?: never;
             path?: never;
@@ -3431,6 +3650,8 @@ export interface operations {
                 limit?: number;
                 /** @description Opaque cursor from the previous page meta */
                 cursor?: string;
+                /** @description Only objects assigned to this folder */
+                folder?: string;
             };
             header?: never;
             path?: never;

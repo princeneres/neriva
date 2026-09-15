@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "resource_folders_tenant_erc_uq" ON "resource_folders" USING btree ("tenant_id","external_reference_code");

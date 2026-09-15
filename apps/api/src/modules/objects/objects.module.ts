@@ -5,9 +5,11 @@ import { ObjectDefinitionsController } from './object-definitions.controller';
 import { ObjectDefinitionsService } from './object-definitions.service';
 import { ObjectRecordsController } from './object-records.controller';
 import { ObjectRecordsService } from './object-records.service';
+import { ResourceFoldersModule } from '../resource-folders/resource-folders.module';
 import { createObjectsKysely, OBJECTS_KYSELY, type ObjectsKysely } from './objects.kysely';
 
 @Module({
+  imports: [ResourceFoldersModule],
   controllers: [ObjectDefinitionsController, ObjectRecordsController],
   providers: [
     ObjectDefinitionsService,

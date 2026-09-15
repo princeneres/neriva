@@ -89,6 +89,11 @@ export class CreateBlockDto {
   @IsString()
   @IsNotEmpty()
   externalReferenceCode?: string;
+
+  @ApiPropertyOptional({ type: String, format: 'uuid', nullable: true })
+  @IsOptional()
+  @IsString()
+  folderId?: string | null;
 }
 
 export class UpdateBlockDto {
@@ -143,6 +148,11 @@ export class UpdateBlockDto {
   @IsOptional()
   @IsString()
   css?: string | null;
+
+  @ApiPropertyOptional({ type: String, format: 'uuid', nullable: true })
+  @IsOptional()
+  @IsString()
+  folderId?: string | null;
 }
 
 export class ListBlocksQueryDto extends ListQueryDto {
@@ -150,4 +160,9 @@ export class ListBlocksQueryDto extends ListQueryDto {
   @IsOptional()
   @IsIn(BLOCK_STATUSES)
   status?: BlockStatus;
+
+  @ApiPropertyOptional({ format: 'uuid', description: 'Only blocks assigned to this folder' })
+  @IsOptional()
+  @IsString()
+  folder?: string;
 }

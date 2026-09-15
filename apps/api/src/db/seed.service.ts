@@ -54,6 +54,10 @@ const CONTENT_MANAGER_PERMISSIONS: ReadonlyArray<{ resourceType: string; action:
   { resourceType: 'object-record', action: 'delete' },
   { resourceType: 'object-definition', action: 'read' },
   { resourceType: 'block', action: 'read' },
+  { resourceType: 'resource-folder', action: 'read' },
+  { resourceType: 'resource-folder', action: 'create' },
+  { resourceType: 'resource-folder', action: 'update' },
+  { resourceType: 'resource-folder', action: 'delete' },
 ];
 
 // First-boot seed (CLAUDE.md bootstrap rule). Idempotent: existing rows are

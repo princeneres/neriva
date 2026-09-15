@@ -13,6 +13,7 @@ import {
 } from 'class-validator';
 import { OBJECT_FIELD_TYPES, type ObjectFieldType } from '../../../db/schema';
 import { FIELD_KEY_PATTERN } from '../object-field.validation';
+import { ListQueryDto } from '../../../common/list-query.dto';
 
 export class ObjectFieldDto {
   @ApiProperty({ pattern: FIELD_KEY_PATTERN.source, example: 'firstName' })
@@ -64,6 +65,11 @@ export class CreateObjectDefinitionDto {
   @IsNotEmpty()
   externalReferenceCode?: string;
 
+  @ApiPropertyOptional({ type: String, format: 'uuid', nullable: true })
+  @IsOptional()
+  @IsString()
+  folderId?: string | null;
+
   @ApiProperty({ type: [ObjectFieldDto] })
   @IsArray()
   @ValidateNested({ each: true })
@@ -97,4 +103,16 @@ export class UpdateObjectDefinitionDto {
   @ValidateNested({ each: true })
   @Type(() => ObjectFieldDto)
   fields?: ObjectFieldDto[];
+
+  @ApiPropertyOptional({ type: String, format: 'uuid', nullable: true })
+  @IsOptional()
+  @IsString()
+  folderId?: string | null;
+}
+
+export class ListObjectDefinitionsQueryDto extends ListQueryDto {
+  @ApiPropertyOptional({ format: 'uuid', description: 'Only objects assigned to this folder' })
+  @IsOptional()
+  @IsString()
+  folder?: string;
 }

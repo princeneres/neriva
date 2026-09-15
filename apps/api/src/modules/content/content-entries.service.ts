@@ -7,6 +7,7 @@ import { DB, type Database } from '../../db/database';
 import { contentEntries } from '../../db/schema';
 import { TenantScopedRepository, type CursorPage } from '../../db/tenant-scoped.repository';
 import { SitesService } from '../sites/sites.service';
+import { ResourceFoldersService } from '../resource-folders/resource-folders.service';
 import { validateEntryValues } from './content-field.validation';
 import { ContentTypesService } from './content-types.service';
 
@@ -18,6 +19,7 @@ export class ContentEntriesService {
     @Inject(DB) private readonly db: Database,
     private readonly contentTypesService: ContentTypesService,
     private readonly sitesService: SitesService,
+    private readonly foldersService: ResourceFoldersService,
   ) {}
 
   private repo(tenantId: string): TenantScopedRepository<typeof contentEntries> {
@@ -26,9 +28,19 @@ export class ContentEntriesService {
 
   async list(
     tenantId: string,
-    params: { limit?: number; cursor?: string; contentType?: string; site?: string },
+    params: {
+      limit?: number;
+      cursor?: string;
+      contentType?: string;
+      site?: string;
+      folder?: string;
+    },
   ): Promise<CursorPage<ContentEntryRow>> {
-    if (params.contentType === undefined && params.site === undefined) {
+    if (
+      params.contentType === undefined &&
+      params.site === undefined &&
+      params.folder === undefined
+    ) {
       return this.repo(tenantId).list(params);
     }
     // The generic repository has no extra-filter support; this mirrors its
@@ -42,6 +54,14 @@ export class ContentEntriesService {
     if (params.site !== undefined) {
       const site = await this.sitesService.getByRef(tenantId, params.site);
       conditions.push(eq(contentEntries.siteId, site.id));
+    }
+    if (params.folder !== undefined) {
+      const folder = await this.foldersService.assertForResource(
+        tenantId,
+        params.folder,
+        'content-entries',
+      );
+      conditions.push(eq(contentEntries.folderId, folder.id));
     }
     if (params.cursor !== undefined) {
       conditions.push(gt(contentEntries.id, decodeCursor(params.cursor).id));
@@ -76,9 +96,13 @@ export class ContentEntriesService {
       title: string;
       values: Record<string, unknown>;
       externalReferenceCode?: string;
+      folderId?: string | null;
     },
   ): Promise<ContentEntryRow> {
     const contentType = await this.contentTypesService.getByRef(tenantId, input.contentType);
+    const folder = input.folderId
+      ? await this.foldersService.assertForResource(tenantId, input.folderId, 'content-entries')
+      : null;
     const site =
       input.site !== undefined ? await this.sitesService.getByRef(tenantId, input.site) : null;
     validateEntryValues(contentType.fields, input.values);
@@ -93,6 +117,7 @@ export class ContentEntriesService {
         createdBy,
         // undefined lets the envelope default generate one
         externalReferenceCode: input.externalReferenceCode,
+        folderId: folder?.id ?? null,
       };
       return await this.repo(tenantId).create(values);
     } catch (error) {
@@ -111,13 +136,18 @@ export class ContentEntriesService {
       values?: Record<string, unknown>;
       site?: string | null;
       expectedUpdatedAt?: string;
+      folderId?: string | null;
     },
   ): Promise<ContentEntryRow> {
     const existing = await this.getByRef(tenantId, ref);
+    const folder = input.folderId
+      ? await this.foldersService.assertForResource(tenantId, input.folderId, 'content-entries')
+      : null;
     const values: Partial<{
       title: string;
       values: Record<string, unknown>;
       siteId: string | null;
+      folderId: string | null;
     }> = {};
     if (input.title !== undefined) {
       values.title = input.title;
@@ -132,6 +162,7 @@ export class ContentEntriesService {
       values.siteId =
         input.site === null ? null : (await this.sitesService.getByRef(tenantId, input.site)).id;
     }
+    if (input.folderId !== undefined) values.folderId = folder?.id ?? null;
     if (Object.keys(values).length === 0) {
       return existing;
     }

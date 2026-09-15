@@ -1,11 +1,14 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
 import { ApiDataResponse, ApiListResponse } from '../../common/api-envelope.decorators';
-import { ListQueryDto } from '../../common/list-query.dto';
 import { CurrentUser } from '../auth/auth.decorators';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { RequirePermission } from '../roles/require-permission.decorator';
-import { CreateObjectDefinitionDto, UpdateObjectDefinitionDto } from './dto/object-definitions.dto';
+import {
+  CreateObjectDefinitionDto,
+  ListObjectDefinitionsQueryDto,
+  UpdateObjectDefinitionDto,
+} from './dto/object-definitions.dto';
 import { ObjectDefinitionDto } from './dto/object-response.dto';
 import { ObjectDefinitionsService, type ObjectDefinitionRow } from './object-definitions.service';
 
@@ -26,7 +29,7 @@ export class ObjectDefinitionsController {
   @RequirePermission('object-definition:read')
   async list(
     @CurrentUser() user: AuthenticatedUser,
-    @Query() query: ListQueryDto,
+    @Query() query: ListObjectDefinitionsQueryDto,
   ): Promise<{ data: ObjectDefinitionRow[]; meta: { cursor: string | null; limit: number } }> {
     const page = await this.definitionsService.list(user.tenantId, query);
     return { data: page.items, meta: { cursor: page.nextCursor, limit: page.limit } };

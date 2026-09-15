@@ -543,19 +543,16 @@ function ShellInner({
                 if (collapsed) {
                   return (
                     <Tooltip key={item.href} label={item.label} position="right">
-                      <ActionIcon
+                      <UnstyledButton
                         component={Link}
                         href={item.href}
-                        variant={active ? 'light' : 'subtle'}
-                        color={active ? 'neriva' : 'gray'}
-                        className={`${classes.iconButton} ${active ? classes.iconButtonActive : ''}`}
-                        size="lg"
-                        w="100%"
-                        mb={4}
+                        className={`${classes.collapsedNavItem} ${active ? classes.collapsedNavItemActive : ''}`}
                         aria-label={item.label}
                       >
-                        <item.icon size={18} stroke={1.7} />
-                      </ActionIcon>
+                        <span className={classes.collapsedNavIcon}>
+                          <item.icon size={18} stroke={1.7} />
+                        </span>
+                      </UnstyledButton>
                     </Tooltip>
                   );
                 }

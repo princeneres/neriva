@@ -17,7 +17,7 @@ export class BlockDto {
   @ApiProperty({ format: 'date-time' })
   updatedAt!: string;
 
-  @ApiProperty({ format: 'uuid', nullable: true })
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
   createdBy!: string | null;
 
   @ApiProperty({ enum: BLOCK_STATUSES })
@@ -51,4 +51,7 @@ export class BlockDto {
 
   @ApiProperty({ type: String, nullable: true, description: 'Template CSS, scoped at render time' })
   css!: string | null;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  folderId!: string | null;
 }

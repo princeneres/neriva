@@ -1,13 +1,16 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
 import { ApiDataResponse, ApiListResponse } from '../../common/api-envelope.decorators';
-import { ListQueryDto } from '../../common/list-query.dto';
 import { CurrentUser } from '../auth/auth.decorators';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { RequirePermission } from '../roles/require-permission.decorator';
 import { ContentTypesService, type ContentTypeRow } from './content-types.service';
 import { ContentTypeDto } from './dto/content-response.dto';
-import { CreateContentTypeDto, UpdateContentTypeDto } from './dto/content-types.dto';
+import {
+  CreateContentTypeDto,
+  ListContentTypesQueryDto,
+  UpdateContentTypeDto,
+} from './dto/content-types.dto';
 
 interface ContentTypeResponse {
   data: ContentTypeRow;
@@ -26,7 +29,7 @@ export class ContentTypesController {
   @RequirePermission('content-type:read')
   async list(
     @CurrentUser() user: AuthenticatedUser,
-    @Query() query: ListQueryDto,
+    @Query() query: ListContentTypesQueryDto,
   ): Promise<{ data: ContentTypeRow[]; meta: { cursor: string | null; limit: number } }> {
     const page = await this.contentTypesService.list(user.tenantId, query);
     return { data: page.items, meta: { cursor: page.nextCursor, limit: page.limit } };

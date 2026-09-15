@@ -7,9 +7,11 @@ import {
   Badge,
   Box,
   Code,
+  Card,
   Divider,
   Group,
   List,
+  Select,
   Stack,
   Tabs,
   Text,
@@ -17,14 +19,16 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconSettings, IconX } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { HelpTip } from '../../../components/help-tip';
-import type { ApiError } from '../../../lib/api';
+import { api, type ApiError } from '../../../lib/api';
 import type { EditorNode } from './editor-state';
 import { JsonValueField, PropField } from './prop-fields';
 import { fieldSpecsFor } from './schema-form';
 import classes from './studio.module.css';
 import { StylesPanel } from './styles-panel';
 import { type Block, type EntityStatus, statusColor } from './types';
+import type { ObjectDefinition } from '../objects/types';
 
 const SLOT_HELP =
   'A slot is a space inside a block where other blocks can be placed. Add blocks to a slot directly on the page.';
@@ -163,6 +167,94 @@ function PagePanel({
   );
 }
 
+function TodoMappingPanel({
+  node,
+  onSetProp,
+}: {
+  node: EditorNode;
+  onSetProp: (key: string, name: string, value: unknown) => void;
+}) {
+  const [objects, setObjects] = useState<ObjectDefinition[]>([]);
+  const [loading, setLoading] = useState(true);
+  const objectRef =
+    typeof node.props.objectDefinition === 'string' ? node.props.objectDefinition : '';
+  const selected = objects.find(
+    (definition) => definition.id === objectRef || definition.externalReferenceCode === objectRef,
+  );
+  const fieldOptions =
+    selected?.fields.map((field) => ({ value: field.key, label: field.label })) ?? [];
+
+  useEffect(() => {
+    let active = true;
+    api
+      .get<{ data: ObjectDefinition[] }>('/object-definitions?limit=100')
+      .then(({ data }) => {
+        if (active) setObjects(data);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const fieldSelect = (name: string, label: string, fallback: string, clearable = false) => (
+    <Select
+      label={label}
+      description={
+        selected ? `Maps to ${selected.name}.${String(node.props[name] || fallback)}` : undefined
+      }
+      data={fieldOptions}
+      value={typeof node.props[name] === 'string' ? String(node.props[name]) : fallback}
+      placeholder={selected ? 'Choose a field' : 'Choose an object first'}
+      disabled={!selected}
+      clearable={clearable}
+      onChange={(value) => onSetProp(node.key, name, value ?? '')}
+      searchable
+      size="sm"
+    />
+  );
+
+  return (
+    <Card withBorder padding="sm" radius="md" bg="slate.0">
+      <Group gap={6} mb={4}>
+        <Text size="sm" fw={700}>
+          Data source
+        </Text>
+        <HelpTip label="Choose the Object this block reads. Then map each visual role to one of its fields." />
+      </Group>
+      <Text size="xs" c="slate.5" mb="sm">
+        The To Do List is a data-driven block. The selected Object supplies rows, while these
+        mappings decide which field becomes the title, checkbox, priority and due date.
+      </Text>
+      <Stack gap="sm">
+        <Select
+          label="Object"
+          description="The records this list will read and update"
+          placeholder={loading ? 'Loading objects…' : 'Choose an object'}
+          data={objects.map((definition) => ({ value: definition.id, label: definition.name }))}
+          value={selected?.id ?? (objectRef || null)}
+          onChange={(value) => onSetProp(node.key, 'objectDefinition', value ?? '')}
+          searchable
+          clearable
+          size="sm"
+        />
+        {fieldSelect('titleField', 'Item title', 'title')}
+        {fieldSelect('doneField', 'Completed checkbox', 'done')}
+        {fieldSelect('priorityField', 'Priority', 'priority', true)}
+        {fieldSelect('dueDateField', 'Due date', 'dueDate', true)}
+      </Stack>
+      <Divider my="sm" />
+      <Text size="xs" c="slate.5">
+        Mapping preview: <Code>{selected?.name ?? 'Object'}.title</Code> → item text ·{' '}
+        <Code>{selected?.name ?? 'Object'}.done</Code> → checkbox
+      </Text>
+    </Card>
+  );
+}
+
 function BlockPanel({
   node,
   block,
@@ -230,6 +322,9 @@ function BlockPanel({
 
         <Tabs.Panel value="general" pt="md">
           <Stack gap="md">
+            {block?.externalReferenceCode === 'nv-todo-list' ? (
+              <TodoMappingPanel node={node} onSetProp={onSetProp} />
+            ) : null}
             {block && specs.length === 0 ? (
               <Text size="sm" c="slate.5">
                 This block has nothing to fill in.

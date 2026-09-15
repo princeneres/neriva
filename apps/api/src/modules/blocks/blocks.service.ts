@@ -15,12 +15,16 @@ import { TenantScopedRepository, type CursorPage } from '../../db/tenant-scoped.
 import { validatePropsSchema, validateSlots } from './block-validation';
 import { validateBlockCss, validateBlockTemplate } from './template-validation';
 import type { BlockStatus } from './dto/blocks.dto';
+import { ResourceFoldersService } from '../resource-folders/resource-folders.service';
 
 export type BlockRow = InferSelectModel<typeof blocks>;
 
 @Injectable()
 export class BlocksService {
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly foldersService: ResourceFoldersService,
+  ) {}
 
   private repo(tenantId: string): TenantScopedRepository<typeof blocks> {
     return new TenantScopedRepository(this.db, blocks, tenantId);
@@ -28,9 +32,9 @@ export class BlocksService {
 
   async list(
     tenantId: string,
-    params: { limit?: number; cursor?: string; status?: BlockStatus },
+    params: { limit?: number; cursor?: string; status?: BlockStatus; folder?: string },
   ): Promise<CursorPage<BlockRow>> {
-    if (params.status === undefined) {
+    if (params.status === undefined && params.folder === undefined) {
       return this.repo(tenantId).list(params);
     }
     // The generic repository has no extra-filter support; this mirrors its
@@ -38,7 +42,13 @@ export class BlocksService {
     const limit = clampLimit(params.limit);
     const conditions = [
       eq(blocks.tenantId, tenantId),
-      eq(blocks.status, params.status),
+      params.status ? eq(blocks.status, params.status) : undefined,
+      params.folder
+        ? eq(
+            blocks.folderId,
+            (await this.foldersService.assertForResource(tenantId, params.folder, 'blocks')).id,
+          )
+        : undefined,
       params.cursor ? gt(blocks.id, decodeCursor(params.cursor).id) : undefined,
     ];
     const rows = await this.db
@@ -73,8 +83,12 @@ export class BlocksService {
       html?: string | null;
       css?: string | null;
       externalReferenceCode?: string;
+      folderId?: string | null;
     },
   ): Promise<BlockRow> {
+    const folder = input.folderId
+      ? await this.foldersService.assertForResource(tenantId, input.folderId, 'blocks')
+      : null;
     this.assertValidDefinition(
       input.propsSchema,
       input.slots ?? [],
@@ -92,6 +106,7 @@ export class BlocksService {
         slots: input.slots ?? [],
         html: input.html ?? null,
         css: input.css ?? null,
+        folderId: folder?.id ?? null,
         createdBy,
         // undefined lets the envelope default generate one
         externalReferenceCode: input.externalReferenceCode,
@@ -116,9 +131,13 @@ export class BlocksService {
       slots?: BlockSlot[];
       html?: string | null;
       css?: string | null;
+      folderId?: string | null;
     },
   ): Promise<BlockRow> {
     const existing = await this.getByRef(tenantId, ref);
+    const folder = input.folderId
+      ? await this.foldersService.assertForResource(tenantId, input.folderId, 'blocks')
+      : null;
     // Effective values: a PATCH that changes only propsSchema or slots must
     // keep the stored template consistent with them, so the template is
     // re-validated against the merged definition.
@@ -137,6 +156,7 @@ export class BlocksService {
       slots: BlockSlot[];
       html: string | null;
       css: string | null;
+      folderId: string | null;
     }> = {};
     if (input.name !== undefined) {
       values.name = input.name;
@@ -158,6 +178,9 @@ export class BlocksService {
     }
     if (input.css !== undefined) {
       values.css = input.css;
+    }
+    if (input.folderId !== undefined) {
+      values.folderId = folder?.id ?? null;
     }
 
     if (Object.keys(values).length === 0) {

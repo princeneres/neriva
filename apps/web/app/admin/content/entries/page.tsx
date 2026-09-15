@@ -7,11 +7,13 @@ import {
   Card,
   Center,
   Group,
+  Grid,
   Select,
   Skeleton,
   Stack,
   Table,
   Text,
+  TextInput,
   ThemeIcon,
   Title,
   Tooltip,
@@ -23,6 +25,7 @@ import {
   IconLayoutGrid,
   IconPencil,
   IconPlus,
+  IconSearch,
   IconSend,
   IconTrash,
 } from '@tabler/icons-react';
@@ -31,6 +34,11 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { HelpTip } from '../../../../components/help-tip';
 import { useCursorList } from '../../../../components/data-table';
+import {
+  FolderPanel,
+  FolderPicker,
+  useFolderOrganization,
+} from '../../../../components/folder-organizer';
 import { ApiError, api, type ListMeta } from '../../../../lib/api';
 import { STATUS_COLORS, type ContentEntry, type ContentType } from '../types';
 
@@ -54,6 +62,10 @@ export default function ContentEntriesPage() {
   const router = useRouter();
   const [contentTypes, setContentTypes] = useState<ContentType[]>([]);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [sort, setSort] = useState('updated');
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
 
   useEffect(() => {
     api
@@ -73,13 +85,13 @@ export default function ContentEntriesPage() {
     [contentTypes],
   );
 
-  const listPath = useMemo(
-    () =>
-      typeFilter
-        ? `/content-entries?contentType=${encodeURIComponent(typeFilter)}`
-        : '/content-entries',
-    [typeFilter],
-  );
+  const listPath = useMemo(() => {
+    const params = new URLSearchParams();
+    if (typeFilter) params.set('contentType', typeFilter);
+    if (selectedFolder) params.set('folder', selectedFolder);
+    const query = params.toString();
+    return query ? `/content-entries?${query}` : '/content-entries';
+  }, [selectedFolder, typeFilter]);
 
   const { items, loading, hasMore, refresh, loadMore } = useCursorList<ContentEntry>(
     listPath,
@@ -90,6 +102,7 @@ export default function ContentEntriesPage() {
         message: error.message,
       }),
   );
+  const folders = useFolderOrganization('content-entries', items);
 
   function confirmDelete(entry: ContentEntry) {
     modals.openConfirmModal({
@@ -151,6 +164,14 @@ export default function ContentEntriesPage() {
     ? `/admin/content/entries/new?type=${encodeURIComponent(typeFilter)}`
     : '/admin/content/entries/new';
   const showEmpty = !loading && items.length === 0;
+  const query = search.trim().toLowerCase();
+  const visibleItems = items
+    .filter((row) => selectedFolder === null || folders.folderFor(row.id) === selectedFolder)
+    .filter((row) => statusFilter === null || row.status === statusFilter)
+    .filter((row) => query === '' || row.title.toLowerCase().includes(query))
+    .sort((a, b) =>
+      sort === 'title' ? a.title.localeCompare(b.title) : b.updatedAt.localeCompare(a.updatedAt),
+    );
 
   return (
     <>
@@ -180,6 +201,14 @@ export default function ContentEntriesPage() {
       </Group>
 
       <Group mb="md">
+        <TextInput
+          placeholder="Search entries"
+          aria-label="Search entries"
+          leftSection={<IconSearch size={16} />}
+          value={search}
+          onChange={(event) => setSearch(event.currentTarget.value)}
+          w={240}
+        />
         <Select
           aria-label="Filter by content type"
           placeholder="All content types"
@@ -192,101 +221,140 @@ export default function ContentEntriesPage() {
           clearable
           w={260}
         />
+        <Select
+          aria-label="Filter entries by status"
+          placeholder="All statuses"
+          data={['DRAFT', 'PUBLISHED', 'ARCHIVED']}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          clearable
+          w={170}
+        />
+        <Select
+          aria-label="Sort entries"
+          data={[
+            { value: 'updated', label: 'Recently updated' },
+            { value: 'title', label: 'Title: A to Z' },
+          ]}
+          value={sort}
+          onChange={(value) => setSort(value ?? 'updated')}
+          allowDeselect={false}
+          w={190}
+        />
       </Group>
 
-      <Card padding={0}>
-        {showEmpty ? (
-          <Center py={64}>
-            <Stack align="center" gap="sm" maw={420}>
-              <ThemeIcon variant="light" size={48} radius="xl">
-                <IconFilePencil size={26} stroke={1.6} />
-              </ThemeIcon>
-              <Text ta="center" c="slate.5">
-                {typeFilter
-                  ? 'No entries for this content type yet. Create the first one.'
-                  : 'Entries are the actual content, like a single article or FAQ item. Pick a content type and start writing.'}
-              </Text>
-              <Button component={Link} href={newEntryHref} leftSection={<IconPlus size={16} />}>
-                New entry
-              </Button>
-            </Stack>
-          </Center>
-        ) : (
-          <Table highlightOnHover verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Title</Table.Th>
-                <Table.Th>
-                  Type
-                  <HelpTip label="The content type this entry fills in" />
-                </Table.Th>
-                <Table.Th>
-                  Status
-                  <HelpTip label="Drafts are only visible here; published entries are live" />
-                </Table.Th>
-                <Table.Th>Updated</Table.Th>
-                <Table.Th aria-label="Actions" />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {loading && items.length === 0 ? (
-                <SkeletonRows />
-              ) : (
-                items.map((row) => (
-                  <Table.Tr
-                    key={row.id}
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => router.push(`/admin/content/entries/${row.id}`)}
-                  >
-                    <Table.Td fw={600}>{row.title}</Table.Td>
-                    <Table.Td c="slate.5">{typeNames.get(row.contentTypeId) ?? '…'}</Table.Td>
-                    <Table.Td>
-                      <Badge color={STATUS_COLORS[row.status]}>{row.status}</Badge>
-                    </Table.Td>
-                    <Table.Td c="slate.5">{new Date(row.updatedAt).toLocaleString()}</Table.Td>
-                    <Table.Td onClick={(event) => event.stopPropagation()}>
-                      <Group gap={4} justify="flex-end" wrap="nowrap">
-                        {row.status !== 'PUBLISHED' ? (
-                          <Tooltip label="Publish">
-                            <ActionIcon
-                              variant="subtle"
-                              color="green"
-                              aria-label={`Publish ${row.title}`}
-                              onClick={() => confirmPublish(row)}
-                            >
-                              <IconSend size={16} />
-                            </ActionIcon>
-                          </Tooltip>
-                        ) : null}
-                        <Tooltip label="Edit">
-                          <ActionIcon
-                            component={Link}
-                            href={`/admin/content/entries/${row.id}`}
-                            variant="subtle"
-                            aria-label={`Edit ${row.title}`}
-                          >
-                            <IconPencil size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label="Delete">
-                          <ActionIcon
-                            variant="subtle"
-                            color="red"
-                            aria-label={`Delete ${row.title}`}
-                            onClick={() => confirmDelete(row)}
-                          >
-                            <IconTrash size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                      </Group>
-                    </Table.Td>
+      <Grid gutter="lg" align="flex-start">
+        <Grid.Col span={{ base: 12, md: 3, lg: 2.5 }}>
+          <FolderPanel
+            folders={folders.folders}
+            assignments={folders.assignments}
+            itemCount={items.length}
+            selectedFolder={selectedFolder}
+            onSelect={setSelectedFolder}
+            onCreate={(name) => void folders.createFolder(name)}
+          />
+        </Grid.Col>
+        <Grid.Col span={{ base: 12, md: 9, lg: 9.5 }}>
+          <Card padding={0}>
+            {showEmpty ? (
+              <Center py={64}>
+                <Stack align="center" gap="sm" maw={420}>
+                  <ThemeIcon variant="light" size={48} radius="xl">
+                    <IconFilePencil size={26} stroke={1.6} />
+                  </ThemeIcon>
+                  <Text ta="center" c="slate.5">
+                    {typeFilter
+                      ? 'No entries for this content type yet. Create the first one.'
+                      : 'Entries are the actual content, like a single article or FAQ item. Pick a content type and start writing.'}
+                  </Text>
+                  <Button component={Link} href={newEntryHref} leftSection={<IconPlus size={16} />}>
+                    New entry
+                  </Button>
+                </Stack>
+              </Center>
+            ) : (
+              <Table highlightOnHover verticalSpacing="sm">
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Title</Table.Th>
+                    <Table.Th>
+                      Type
+                      <HelpTip label="The content type this entry fills in" />
+                    </Table.Th>
+                    <Table.Th>
+                      Status
+                      <HelpTip label="Drafts are only visible here; published entries are live" />
+                    </Table.Th>
+                    <Table.Th>Updated</Table.Th>
+                    <Table.Th aria-label="Actions" />
                   </Table.Tr>
-                ))
-              )}
-            </Table.Tbody>
-          </Table>
-        )}
-      </Card>
+                </Table.Thead>
+                <Table.Tbody>
+                  {loading && items.length === 0 ? (
+                    <SkeletonRows />
+                  ) : (
+                    visibleItems.map((row) => (
+                      <Table.Tr
+                        key={row.id}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => router.push(`/admin/content/entries/${row.id}`)}
+                      >
+                        <Table.Td fw={600}>{row.title}</Table.Td>
+                        <Table.Td c="slate.5">{typeNames.get(row.contentTypeId) ?? '…'}</Table.Td>
+                        <Table.Td>
+                          <Badge color={STATUS_COLORS[row.status]}>{row.status}</Badge>
+                        </Table.Td>
+                        <Table.Td c="slate.5">{new Date(row.updatedAt).toLocaleString()}</Table.Td>
+                        <Table.Td onClick={(event) => event.stopPropagation()}>
+                          <Group gap={4} justify="flex-end" wrap="nowrap">
+                            <FolderPicker
+                              value={folders.folderFor(row.id)}
+                              folders={folders.folders}
+                              onChange={(folderId) => folders.assignItem(row.id, folderId)}
+                            />
+                            {row.status !== 'PUBLISHED' ? (
+                              <Tooltip label="Publish">
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="green"
+                                  aria-label={`Publish ${row.title}`}
+                                  onClick={() => confirmPublish(row)}
+                                >
+                                  <IconSend size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                            ) : null}
+                            <Tooltip label="Edit">
+                              <ActionIcon
+                                component={Link}
+                                href={`/admin/content/entries/${row.id}`}
+                                variant="subtle"
+                                aria-label={`Edit ${row.title}`}
+                              >
+                                <IconPencil size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label="Delete">
+                              <ActionIcon
+                                variant="subtle"
+                                color="red"
+                                aria-label={`Delete ${row.title}`}
+                                onClick={() => confirmDelete(row)}
+                              >
+                                <IconTrash size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))
+                  )}
+                </Table.Tbody>
+              </Table>
+            )}
+          </Card>
+        </Grid.Col>
+      </Grid>
 
       {hasMore ? (
         <Center mt="md">

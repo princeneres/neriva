@@ -68,6 +68,7 @@ export function pageContentPaletteBlock(): Block {
     createdAt: new Date(0).toISOString(),
     updatedAt: new Date(0).toISOString(),
     createdBy: null,
+    folderId: null,
     status: 'PUBLISHED',
     name: 'Page content',
     category: 'layout',

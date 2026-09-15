@@ -13,6 +13,7 @@ import {
 } from 'class-validator';
 import { CONTENT_FIELD_TYPES, type ContentFieldType } from '../../../db/schema';
 import { FIELD_KEY_PATTERN } from '../content-field.validation';
+import { ListQueryDto } from '../../../common/list-query.dto';
 
 export class ContentFieldDto {
   @ApiProperty({ pattern: FIELD_KEY_PATTERN.source, example: 'headline' })
@@ -53,6 +54,11 @@ export class CreateContentTypeDto {
   @IsNotEmpty()
   externalReferenceCode?: string;
 
+  @ApiPropertyOptional({ type: String, format: 'uuid', nullable: true })
+  @IsOptional()
+  @IsString()
+  folderId?: string | null;
+
   @ApiProperty({ type: [ContentFieldDto] })
   @IsArray()
   @ValidateNested({ each: true })
@@ -79,4 +85,19 @@ export class UpdateContentTypeDto {
   @ValidateNested({ each: true })
   @Type(() => ContentFieldDto)
   fields?: ContentFieldDto[];
+
+  @ApiPropertyOptional({ type: String, format: 'uuid', nullable: true })
+  @IsOptional()
+  @IsString()
+  folderId?: string | null;
+}
+
+export class ListContentTypesQueryDto extends ListQueryDto {
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Only content types assigned to this folder',
+  })
+  @IsOptional()
+  @IsString()
+  folder?: string;
 }

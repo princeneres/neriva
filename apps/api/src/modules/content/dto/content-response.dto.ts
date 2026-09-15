@@ -18,7 +18,7 @@ export class ContentTypeDto {
   @ApiProperty({ format: 'date-time' })
   updatedAt!: string;
 
-  @ApiProperty({ format: 'uuid', nullable: true })
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
   createdBy!: string | null;
 
   @ApiProperty()
@@ -29,6 +29,9 @@ export class ContentTypeDto {
 
   @ApiProperty({ type: [ContentFieldDto] })
   fields!: ContentFieldDto[];
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  folderId!: string | null;
 }
 
 export class ContentEntryDto {
@@ -67,4 +70,7 @@ export class ContentEntryDto {
 
   @ApiProperty({ type: 'object', additionalProperties: true })
   customFields!: Record<string, unknown>;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  folderId!: string | null;
 }

@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
   transpilePackages: ['@neriva/ui'],
   devIndicators: false,
   experimental: {
+    webpackBuildWorker: false,
     // Mantine re-exports its whole surface from one barrel, so an
     // `import { Button } from '@mantine/core'` pulls every component into the
     // route in development. Rewriting those to deep imports cuts the module

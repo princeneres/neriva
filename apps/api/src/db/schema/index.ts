@@ -16,3 +16,4 @@ export * from './style-books';
 export * from './system-settings';
 export * from './media-folders';
 export * from './media-files';
+export * from './resource-folders';

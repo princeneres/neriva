@@ -1,6 +1,16 @@
-import { foreignKey, jsonb, pgTable, text, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
+import {
+  foreignKey,
+  index,
+  jsonb,
+  pgTable,
+  text,
+  uniqueIndex,
+  uuid,
+  varchar,
+} from 'drizzle-orm/pg-core';
 import { envelopeColumns } from './envelope';
 import { tenants } from './tenants';
+import { resourceFolders } from './resource-folders';
 
 export const CONTENT_FIELD_TYPES = ['text', 'richtext', 'number', 'boolean', 'date'] as const;
 export type ContentFieldType = (typeof CONTENT_FIELD_TYPES)[number];
@@ -20,9 +30,11 @@ export const contentTypes = pgTable(
     name: varchar('name', { length: 255 }).notNull(),
     description: text('description'),
     fields: jsonb('fields').$type<ContentFieldDefinition[]>().notNull(),
+    folderId: uuid('folder_id').references(() => resourceFolders.id, { onDelete: 'set null' }),
   },
   (t) => [
     uniqueIndex('content_types_tenant_erc_uq').on(t.tenantId, t.externalReferenceCode),
+    index('content_types_tenant_folder_id_idx').on(t.tenantId, t.folderId, t.id),
     uniqueIndex('content_types_tenant_name_uq').on(t.tenantId, t.name),
     foreignKey({
       columns: [t.tenantId],

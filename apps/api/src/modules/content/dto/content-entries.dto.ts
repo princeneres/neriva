@@ -47,6 +47,11 @@ export class CreateContentEntryDto {
   @IsString()
   @IsNotEmpty()
   externalReferenceCode?: string;
+
+  @ApiPropertyOptional({ type: String, format: 'uuid', nullable: true })
+  @IsOptional()
+  @IsString()
+  folderId?: string | null;
 }
 
 export class UpdateContentEntryDto {
@@ -84,6 +89,11 @@ export class UpdateContentEntryDto {
   @IsString()
   @IsNotEmpty()
   site?: string | null;
+
+  @ApiPropertyOptional({ type: String, format: 'uuid', nullable: true })
+  @IsOptional()
+  @IsString()
+  folderId?: string | null;
 }
 
 export class ListContentEntriesQueryDto extends ListQueryDto {
@@ -98,4 +108,9 @@ export class ListContentEntriesQueryDto extends ListQueryDto {
   @IsString()
   @IsNotEmpty()
   site?: string;
+
+  @ApiPropertyOptional({ format: 'uuid', description: 'Only entries assigned to this folder' })
+  @IsOptional()
+  @IsString()
+  folder?: string;
 }
