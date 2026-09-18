@@ -1,5 +1,6 @@
-# Production-shaped stack: one Postgres, one API container, one web container.
+# Production stack: Postgres, API, web and an integrated HTTPS reverse proxy.
 # Usage:
+#   WEB_HOST=cms.example.com API_HOST=api.example.com \
 #   POSTGRES_PASSWORD=<random> JWT_ACCESS_SECRET=<random> \
 #   WEB_ORIGIN=https://cms.example.com NEXT_PUBLIC_API_URL=https://api.example.com \
 #   docker compose -f docker-compose.prod.yml up -d --build
@@ -35,8 +36,8 @@ services:
       MEDIA_STORAGE_DIR: /data/uploads
     volumes:
       - media-uploads:/data/uploads
-    ports:
-      - '3001:3001'
+    expose:
+      - '3001'
     healthcheck:
       test:
         [
@@ -56,8 +57,11 @@ services:
       target: web
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL}
-    ports:
-      - '3000:3000'
+    environment:
+      # Server-side rendering reaches the API over the private Compose network.
+      API_INTERNAL_URL: http://api:3001
+    expose:
+      - '3000'
     healthcheck:
       test:
         [
@@ -71,6 +75,27 @@ services:
       api:
         condition: service_healthy
 
+  proxy:
+    image: caddy:2-alpine
+    environment:
+      WEB_HOST: ${WEB_HOST:?set WEB_HOST}
+      API_HOST: ${API_HOST:?set API_HOST}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+
 volumes:
   pgdata-prod:
   media-uploads:
+  caddy-data:
+  caddy-config:

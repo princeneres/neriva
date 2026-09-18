@@ -29,8 +29,9 @@ application build is necessary, but it is not sufficient for a public launch.
 
 ### Blockers
 
-- Put the web and API behind an HTTPS reverse proxy or managed TLS endpoint.
-  Do not expose the container ports directly to the internet.
+- Configure DNS for both public hostnames and deploy the included Caddy reverse
+  proxy, or an equivalent managed TLS endpoint. Do not expose the container
+  ports directly to the internet.
 - Set unique production values for `POSTGRES_PASSWORD`, `JWT_ACCESS_SECRET`,
   `NERIVA_INITIAL_ADMIN_PASSWORD`, `WEB_ORIGIN`, `NEXT_PUBLIC_API_URL`, and
   `MEDIA_STORAGE_DIR`. Never use the example values.
