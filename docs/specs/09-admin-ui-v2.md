@@ -17,7 +17,7 @@ Status: approved. Supersedes the visual conventions of spec 08 (the API-client r
 - **Empty states**: centered in the card: light `ThemeIcon` with the section icon, a one-liner explaining what the thing is for, and a CTA button. First-run experience matters: assume the user has never seen a CMS.
 - **Feedback**: `notifications.show({ color: 'green' | 'red', ... })` for success/failure. Form-level errors as `<Alert color="red">`. Map problem `errors[]` entries to fields when possible (`@mantine/form` `setFieldError`).
 - **Forms**: `@mantine/form` `useForm`. Create/edit as dedicated routes (keep existing paths). Inputs: `TextInput`, `Textarea`, `NumberInput`, `Switch` (booleans), `Select` (enums/relations), `TagsInput` (lists), `ColorInput` where a value is a color. Buttons: primary submit + subtle Cancel link back. Read-only metadata (id, ERC) in a muted `<Card>` aside or a small definition list, not disabled inputs.
-- **Pagination**: keep `useCursorList`; render Load more as `<Button variant="light">` centered under the table.
+- **Pagination**: use cursor endpoints through `useCursorPage`; render a compact first / previous / current-page / next / last control plus an items-per-page selector. Cursor APIs do not expose a total count, so the UI must not invent page totals. The last-page action resolves the cursor chain from the API rather than guessing an offset.
 - **Legacy cleanup**: while rebuilding a section, remove its usage of the old `.nv-*` classes and `components/data-table.tsx` `DataTable` (the hook `useCursorList` stays). Do not edit shared files.
 
 ## Language

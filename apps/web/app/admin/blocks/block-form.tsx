@@ -469,103 +469,100 @@ export function BlockForm({
         </Tabs.List>
 
         <Tabs.Panel value="code" pt="md">
-          <Grid gutter="md" align="stretch">
-            <Grid.Col span={{ base: 12, xl: 7 }}>
-              <Stack gap="md">
-                <Paper withBorder radius="md" p="xs" className={classes.sourcePanel}>
-                  <Group justify="space-between" px="xs" pb="xs">
-                    <div>
-                      <Text fw={650} size="sm">
-                        HTML
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        Active source used by this Block at render time
-                      </Text>
-                    </div>
-                    <Text size="xs" c="dimmed">
-                      {bindings.props.length} bindings detected
-                    </Text>
-                  </Group>
-                  <CodeEditor
-                    language="html"
-                    value={draft.html ?? ''}
-                    onChange={(html) => update({ html })}
-                    onSave={() => void save()}
-                    aria-label="Block HTML source"
-                  />
-                </Paper>
-                <Paper withBorder radius="md" p="xs" className={classes.sourcePanel}>
-                  <Group justify="space-between" px="xs" pb="xs">
-                    <div>
-                      <Text fw={650} size="sm">
-                        JavaScript
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        Runs in an isolated Block sandbox. Its visible Neriva.request calls use the
-                        declared runtime API only.
-                      </Text>
-                    </div>
-                    <Text size="xs" c="dimmed">
-                      {draft.js?.split('\n').length ?? 0} lines
-                    </Text>
-                  </Group>
-                  <CodeEditor
-                    language="javascript"
-                    value={draft.js ?? ''}
-                    onChange={(js) => update({ js })}
-                    onSave={() => void save()}
-                    aria-label="Block JavaScript source"
-                  />
-                </Paper>
-                <Paper withBorder radius="md" p="xs" className={classes.sourcePanel}>
-                  <Group justify="space-between" px="xs" pb="xs">
-                    <div>
-                      <Text fw={650} size="sm">
-                        CSS
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        Scoped to this Block in the preview and published page
-                      </Text>
-                    </div>
-                    <Text size="xs" c="dimmed">
-                      {draft.css?.split('\n').length ?? 0} lines
-                    </Text>
-                  </Group>
-                  <CodeEditor
-                    language="css"
-                    value={draft.css ?? ''}
-                    onChange={(css) => update({ css })}
-                    onSave={() => void save()}
-                    aria-label="Block CSS source"
-                  />
-                </Paper>
-                {sourceWarning ? (
-                  <Alert color="yellow" variant="light">
-                    {sourceWarning}
-                  </Alert>
-                ) : null}
-                {draft.html === null || draft.html.trim() === '' ? (
-                  <Alert color="blue" variant="light">
-                    No template source has been authored yet. Add the real HTML for this Block here.
-                    The Studio never invents source code for you.
-                  </Alert>
-                ) : null}
-              </Stack>
-            </Grid.Col>
-            <Grid.Col span={{ base: 12, xl: 5 }}>
-              <Box className={classes.previewSticky}>
-                <BlockPreviewPanel
-                  erc={block?.externalReferenceCode ?? '__new-block__'}
-                  blockName={draft.name || 'Untitled Block'}
-                  fields={schemaFields}
-                  slotNames={slots}
-                  html={draft.html}
-                  css={draft.css}
-                  js={draft.js}
-                />
-              </Box>
-            </Grid.Col>
-          </Grid>
+          <div className={classes.codeWorkspace}>
+            <Paper withBorder radius="md" p="xs" className={classes.workspacePane}>
+              <Group justify="space-between" px="xs" pb="xs" gap="xs">
+                <div>
+                  <Text fw={650} size="sm">
+                    HTML
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Active source at render time
+                  </Text>
+                </div>
+                <Text size="xs" c="dimmed">
+                  {bindings.props.length} bindings
+                </Text>
+              </Group>
+              <CodeEditor
+                fill
+                language="html"
+                value={draft.html ?? ''}
+                onChange={(html) => update({ html })}
+                onSave={() => void save()}
+                aria-label="Block HTML source"
+              />
+            </Paper>
+            <Paper withBorder radius="md" p="xs" className={classes.workspacePane}>
+              <Group justify="space-between" px="xs" pb="xs" gap="xs">
+                <div>
+                  <Text fw={650} size="sm">
+                    CSS
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Scoped to this Block
+                  </Text>
+                </div>
+                <Text size="xs" c="dimmed">
+                  {draft.css?.split('\n').length ?? 0} lines
+                </Text>
+              </Group>
+              <CodeEditor
+                fill
+                language="css"
+                value={draft.css ?? ''}
+                onChange={(css) => update({ css })}
+                onSave={() => void save()}
+                aria-label="Block CSS source"
+              />
+            </Paper>
+            <Paper withBorder radius="md" p="xs" className={classes.workspacePane}>
+              <Group justify="space-between" px="xs" pb="xs" gap="xs">
+                <div>
+                  <Text fw={650} size="sm">
+                    JavaScript
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Isolated Block sandbox
+                  </Text>
+                </div>
+                <Text size="xs" c="dimmed">
+                  {draft.js?.split('\n').length ?? 0} lines
+                </Text>
+              </Group>
+              <CodeEditor
+                fill
+                language="javascript"
+                value={draft.js ?? ''}
+                onChange={(js) => update({ js })}
+                onSave={() => void save()}
+                aria-label="Block JavaScript source"
+              />
+            </Paper>
+            <div className={classes.previewPane}>
+              <BlockPreviewPanel
+                fill
+                erc={block?.externalReferenceCode ?? '__new-block__'}
+                blockName={draft.name || 'Untitled Block'}
+                fields={schemaFields}
+                slotNames={slots}
+                html={draft.html}
+                css={draft.css}
+                js={draft.js}
+              />
+            </div>
+          </div>
+          {sourceWarning ? (
+            <Alert color="yellow" variant="light" mt="sm">
+              {sourceWarning}
+            </Alert>
+          ) : null}
+          {draft.html === null || draft.html.trim() === '' ? (
+            <Alert color="blue" variant="light" mt="sm">
+              No template source has been authored yet. Add the real HTML for this Block here. The
+              Studio never invents source code for you.
+            </Alert>
+          ) : null}
         </Tabs.Panel>
 
         <Tabs.Panel value="fields" pt="md">

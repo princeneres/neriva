@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  ActionIcon,
   Alert,
   Button,
   Card,
@@ -15,12 +16,21 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { IconAdjustments, IconInfoCircle, IconRestore } from '@tabler/icons-react';
-import { useMemo, useState } from 'react';
+import {
+  IconAdjustments,
+  IconArrowsMaximize,
+  IconDeviceDesktop,
+  IconDeviceMobile,
+  IconDeviceTablet,
+  IconInfoCircle,
+  IconRestore,
+} from '@tabler/icons-react';
+import { type MouseEvent, useMemo, useState } from 'react';
 import { type BlockInfo, type RenderNode, RenderTree } from '../../../lib/renderer/render-tree';
 import { useSite } from '../../../lib/site-context';
 import { useSitePreviewData } from '../pages/use-site-preview-data';
 import type { BuilderField } from './types';
+import classes from './block-preview.module.css';
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -177,6 +187,7 @@ export function BlockPreviewPanel({
   html,
   css,
   js,
+  fill = false,
 }: {
   erc: string;
   blockName: string;
@@ -185,9 +196,11 @@ export function BlockPreviewPanel({
   html: string | null;
   css: string | null;
   js: string | null;
+  fill?: boolean;
 }) {
   const [overrides, setOverrides] = useState<Record<string, unknown>>({});
   const [testDataOpen, setTestDataOpen] = useState(false);
+  const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile' | 'full'>('desktop');
   const { current: site } = useSite();
   const { css: siteCss, sitePages } = useSitePreviewData(site?.slug ?? null);
   const previewFields = useMemo(() => {
@@ -227,9 +240,29 @@ export function BlockPreviewPanel({
     [SLOT_ERC]: SLOT_INFO,
   };
 
+  function preventPreviewNavigation(event: MouseEvent<HTMLDivElement>) {
+    const target = event.target;
+    if (target instanceof Element && target.closest('a')) event.preventDefault();
+  }
+
+  const viewportClass =
+    viewport === 'tablet'
+      ? classes.previewTablet
+      : viewport === 'mobile'
+        ? classes.previewMobile
+        : viewport === 'full'
+          ? classes.previewFull
+          : undefined;
+
   return (
     <>
-      <Card padding={0} withBorder radius="md" style={{ overflow: 'hidden' }}>
+      <Card
+        padding={0}
+        withBorder
+        radius="md"
+        className={fill ? classes.previewCardFill : undefined}
+        style={{ overflow: 'hidden' }}
+      >
         <Group
           justify="space-between"
           px="md"
@@ -244,10 +277,49 @@ export function BlockPreviewPanel({
               Same renderer used by the published site
             </Text>
           </div>
-          <Group gap={4}>
-            <Text size="xs" c="dimmed">
-              Source defaults
-            </Text>
+          <Group gap={2} wrap="nowrap">
+            <ActionIcon.Group>
+              <ActionIcon
+                variant={viewport === 'desktop' ? 'light' : 'subtle'}
+                color="gray"
+                size="sm"
+                onClick={() => setViewport('desktop')}
+                aria-label="Desktop preview"
+                title="Desktop preview"
+              >
+                <IconDeviceDesktop size={15} />
+              </ActionIcon>
+              <ActionIcon
+                variant={viewport === 'tablet' ? 'light' : 'subtle'}
+                color="gray"
+                size="sm"
+                onClick={() => setViewport('tablet')}
+                aria-label="Tablet preview"
+                title="Tablet preview"
+              >
+                <IconDeviceTablet size={15} />
+              </ActionIcon>
+              <ActionIcon
+                variant={viewport === 'mobile' ? 'light' : 'subtle'}
+                color="gray"
+                size="sm"
+                onClick={() => setViewport('mobile')}
+                aria-label="Mobile preview"
+                title="Mobile preview"
+              >
+                <IconDeviceMobile size={15} />
+              </ActionIcon>
+              <ActionIcon
+                variant={viewport === 'full' ? 'light' : 'subtle'}
+                color="gray"
+                size="sm"
+                onClick={() => setViewport('full')}
+                aria-label="Full-width preview"
+                title="Full-width preview"
+              >
+                <IconArrowsMaximize size={15} />
+              </ActionIcon>
+            </ActionIcon.Group>
             <Button
               size="compact-xs"
               variant="subtle"
@@ -259,20 +331,23 @@ export function BlockPreviewPanel({
             </Button>
           </Group>
         </Group>
-        <div
-          className="nv-site-root"
-          data-nv-theme="light"
-          style={{ minHeight: 180, background: '#fff' }}
-          onClickCapture={(event) => event.preventDefault()}
-        >
-          {siteCss !== '' ? <style>{siteCss}</style> : null}
-          <RenderTree
-            tree={{ blocks: [{ block: erc, props, slots }] }}
-            blockInfo={info}
-            sitePages={sitePages}
-            siteSlug={site?.slug}
-            siteBasePath={site?.slug ? `/s/${encodeURIComponent(site.slug)}` : undefined}
-          />
+        <div className={`${classes.previewStage} ${fill ? classes.previewStageFill : ''}`}>
+          <div className={`${classes.previewFrame} ${viewportClass ?? ''}`}>
+            <div
+              className={`nv-site-root ${classes.previewRoot}`}
+              data-nv-theme="light"
+              onClickCapture={preventPreviewNavigation}
+            >
+              {siteCss !== '' ? <style>{siteCss}</style> : null}
+              <RenderTree
+                tree={{ blocks: [{ block: erc, props, slots }] }}
+                blockInfo={info}
+                sitePages={sitePages}
+                siteSlug={site?.slug}
+                siteBasePath={site?.slug ? `/s/${encodeURIComponent(site.slug)}` : undefined}
+              />
+            </div>
+          </div>
         </div>
         {html === null ? (
           <Alert icon={<IconInfoCircle size={16} />} color="yellow" variant="light" m="md">

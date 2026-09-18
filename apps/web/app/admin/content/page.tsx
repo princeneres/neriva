@@ -32,7 +32,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { HelpTip } from '../../../components/help-tip';
-import { useCursorList } from '../../../components/data-table';
+import { CursorPagination } from '../../../components/cursor-pagination';
+import { useCursorPage } from '../../../components/data-table';
 import {
   FolderPanel,
   FolderPicker,
@@ -65,14 +66,25 @@ export default function ContentTypesPage() {
   const listPath = selectedFolder
     ? `/content-types?folder=${encodeURIComponent(selectedFolder)}`
     : '/content-types';
-  const { items, loading, hasMore, refresh, loadMore } = useCursorList<ContentType>(
-    listPath,
-    (error) =>
-      notifications.show({
-        color: 'red',
-        title: 'Could not load content types',
-        message: error.message,
-      }),
+  const {
+    items,
+    loading,
+    page,
+    limit,
+    hasPrevious,
+    hasNext,
+    refresh,
+    first,
+    next,
+    previous,
+    last,
+    setLimit,
+  } = useCursorPage<ContentType>(listPath, (error) =>
+    notifications.show({
+      color: 'red',
+      title: 'Could not load content types',
+      message: error.message,
+    }),
   );
   const folders = useFolderOrganization('content-types', items);
 
@@ -272,13 +284,18 @@ export default function ContentTypesPage() {
         </Grid.Col>
       </Grid>
 
-      {hasMore ? (
-        <Center mt="md">
-          <Button variant="light" disabled={loading} onClick={() => void loadMore()}>
-            {loading ? 'Loading…' : 'Load more'}
-          </Button>
-        </Center>
-      ) : null}
+      <CursorPagination
+        page={page}
+        hasPrevious={hasPrevious}
+        hasNext={hasNext}
+        loading={loading}
+        limit={limit}
+        onFirst={() => void first()}
+        onPrevious={() => void previous()}
+        onNext={() => void next()}
+        onLast={() => void last()}
+        onLimitChange={(nextLimit) => void setLimit(nextLimit)}
+      />
     </>
   );
 }

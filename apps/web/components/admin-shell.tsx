@@ -10,13 +10,13 @@ import {
   Menu,
   NavLink,
   ScrollArea,
-  Select,
   Text,
   Tooltip,
   UnstyledButton,
 } from '@mantine/core';
 import {
   IconChevronDown,
+  IconCheck,
   IconCube,
   IconDatabase,
   IconEdit,
@@ -146,55 +146,103 @@ function SiteSwitcher({ collapsed }: { collapsed: boolean }) {
   }
   if (collapsed) {
     return (
-      <Tooltip
-        label={current ? `Working on: ${current.name}` : 'No site selected'}
-        position="right"
-      >
-        <Box ta="center" py={4}>
-          <IconMapPin size={17} stroke={1.7} color="var(--mantine-color-dimmed)" />
-        </Box>
-      </Tooltip>
+      <Menu shadow="md" width={260} position="right-start" withinPortal>
+        <Menu.Target>
+          <Tooltip label={current ? `Working on: ${current.name}` : 'Choose site'} position="right">
+            <UnstyledButton className={classes.siteSwitcherRail} aria-label="Choose current site">
+              <IconMapPin size={17} stroke={1.7} />
+            </UnstyledButton>
+          </Tooltip>
+        </Menu.Target>
+        <SiteMenuContent
+          sites={sites}
+          currentId={current?.id}
+          defaultSlug={defaultSlug}
+          onSelect={(id) => {
+            select(id);
+            router.refresh();
+          }}
+        />
+      </Menu>
     );
   }
   return (
-    <Group gap={6} wrap="nowrap" mt="sm">
-      <Select
-        size="xs"
-        flex={1}
-        data={sites.map((s) => ({ value: s.id, label: s.name }))}
-        value={current?.id ?? null}
-        onChange={(value) => {
-          // Picking a different site lands on that site's public home; the
-          // same value is a no-op.
-          if (value === null || value === current?.id) {
-            return;
-          }
-          select(value);
-          const slug = sites.find((s) => s.id === value)?.slug;
-          if (slug !== undefined) {
-            router.push(visitSiteUrl(slug, defaultSlug));
-          }
+    <Menu shadow="md" width={280} position="bottom-start" withinPortal>
+      <Menu.Target>
+        <UnstyledButton className={classes.siteContextButton} aria-label="Choose current site">
+          <IconMapPin size={15} />
+          <span className={classes.siteContextCopy}>
+            <Text size="xs" fw={650} truncate>
+              {current?.name ?? 'Choose a site'}
+            </Text>
+            <Text size="xs" className={classes.siteContextSlug} truncate>
+              {current ? `/${current.slug}` : 'No site context'}
+            </Text>
+          </span>
+          <IconChevronDown size={14} />
+        </UnstyledButton>
+      </Menu.Target>
+      <SiteMenuContent
+        sites={sites}
+        currentId={current?.id}
+        defaultSlug={defaultSlug}
+        onSelect={(id) => {
+          if (id === current?.id) return;
+          select(id);
+          router.refresh();
         }}
-        allowDeselect={false}
-        leftSection={<IconMapPin size={14} />}
-        comboboxProps={{ withinPortal: true }}
-        aria-label="Current site"
       />
-      <Tooltip label="Open the published site in a new tab">
-        <ActionIcon
+    </Menu>
+  );
+}
+
+function SiteMenuContent({
+  sites,
+  currentId,
+  defaultSlug,
+  onSelect,
+}: {
+  sites: ReturnType<typeof useSite>['sites'];
+  currentId?: string;
+  defaultSlug: string | null;
+  onSelect: (id: string) => void;
+}) {
+  const current = sites.find((site) => site.id === currentId);
+  return (
+    <Menu.Dropdown>
+      <Menu.Label>Working site</Menu.Label>
+      <ScrollArea.Autosize mah={264} type="auto">
+        {sites.map((site) => (
+          <Menu.Item
+            key={site.id}
+            leftSection={<IconMapPin size={15} />}
+            rightSection={site.id === currentId ? <IconCheck size={15} /> : undefined}
+            onClick={() => onSelect(site.id)}
+          >
+            <Text size="sm" fw={site.id === currentId ? 650 : 400} lineClamp={1}>
+              {site.name}
+            </Text>
+            <Text size="xs" c="dimmed">
+              /{site.slug}
+            </Text>
+          </Menu.Item>
+        ))}
+      </ScrollArea.Autosize>
+      <Menu.Divider />
+      <Menu.Item component={Link} href="/admin/sites" leftSection={<IconSettings size={15} />}>
+        Manage sites
+      </Menu.Item>
+      {current ? (
+        <Menu.Item
           component="a"
-          href={current ? visitSiteUrl(current.slug, defaultSlug) : '#'}
+          href={visitSiteUrl(current.slug, defaultSlug)}
           target="_blank"
-          variant="subtle"
-          color="gray"
-          className={classes.iconButton}
-          disabled={!current}
-          aria-label="Visit site"
+          leftSection={<IconExternalLink size={15} />}
         >
-          <IconExternalLink size={16} />
-        </ActionIcon>
-      </Tooltip>
-    </Group>
+          Visit published site
+        </Menu.Item>
+      ) : null}
+    </Menu.Dropdown>
   );
 }
 

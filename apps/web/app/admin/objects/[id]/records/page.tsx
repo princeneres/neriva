@@ -34,7 +34,8 @@ import {
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import { useCursorList } from '../../../../../components/data-table';
+import { CursorPagination } from '../../../../../components/cursor-pagination';
+import { useCursorPage } from '../../../../../components/data-table';
 import { HelpTip } from '../../../../../components/help-tip';
 import { ApiError, api } from '../../../../../lib/api';
 import type { ObjectDefinition, ObjectField, ObjectRecord } from '../../types';
@@ -93,14 +94,25 @@ export default function ObjectRecordsPage() {
     return query ? `${base}?${query}` : base;
   }, [id, applied, sortKey]);
 
-  const { items, loading, hasMore, refresh, loadMore } = useCursorList<ObjectRecord>(
-    listPath,
-    (error) =>
-      notifications.show({
-        color: 'red',
-        title: 'Could not load records',
-        message: error.message,
-      }),
+  const {
+    items,
+    loading,
+    page,
+    limit,
+    hasPrevious,
+    hasNext,
+    refresh,
+    first,
+    next,
+    previous,
+    last,
+    setLimit,
+  } = useCursorPage<ObjectRecord>(listPath, (error) =>
+    notifications.show({
+      color: 'red',
+      title: 'Could not load records',
+      message: error.message,
+    }),
   );
 
   const filterField = definition?.fields.find((field) => field.key === filterKey) ?? null;
@@ -395,13 +407,18 @@ export default function ObjectRecordsPage() {
         </Card>
       ) : null}
 
-      {hasMore ? (
-        <Group justify="center" mt="md">
-          <Button variant="light" loading={loading} onClick={() => void loadMore()}>
-            Load more
-          </Button>
-        </Group>
-      ) : null}
+      <CursorPagination
+        page={page}
+        hasPrevious={hasPrevious}
+        hasNext={hasNext}
+        loading={loading}
+        limit={limit}
+        onFirst={() => void first()}
+        onPrevious={() => void previous()}
+        onNext={() => void next()}
+        onLast={() => void last()}
+        onLimitChange={(nextLimit) => void setLimit(nextLimit)}
+      />
     </>
   );
 }

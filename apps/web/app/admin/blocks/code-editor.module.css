@@ -15,6 +15,24 @@
     box-shadow 140ms ease;
 }
 
+.editorFill {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.editorFill .editorBody {
+  min-height: 0;
+  flex: 1;
+}
+
+.editorFill .textarea {
+  height: 100%;
+  min-height: 0;
+  resize: none;
+}
+
 .codeIcon {
   display: grid;
   width: 34px;

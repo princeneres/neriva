@@ -50,7 +50,8 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
-import { useCursorList } from '../../../components/data-table';
+import { CursorPagination } from '../../../components/cursor-pagination';
+import { useCursorPage } from '../../../components/data-table';
 import { HelpTip } from '../../../components/help-tip';
 import { ApiError, api } from '../../../lib/api';
 import { apiUrl } from '../../../lib/api-url';
@@ -233,10 +234,17 @@ export default function MediaLibraryPage() {
   const {
     items: files,
     loading: filesLoading,
-    hasMore,
+    page,
+    limit,
+    hasPrevious,
+    hasNext,
     refresh: refreshFiles,
-    loadMore,
-  } = useCursorList<MediaFile>(filesPath, (error) =>
+    first,
+    next,
+    previous,
+    last,
+    setLimit,
+  } = useCursorPage<MediaFile>(filesPath, (error) =>
     notifications.show({ color: 'red', title: 'Could not load files', message: error.message }),
   );
 
@@ -780,13 +788,18 @@ export default function MediaLibraryPage() {
                   ? SKELETON_CARDS.map((card) => <Skeleton key={card} height={140} radius="md" />)
                   : null}
               </SimpleGrid>
-              {hasMore ? (
-                <Group justify="center" mt="md">
-                  <Button variant="light" loading={filesLoading} onClick={() => void loadMore()}>
-                    Load more
-                  </Button>
-                </Group>
-              ) : null}
+              <CursorPagination
+                page={page}
+                hasPrevious={hasPrevious}
+                hasNext={hasNext}
+                loading={filesLoading}
+                limit={limit}
+                onFirst={() => void first()}
+                onPrevious={() => void previous()}
+                onNext={() => void next()}
+                onLast={() => void last()}
+                onLimitChange={(nextLimit) => void setLimit(nextLimit)}
+              />
             </div>
           ) : null}
         </Stack>

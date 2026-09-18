@@ -28,7 +28,8 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import { useCursorList } from '../../../components/data-table';
+import { CursorPagination } from '../../../components/cursor-pagination';
+import { useCursorPage } from '../../../components/data-table';
 import {
   FolderPanel,
   FolderPicker,
@@ -48,10 +49,21 @@ export default function ObjectDefinitionsPage() {
   const listPath = selectedFolder
     ? `/object-definitions?folder=${encodeURIComponent(selectedFolder)}`
     : '/object-definitions';
-  const { items, loading, hasMore, refresh, loadMore } = useCursorList<ObjectDefinition>(
-    listPath,
-    (error) =>
-      notifications.show({ color: 'red', title: 'Could not load objects', message: error.message }),
+  const {
+    items,
+    loading,
+    page,
+    limit,
+    hasPrevious,
+    hasNext,
+    refresh,
+    first,
+    next,
+    previous,
+    last,
+    setLimit,
+  } = useCursorPage<ObjectDefinition>(listPath, (error) =>
+    notifications.show({ color: 'red', title: 'Could not load objects', message: error.message }),
   );
   const folders = useFolderOrganization('objects', items);
 
@@ -252,13 +264,18 @@ export default function ObjectDefinitionsPage() {
         </Grid.Col>
       </Grid>
 
-      {hasMore ? (
-        <Group justify="center" mt="md">
-          <Button variant="light" loading={loading} onClick={() => void loadMore()}>
-            Load more
-          </Button>
-        </Group>
-      ) : null}
+      <CursorPagination
+        page={page}
+        hasPrevious={hasPrevious}
+        hasNext={hasNext}
+        loading={loading}
+        limit={limit}
+        onFirst={() => void first()}
+        onPrevious={() => void previous()}
+        onNext={() => void next()}
+        onLast={() => void last()}
+        onLimitChange={(nextLimit) => void setLimit(nextLimit)}
+      />
     </>
   );
 }

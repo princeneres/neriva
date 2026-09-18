@@ -1,0 +1,62 @@
+.previewCardFill {
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  flex-direction: column;
+}
+
+.previewStage {
+  display: flex;
+  min-height: 11.25rem;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: auto;
+  padding: var(--mantine-spacing-sm);
+  background:
+    linear-gradient(45deg, rgba(35, 36, 42, 0.025) 25%, transparent 25%) 0 0 / 16px 16px,
+    linear-gradient(-45deg, rgba(35, 36, 42, 0.025) 25%, transparent 25%) 0 0 / 16px 16px,
+    var(--mantine-color-gray-0);
+}
+
+.previewStageFill {
+  min-height: 0;
+  flex: 1;
+}
+
+.previewFrame {
+  width: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--mantine-color-gray-3);
+  border-radius: var(--mantine-radius-sm);
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(31, 30, 28, 0.08);
+  transition: width 160ms ease;
+}
+
+.previewTablet {
+  width: min(100%, 48rem);
+}
+
+.previewMobile {
+  width: min(100%, 24.375rem);
+}
+
+.previewFull {
+  width: 100%;
+}
+
+.previewRoot {
+  min-height: 11.25rem;
+  background: #fff;
+}
+
+.previewCardFill .previewRoot {
+  min-height: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .previewFrame {
+    transition: none;
+  }
+}

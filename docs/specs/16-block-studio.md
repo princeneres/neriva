@@ -43,7 +43,7 @@ Optional Block JavaScript executes in an opaque-origin iframe with `sandbox="all
 
 ## Studio behavior
 
-The Studio has Code, Fields, and Schema views around a live Preview. It shows the active source, draft status, line counts, detected bindings, source validation feedback, and native/custom source status. The visible preview uses authored HTML fallbacks and explicit schema defaults only. A separate, clearly labelled **Test data** control may supply temporary props for the standalone preview. Those values are never written into source, schema, or a page instance, and never appear as invented content below the preview.
+The Studio has Code, Fields, and Schema views around a live Preview. On desktop, the Code view is a fixed, four-pane workbench: HTML, CSS, JavaScript, and the live preview. Each source pane scrolls internally, so the author can compare all active sources and the result without scrolling the page. The preview offers desktop, tablet, mobile, and full-width viewports while continuing to use the same renderer as delivery. It shows the active source, draft status, line counts, detected bindings, source validation feedback, and native/custom source status. The visible preview uses authored HTML fallbacks and explicit schema defaults only. A separate, clearly labelled **Test data** control may supply temporary props for the standalone preview. Those values are never written into source, schema, or a page instance, and never appear as invented content below the preview.
 
 - Save persists HTML, CSS, JavaScript, schema and Block metadata together.
 - Reset changes restores the last saved payload locally.

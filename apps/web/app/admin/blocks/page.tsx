@@ -33,7 +33,8 @@ import {
 import Link from 'next/link';
 import { useState } from 'react';
 import { blockIconFor } from '../../../components/block-icon';
-import { useCursorList } from '../../../components/data-table';
+import { CursorPagination } from '../../../components/cursor-pagination';
+import { useCursorPage } from '../../../components/data-table';
 import {
   FolderPanel,
   FolderPicker,
@@ -112,8 +113,23 @@ export default function BlocksPage() {
   const listPath = selectedFolder
     ? `/blocks?folder=${encodeURIComponent(selectedFolder)}`
     : '/blocks';
-  const { items, loading, hasMore, refresh, loadMore } = useCursorList<Block>(listPath, (error) =>
-    notifications.show({ color: 'red', message: error.message }),
+  const {
+    items,
+    loading,
+    page,
+    limit,
+    hasPrevious,
+    hasNext,
+    refresh,
+    first,
+    next,
+    previous,
+    last,
+    setLimit,
+  } = useCursorPage<Block>(
+    listPath,
+    (error) => notifications.show({ color: 'red', message: error.message }),
+    { initialLimit: 12 },
   );
   const folders = useFolderOrganization('blocks', items);
 
@@ -398,17 +414,18 @@ export default function BlocksPage() {
             </Grid.Col>
           </Grid>
 
-          {hasMore ? (
-            <Stack align="center" gap={4} mt="lg">
-              <Button variant="light" loading={loading} onClick={() => void loadMore()}>
-                Load more
-              </Button>
-              <Text size="xs" c="slate.5">
-                More blocks exist on the server. Search and filters only cover the blocks loaded so
-                far.
-              </Text>
-            </Stack>
-          ) : null}
+          <CursorPagination
+            page={page}
+            hasPrevious={hasPrevious}
+            hasNext={hasNext}
+            loading={loading}
+            limit={limit}
+            onFirst={() => void first()}
+            onPrevious={() => void previous()}
+            onNext={() => void next()}
+            onLast={() => void last()}
+            onLimitChange={(nextLimit) => void setLimit(nextLimit)}
+          />
         </>
       )}
     </div>

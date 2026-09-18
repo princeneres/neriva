@@ -172,24 +172,55 @@
   outline-offset: 2px;
 }
 
-.siteSwitcher :global(.mantine-Select-input) {
+.siteContextButton {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  margin-top: var(--mantine-spacing-sm);
+  padding: 7px 8px;
+  border: 1px solid var(--admin-nav-border);
+  border-radius: 9px;
   background: var(--admin-nav-surface);
-  border-color: var(--admin-nav-border);
   color: var(--admin-nav-text);
+  text-align: left;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease;
 }
 
-.siteSwitcher :global(.mantine-Select-input)::placeholder,
-.siteSwitcher :global(.mantine-Select-section) {
+.siteContextButton:hover,
+.siteContextButton:focus-visible {
+  border-color: rgba(224, 106, 112, 0.5);
+  background: var(--admin-nav-surface-hover);
+  outline: 0;
+}
+
+.siteContextCopy {
+  min-width: 0;
+  flex: 1;
+}
+
+.siteContextSlug {
   color: var(--admin-nav-muted);
 }
 
-.siteSwitcher :global(.mantine-Select-input):focus,
-.siteSwitcher :global(.mantine-Select-input):focus-within {
-  border-color: var(--admin-nav-accent);
+.siteSwitcherRail {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  margin: 4px auto;
+  border-radius: 9px;
+  color: var(--admin-nav-muted);
 }
 
-.siteSwitcher :global(.mantine-Input-section) {
-  color: var(--admin-nav-muted);
+.siteSwitcherRail:hover,
+.siteSwitcherRail:focus-visible {
+  background: var(--admin-nav-surface-hover);
+  color: var(--admin-nav-text);
+  outline: 0;
 }
 
 .divider {

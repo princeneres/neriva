@@ -9,6 +9,7 @@ export interface CodeEditorProps {
   language: 'html' | 'css' | 'javascript';
   value: string;
   placeholder?: string;
+  fill?: boolean;
   onChange: (value: string) => void;
   onSave?: () => void;
   'aria-label'?: string;
@@ -61,6 +62,7 @@ export function CodeEditor({
   language,
   value,
   placeholder,
+  fill = false,
   onChange,
   onSave,
   'aria-label': ariaLabel,
@@ -106,7 +108,9 @@ export function CodeEditor({
   }
 
   return (
-    <div className={`${classes.editor} ${focused ? classes.editorFocused : ''}`}>
+    <div
+      className={`${classes.editor} ${fill ? classes.editorFill : ''} ${focused ? classes.editorFocused : ''}`}
+    >
       <div className={classes.editorHeader}>
         <span
           className={`${classes.languageDot} ${language === 'html' ? classes.languageDotHtml : language === 'css' ? classes.languageDotCss : classes.languageDotJavaScript}`}
