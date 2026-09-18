@@ -40,6 +40,121 @@ export interface RenderTemplateResult {
   css: string;
 }
 
+export interface TemplateBindings {
+  props: string[];
+  slots: string[];
+}
+
+export type TemplateRuntime = 'content-entries' | 'object-records';
+
+// A collection runtime declares which schema properties configure it directly
+// in HTML. The renderer reads these keys from props, while Studio treats them
+// as normal source bindings. Keeping the mapping in source prevents a data
+// Block from relying on an invisible ERC-specific configuration contract.
+export interface TemplateRuntimeBindings {
+  contentType?: string;
+  pageSize?: string;
+  summaryField?: string;
+  bodyField?: string;
+  dateField?: string;
+  imageField?: string;
+  objectDefinition?: string;
+  titleField?: string;
+  doneField?: string;
+  priorityField?: string;
+  dueDateField?: string;
+}
+
+const RUNTIME_BINDING_ATTRIBUTES: Record<keyof TemplateRuntimeBindings, string> = {
+  contentType: 'data-nv-runtime-content-type',
+  pageSize: 'data-nv-runtime-page-size',
+  summaryField: 'data-nv-runtime-summary-field',
+  bodyField: 'data-nv-runtime-body-field',
+  dateField: 'data-nv-runtime-date-field',
+  imageField: 'data-nv-runtime-image-field',
+  objectDefinition: 'data-nv-runtime-object-definition',
+  titleField: 'data-nv-runtime-title-field',
+  doneField: 'data-nv-runtime-done-field',
+  priorityField: 'data-nv-runtime-priority-field',
+  dueDateField: 'data-nv-runtime-due-date-field',
+};
+
+function sourceAttributeValue(html: string, attribute: string): string | undefined {
+  const match = new RegExp(
+    `${attribute}\\s*=\\s*(?:"([A-Za-z][A-Za-z0-9_.-]*)"|'([A-Za-z][A-Za-z0-9_.-]*)'|([A-Za-z][A-Za-z0-9_.-]*))`,
+    'i',
+  ).exec(html);
+  return match?.[1] ?? match?.[2] ?? match?.[3];
+}
+
+export function templateRuntime(html: string): TemplateRuntime | null {
+  const match = /data-nv-runtime\s*=\s*(?:"([a-z-]+)"|'([a-z-]+)'|([a-z-]+))/i.exec(html);
+  const value = match?.[1] ?? match?.[2] ?? match?.[3];
+  return value === 'content-entries' || value === 'object-records' ? value : null;
+}
+
+export function templateRuntimeBindings(html: string): TemplateRuntimeBindings {
+  const bindings: TemplateRuntimeBindings = {};
+  for (const [key, attribute] of Object.entries(RUNTIME_BINDING_ATTRIBUTES) as [
+    keyof TemplateRuntimeBindings,
+    string,
+  ][]) {
+    const value = sourceAttributeValue(html, attribute);
+    if (value !== undefined) bindings[key] = value;
+  }
+  return bindings;
+}
+
+// Expands an explicit, data-only {{#each collection}}...{{/each}} region
+// before the regular template pipeline. Collection item values are escaped by
+// interpolate and can never become executable HTML. It is intentionally a
+// small declarative primitive: data providers choose the collection, while
+// the Block author owns every element and class in the rendered markup.
+export function expandTemplateCollections(
+  html: string,
+  collections: Record<string, Record<string, unknown>[]>,
+): string {
+  return html.replace(
+    /\{\{#each\s+([A-Za-z][A-Za-z0-9_-]*)\s*\}\}([\s\S]*?)\{\{\/each\}\}/g,
+    (_match, collectionName: string, itemTemplate: string) =>
+      (collections[collectionName] ?? []).map((item) => interpolate(itemTemplate, item)).join(''),
+  );
+}
+
+// The Studio uses this exact template syntax inventory to connect source and
+// schema. It intentionally includes interpolation as well as data-nv hooks,
+// because both consume the Block's props at render time.
+export function collectTemplateBindings(html: string): TemplateBindings {
+  const props = new Set<string>();
+  const slots = new Set<string>();
+  // Values inside an each block belong to one collection item, not the
+  // Block's schema. Excluding those regions keeps a collection template from
+  // proposing fields such as `title` or `image` as top-level Block props.
+  const sourceWithoutCollectionItems = html.replace(
+    /\{\{#each\s+[A-Za-z][A-Za-z0-9_-]*\s*\}\}[\s\S]*?\{\{\/each\}\}/g,
+    '',
+  );
+  for (const match of sourceWithoutCollectionItems.matchAll(/\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g)) {
+    if (match[1]) props.add(match[1]);
+  }
+  for (const match of html.matchAll(
+    /data-nv-(?:text|rich|image|alt|link|embed|html|tag)\s*=\s*(?:"([A-Za-z0-9_.-]+)"|'([A-Za-z0-9_.-]+)'|([A-Za-z0-9_.-]+))/gi,
+  )) {
+    const key = match[1] ?? match[2] ?? match[3];
+    if (key) props.add(key);
+  }
+  for (const key of Object.values(templateRuntimeBindings(html))) {
+    if (key) props.add(key);
+  }
+  for (const match of html.matchAll(
+    /data-nv-slot\s*=\s*(?:"([A-Za-z0-9-]+)"|'([A-Za-z0-9-]+)'|([A-Za-z0-9-]+))/gi,
+  )) {
+    const key = match[1] ?? match[2] ?? match[3];
+    if (key) slots.add(key);
+  }
+  return { props: [...props], slots: [...slots] };
+}
+
 function toText(value: unknown): string {
   if (typeof value === 'string') {
     return value;
@@ -57,6 +172,22 @@ export function escapeHtml(value: unknown): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// Saved source is validated by the API. The renderer also sanitizes before
+// injection so an unsaved Studio draft, an old database row, or a headless
+// caller cannot turn the preview into an executable document.
+export function sanitizeTemplateMarkup(html: string): string {
+  return html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+    .replace(/<script\b[^>]*\/?\s*>/gi, '')
+    .replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe\s*>/gi, '')
+    .replace(/<iframe\b[^>]*\/?\s*>/gi, '')
+    .replace(/\son[a-z0-9_-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(
+      /\s(?:href|src|xlink:href)\s*=\s*(?:"\s*(?:javascript|vbscript|data:text)[^"]*"|'\s*(?:javascript|vbscript|data:text)[^']*'|(?:javascript|vbscript|data:text)[^\s>]*)/gi,
+      '',
+    );
 }
 
 // {{propKey}} interpolation, always escaped. Single pass: values containing
@@ -107,6 +238,8 @@ const VOID_ELEMENTS = new Set([
   'track',
   'wbr',
 ]);
+
+const ALLOWED_DYNAMIC_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
 
 function getAttr(attrsText: string, name: string): string | undefined {
   const pattern = new RegExp(
@@ -396,7 +529,7 @@ function applyBindings(
     const tagText = match[0];
     const rawName = match[1] ?? '';
     const attrsText = match[2] ?? '';
-    if (!/data-nv-(text|rich|image|alt|link|embed|nav)/i.test(attrsText)) {
+    if (!/data-nv-(text|rich|image|alt|link|embed|nav|tag)/i.test(attrsText)) {
       continue;
     }
     const name = rawName.toLowerCase();
@@ -408,6 +541,7 @@ function applyBindings(
       link: getAttr(attrsText, 'data-nv-link'),
       embed: getAttr(attrsText, 'data-nv-embed'),
       nav: getAttr(attrsText, 'data-nv-nav'),
+      tag: getAttr(attrsText, 'data-nv-tag'),
     };
     if (Object.values(binding).every((key) => key === undefined)) {
       continue;
@@ -421,6 +555,14 @@ function applyBindings(
       continue;
     }
     let openTag = tagText;
+    let closeTag = span.closeText;
+    if (binding.tag !== undefined && binding.tag in props) {
+      const dynamicTag = toText(props[binding.tag]).toLowerCase();
+      if (ALLOWED_DYNAMIC_TAGS.has(dynamicTag)) {
+        openTag = openTag.replace(/^<[a-zA-Z][a-zA-Z0-9-]*/, `<${dynamicTag}`);
+        closeTag = `</${dynamicTag}>`;
+      }
+    }
     if (binding.image !== undefined && binding.image in props) {
       openTag = setAttr(openTag, 'src', escapeHtml(safeUrl(props[binding.image])));
     }
@@ -440,7 +582,7 @@ function applyBindings(
       } else if (binding.nav !== undefined && sitePages !== undefined) {
         inner = renderNavList(sitePages, siteBasePath);
       }
-      out += inner + span.closeText;
+      out += inner + closeTag;
     }
     cursor = span.end;
     scanner.lastIndex = span.end;
@@ -847,8 +989,9 @@ function filterUndeclaredSlots(nodes: TemplateNode[], declared: string[]): Templ
 // slot tree and scope the css to the block wrapper.
 export function renderTemplate(input: RenderTemplateInput): RenderTemplateResult {
   const props = input.props ?? {};
+  const safeHtml = sanitizeTemplateMarkup(input.html);
   const bound = applyBindings(
-    interpolate(input.html, props),
+    sanitizeTemplateMarkup(interpolate(safeHtml, props)),
     props,
     input.sitePages,
     input.siteBasePath ?? '',

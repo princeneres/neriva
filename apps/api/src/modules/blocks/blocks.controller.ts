@@ -83,4 +83,16 @@ export class BlocksController {
   ): Promise<BlockResponse> {
     return { data: await this.blocksService.publish(user.tenantId, id) };
   }
+
+  @Post(':id/restore-native-template')
+  @ApiParam(ID_PARAM)
+  @ApiDataResponse(BlockDto)
+  @RequirePermission('block:update')
+  @HttpCode(200)
+  async restoreNativeTemplate(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<BlockResponse> {
+    return { data: await this.blocksService.restoreNativeTemplate(user.tenantId, id) };
+  }
 }

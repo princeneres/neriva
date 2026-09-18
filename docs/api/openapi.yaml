@@ -1313,6 +1313,32 @@ paths:
         - bearer: []
       tags:
         - blocks
+  /blocks/{id}/restore-native-template:
+    post:
+      operationId: BlocksController_restoreNativeTemplate
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BlockDto"
+      security:
+        - bearer: []
+      tags:
+        - blocks
   /content-types:
     get:
       operationId: ContentTypesController_list
@@ -3559,12 +3585,38 @@ components:
           type:
             - string
             - "null"
-          description: HTML template (spec 12); null means the registry rendering path
+          description: Active HTML source consumed by the shared Block renderer
         css:
           type:
             - string
             - "null"
           description: Template CSS, scoped at render time
+        js:
+          type:
+            - string
+            - "null"
+          description: Active JavaScript source, executed only in the renderer sandbox
+        nativeHtml:
+          type:
+            - string
+            - "null"
+          description: Immutable HTML source supplied by Neriva for a native block
+        nativeCss:
+          type:
+            - string
+            - "null"
+          description: Immutable CSS source supplied by Neriva for a native block
+        nativeJs:
+          type:
+            - string
+            - "null"
+          description: Immutable JavaScript source supplied by Neriva for a native block
+        templateSource:
+          type: string
+          enum:
+            - NATIVE
+            - CUSTOM
+          description: Whether active source equals the native baseline
         folderId:
           type:
             - string
@@ -3585,6 +3637,11 @@ components:
         - slots
         - html
         - css
+        - js
+        - nativeHtml
+        - nativeCss
+        - nativeJs
+        - templateSource
         - folderId
     CreateBlockDto:
       type: object
@@ -3615,15 +3672,22 @@ components:
           type:
             - string
             - "null"
-          description: HTML template with {{prop}} interpolation, data-nv-* bindings and
-            data-nv-slot placeholders (spec 12); null keeps the registry
-            rendering path
+          description: Active HTML source used by the shared Block renderer. Supports
+            escaped {{prop}} interpolation, data-nv bindings, slots, and
+            declared collection runtimes.
         css:
           type:
             - string
             - "null"
           description: Template CSS, scoped to the block wrapper at render time; may use
             var(--nv-*)
+        js:
+          type:
+            - string
+            - "null"
+          description: Active JavaScript source. It runs only in the Block renderer
+            sandbox and can request declared runtime actions through the safe
+            message bridge.
         externalReferenceCode:
           type: string
           description: Stable code for idempotent upsert; generated when omitted
@@ -3663,6 +3727,12 @@ components:
             - string
             - "null"
           description: Template CSS; explicit null removes it
+        js:
+          type:
+            - string
+            - "null"
+          description: JavaScript source executed only in the Block renderer sandbox;
+            explicit null removes it
         folderId:
           type:
             - string
@@ -3929,18 +3999,30 @@ components:
           type:
             - string
             - "null"
-          description: HTML template (spec 12); null means the registry rendering path
+          description: Active HTML template consumed by the shared block renderer
         css:
           type:
             - string
             - "null"
           description: Template CSS, scoped at render time
+        js:
+          type:
+            - string
+            - "null"
+          description: Active JavaScript source, executed only in the Block renderer sandbox
+        templateSource:
+          type: string
+          enum:
+            - NATIVE
+            - CUSTOM
       required:
         - name
         - category
         - slots
         - html
         - css
+        - js
+        - templateSource
     DeliveredSiteDto:
       type: object
       properties:

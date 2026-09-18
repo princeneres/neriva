@@ -80,5 +80,10 @@ export function pageContentPaletteBlock(): Block {
   <div style="font-weight:400;font-size:0.8rem;color:#828e9b;margin-top:6px;">Every page using this master fills this spot with its own blocks.</div>
 </div>`,
     css: null,
+    js: null,
+    nativeHtml: null,
+    nativeCss: null,
+    nativeJs: null,
+    templateSource: 'CUSTOM',
   };
 }

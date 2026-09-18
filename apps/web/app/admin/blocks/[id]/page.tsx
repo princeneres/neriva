@@ -1,17 +1,15 @@
 'use client';
 
-import { Alert, Box, Button, Card, Code, Group, Skeleton, Text, Title } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
+import { Alert, Box, Button, Card, Skeleton, Text } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ApiError, api } from '../../../../lib/api';
 import { BlockForm } from '../block-form';
 import type { Block, BlockPayload } from '../types';
 
 export default function EditBlockPage() {
-  const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const [block, setBlock] = useState<Block | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -25,10 +23,16 @@ export default function EditBlockPage() {
       });
   }, [id]);
 
-  async function updateBlock(payload: BlockPayload) {
+  async function updateBlock(payload: BlockPayload): Promise<Block> {
     const { data } = await api.patch<{ data: Block }>(`/blocks/${id}`, payload);
-    notifications.show({ color: 'green', message: `Block "${data.name}" saved` });
-    router.push('/admin/blocks');
+    setBlock(data);
+    return data;
+  }
+
+  async function restoreNativeTemplate(): Promise<Block> {
+    const { data } = await api.post<{ data: Block }>(`/blocks/${id}/restore-native-template`);
+    setBlock(data);
+    return data;
   }
 
   if (loadError) {
@@ -61,42 +65,8 @@ export default function EditBlockPage() {
   }
 
   return (
-    <Box maw={1240}>
-      <Group justify="space-between" mb="lg">
-        <div>
-          <Title order={1} fz="h2">
-            Edit block
-          </Title>
-          <Text c="slate.5">
-            Changes apply to every page that uses this block the next time it renders.
-          </Text>
-        </div>
-      </Group>
-
-      <Card padding="md" mb="md" bg="slate.0">
-        <Group gap="xl" wrap="wrap">
-          <div>
-            <Text size="xs" c="slate.5" fw={600} tt="uppercase" lts="0.04em">
-              Reference code
-            </Text>
-            <Code>{block.externalReferenceCode}</Code>
-          </div>
-          <div>
-            <Text size="xs" c="slate.5" fw={600} tt="uppercase" lts="0.04em">
-              Id
-            </Text>
-            <Code>{block.id}</Code>
-          </div>
-          <div>
-            <Text size="xs" c="slate.5" fw={600} tt="uppercase" lts="0.04em">
-              Created
-            </Text>
-            <Text size="sm">{new Date(block.createdAt).toLocaleString()}</Text>
-          </div>
-        </Group>
-      </Card>
-
-      <BlockForm block={block} onSubmit={updateBlock} />
+    <Box maw={1600}>
+      <BlockForm block={block} onSubmit={updateBlock} onRestoreNative={restoreNativeTemplate} />
     </Box>
   );
 }

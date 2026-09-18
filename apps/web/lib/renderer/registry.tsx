@@ -1,13 +1,11 @@
 import { createElement, type CSSProperties, type ReactNode } from 'react';
-import { PostList } from './blocks/post-list';
-import { TodoList } from './blocks/todo-list';
 
 // A block renderer receives the node's props and its rendered slot children.
 // Components are server-safe by default (no hooks), since the public route
 // renders them on the server and the admin previews on the client. A block
 // that needs live data opts out by being a 'use client' component, which
 // React mounts as an island inside the server-rendered tree: see the two
-// data-driven blocks in ./blocks.
+// Blocks without persisted source use this small compatibility fallback.
 export interface BlockRenderProps {
   props: Record<string, unknown>;
   slots: Record<string, ReactNode>;
@@ -176,8 +174,6 @@ const RENDERERS: Record<string, BlockRenderer> = {
   'two-columns': TwoColumns,
   image: ImageBlock,
   'nv-heading': Heading,
-  'nv-post-list': PostList,
-  'nv-todo-list': TodoList,
 };
 
 export function rendererFor(erc: string): BlockRenderer {

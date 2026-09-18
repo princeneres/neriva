@@ -17,6 +17,9 @@ export interface BlockSlot {
   allowedBlocks?: string[];
 }
 
+export const BLOCK_TEMPLATE_SOURCES = ['NATIVE', 'CUSTOM'] as const;
+export type BlockTemplateSource = (typeof BLOCK_TEMPLATE_SOURCES)[number];
+
 export const blocks = pgTable(
   'blocks',
   {
@@ -27,10 +30,20 @@ export const blocks = pgTable(
     description: text('description'),
     propsSchema: jsonb('props_schema').$type<Record<string, unknown>>().notNull(),
     slots: jsonb('slots').$type<BlockSlot[]>().notNull().default([]),
-    // Optional authorable template (ADR-003). A block with html renders
-    // through the template engine; null keeps the registry/generic path.
+    // The active source consumed by the renderer. Native rows additionally
+    // keep an immutable baseline so a user customization can be restored.
     html: text('html'),
     css: text('css'),
+    // JavaScript is executed only inside the renderer's sandboxed iframe.
+    // It never executes in the admin or public page document directly.
+    js: text('js'),
+    nativeHtml: text('native_html'),
+    nativeCss: text('native_css'),
+    nativeJs: text('native_js'),
+    templateSource: varchar('template_source', { length: 16 })
+      .$type<BlockTemplateSource>()
+      .notNull()
+      .default('CUSTOM'),
     folderId: uuid('folder_id').references(() => resourceFolders.id, { onDelete: 'set null' }),
   },
   (t) => [

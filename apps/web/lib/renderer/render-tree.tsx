@@ -1,6 +1,8 @@
 import { Fragment, type CSSProperties, type ReactNode } from 'react';
 import { rendererFor } from './registry';
-import { renderTemplate, resolveStyles, type NavPage } from './template';
+import { BlockScriptSandbox } from './block-script-sandbox';
+import { renderTemplate, resolveStyles, templateRuntime, type NavPage } from './template';
+import { TemplateRuntimeBlock } from './template-runtime-block';
 import { renderTemplateNodes } from './template-nodes';
 
 export interface RenderNode {
@@ -15,13 +17,14 @@ export interface RenderTreeInput {
   blocks: RenderNode[];
 }
 
-// Display metadata plus the optional template (ADR-003). Blocks with html
-// render through the template engine; the others keep the registry path.
+// Display metadata plus the active source. A template always takes the shared
+// template path, in public delivery and the Block Studio alike.
 // slots accepts both { name } objects and plain names (delivery API shape).
 export interface BlockInfo {
   name: string;
   html?: string | null;
   css?: string | null;
+  js?: string | null;
   slots?: ({ name: string } | string)[];
 }
 
@@ -77,13 +80,18 @@ function renderNodes(
         siteBasePath,
       );
     }
-    // Heading is a native semantic renderer. It used to be seeded as a
-    // template with a hard-coded h2, which made the level control visual-only
-    // and could leave a published page without its intended h1.
-    const content =
-      info?.html && node.block !== 'nv-heading'
-        ? renderTemplateBlock(node, info.html, info, slots, emittedCss, sitePages, siteBasePath)
-        : renderRegistryBlock(node, info, slots, siteSlug);
+    const content = info?.html
+      ? renderTemplateBlock(
+          node,
+          info.html,
+          info,
+          slots,
+          emittedCss,
+          sitePages,
+          siteSlug,
+          siteBasePath,
+        )
+      : renderRegistryBlock(node, info, slots, siteSlug);
     const nodeStyles = resolveStyles(node.styles);
     return (
       <Fragment key={key}>
@@ -121,8 +129,23 @@ function renderTemplateBlock(
   slots: Record<string, ReactNode>,
   emittedCss: Set<string>,
   sitePages: NavPage[] | undefined,
+  siteSlug: string | undefined,
   siteBasePath: string | undefined,
 ): ReactNode {
+  if (templateRuntime(html) !== null) {
+    return (
+      <TemplateRuntimeBlock
+        html={html}
+        css={info.css}
+        js={info.js}
+        erc={node.block}
+        props={node.props ?? {}}
+        siteSlug={siteSlug}
+        sitePages={sitePages}
+        siteBasePath={siteBasePath}
+      />
+    );
+  }
   const declaredSlots = info.slots?.map((slot) => (typeof slot === 'string' ? slot : slot.name));
   const { nodes, css } = renderTemplate({
     html,
@@ -133,13 +156,31 @@ function renderTemplateBlock(
     sitePages,
     siteBasePath,
   });
+  const first = nodes[0];
+  if (
+    info.js !== null &&
+    info.js !== undefined &&
+    info.js.trim() !== '' &&
+    nodes.length === 1 &&
+    first !== undefined &&
+    first.kind === 'html'
+  ) {
+    return (
+      <BlockScriptSandbox
+        erc={node.block}
+        html={first.html}
+        css={css}
+        js={info.js}
+        props={node.props ?? {}}
+      />
+    );
+  }
   let style: ReactNode = null;
   if (css !== '' && !emittedCss.has(node.block)) {
     emittedCss.add(node.block);
     // scopeCss escapes "</" so the css cannot close the style element.
     style = <style dangerouslySetInnerHTML={{ __html: css }} />;
   }
-  const first = nodes[0];
   if (nodes.length === 1 && first !== undefined && first.kind === 'html') {
     return (
       <>

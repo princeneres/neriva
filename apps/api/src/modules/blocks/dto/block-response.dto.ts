@@ -45,12 +45,46 @@ export class BlockDto {
   @ApiProperty({
     type: String,
     nullable: true,
-    description: 'HTML template (spec 12); null means the registry rendering path',
+    description: 'Active HTML source consumed by the shared Block renderer',
   })
   html!: string | null;
 
   @ApiProperty({ type: String, nullable: true, description: 'Template CSS, scoped at render time' })
   css!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Active JavaScript source, executed only in the renderer sandbox',
+  })
+  js!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Immutable HTML source supplied by Neriva for a native block',
+  })
+  nativeHtml!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Immutable CSS source supplied by Neriva for a native block',
+  })
+  nativeCss!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Immutable JavaScript source supplied by Neriva for a native block',
+  })
+  nativeJs!: string | null;
+
+  @ApiProperty({
+    enum: ['NATIVE', 'CUSTOM'],
+    description: 'Whether active source equals the native baseline',
+  })
+  templateSource!: 'NATIVE' | 'CUSTOM';
 
   @ApiProperty({ type: String, format: 'uuid', nullable: true })
   folderId!: string | null;

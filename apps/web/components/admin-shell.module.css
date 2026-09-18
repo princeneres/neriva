@@ -110,22 +110,41 @@
 }
 
 .navLink {
+  position: relative;
+  min-height: 40px;
   color: var(--admin-nav-muted) !important;
+  border: 1px solid transparent;
   transition:
     background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
     color 140ms ease;
 }
 
 .navLink:hover,
 .navLink:focus-visible {
   background: var(--admin-nav-surface-hover) !important;
+  border-color: rgba(255, 255, 255, 0.06);
   color: var(--admin-nav-text) !important;
 }
 
 .navLink[data-active='true'] {
-  background: var(--admin-nav-surface) !important;
-  box-shadow: inset 2px 0 0 var(--admin-nav-accent);
-  color: var(--admin-nav-text) !important;
+  background:
+    linear-gradient(105deg, rgba(224, 106, 112, 0.2), rgba(224, 106, 112, 0.08) 58%, transparent),
+    var(--admin-nav-surface) !important;
+  border-color: rgba(224, 106, 112, 0.24);
+  box-shadow:
+    inset 3px 0 0 var(--admin-nav-accent),
+    0 6px 16px rgba(0, 0, 0, 0.12);
+  color: #fff !important;
+}
+
+.navLink[data-active='true'] :global(.mantine-NavLink-section) {
+  color: #ff9da1;
+}
+
+.navLink[data-active='true'] :global(.mantine-NavLink-label) {
+  font-weight: 650;
 }
 
 .navLink :global(.mantine-NavLink-label),

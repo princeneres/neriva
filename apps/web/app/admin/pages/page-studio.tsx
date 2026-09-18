@@ -207,7 +207,7 @@ export function PageStudio({
       Object.fromEntries(
         blocks.map((block) => [
           block.externalReferenceCode,
-          { name: block.name, html: block.html, css: block.css, slots: block.slots },
+          { name: block.name, html: block.html, css: block.css, js: block.js, slots: block.slots },
         ]),
       ),
     [blocks],

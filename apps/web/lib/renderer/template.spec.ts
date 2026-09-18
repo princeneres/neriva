@@ -7,11 +7,15 @@ import {
   renderTemplate,
   resolveStyles,
   safeUrl,
+  sanitizeTemplateMarkup,
   sanitizeRich,
   scopeCss,
   buildTemplateTree,
+  collectTemplateBindings,
+  expandTemplateCollections,
   parseAttrs,
   styleStringToObject,
+  templateRuntimeBindings,
   type TemplateNode,
 } from './template';
 
@@ -43,6 +47,16 @@ describe('escapeHtml', () => {
   });
 });
 
+describe('template markup sanitization', () => {
+  it('strips executable markup from an unsaved preview source', () => {
+    expect(
+      sanitizeTemplateMarkup(
+        '<section onclick="steal()"><script>alert(1)</script><iframe src="x"></iframe><a href="javascript:alert(1)">x</a></section>',
+      ),
+    ).toBe('<section><a>x</a></section>');
+  });
+});
+
 describe('interpolate', () => {
   it('replaces {{key}} with the escaped value', () => {
     expect(interpolate('<h1>{{title}}</h1>', { title: 'Hi <b>' })).toBe('<h1>Hi &lt;b&gt;</h1>');
@@ -68,6 +82,47 @@ describe('interpolate', () => {
 
   it('stringifies numeric values', () => {
     expect(interpolate('<span>{{count}}</span>', { count: 3 })).toBe('<span>3</span>');
+  });
+});
+
+describe('template binding inventory', () => {
+  it('collects interpolation, binding attributes and slots from real source', () => {
+    expect(
+      collectTemplateBindings(
+        '<section class="hero-{{variant}}"><h1 data-nv-text="title">Title</h1><img data-nv-image="image" data-nv-alt="title"><div data-nv-slot="content"></div></section>',
+      ),
+    ).toEqual({ props: ['variant', 'title', 'image'], slots: ['content'] });
+  });
+
+  it('does not report local collection item values as Block fields', () => {
+    expect(
+      collectTemplateBindings(
+        '<section><h2>{{heading}}</h2>{{#each entries}}<article>{{title}}</article>{{/each}}</section>',
+      ),
+    ).toEqual({ props: ['heading'], slots: [] });
+  });
+
+  it('collects and resolves declared collection runtime configuration', () => {
+    const html =
+      '<section data-nv-runtime="object-records" data-nv-runtime-object-definition="tasksObject" data-nv-runtime-title-field="taskName"></section>';
+    expect(collectTemplateBindings(html)).toEqual({
+      props: ['tasksObject', 'taskName'],
+      slots: [],
+    });
+    expect(templateRuntimeBindings(html)).toEqual({
+      objectDefinition: 'tasksObject',
+      titleField: 'taskName',
+    });
+  });
+});
+
+describe('collection templates', () => {
+  it('expands each regions with escaped item values before normal rendering', () => {
+    expect(
+      expandTemplateCollections('<ul>{{#each entries}}<li>{{title}}</li>{{/each}}</ul>', {
+        entries: [{ title: 'Safe <article>' }, { title: 'Second' }],
+      }),
+    ).toBe('<ul><li>Safe &lt;article&gt;</li><li>Second</li></ul>');
   });
 });
 
@@ -123,6 +178,23 @@ describe('data-nv-text binding', () => {
 
   it('keeps the binding attribute for studio inline editing', () => {
     expect(renderHtml('<span data-nv-text="x">y</span>', { x: 'z' })).toContain('data-nv-text="x"');
+  });
+});
+
+describe('data-nv-tag binding', () => {
+  it('changes an allowed semantic tag through the template engine', () => {
+    expect(
+      renderHtml('<h2 data-nv-tag="level" data-nv-text="title">Default</h2>', {
+        level: 'h1',
+        title: 'Heading',
+      }),
+    ).toBe('<h1 data-nv-tag="level" data-nv-text="title">Heading</h1>');
+  });
+
+  it('keeps the authored tag for an invalid value', () => {
+    expect(renderHtml('<h2 data-nv-tag="level">Default</h2>', { level: 'script' })).toBe(
+      '<h2 data-nv-tag="level">Default</h2>',
+    );
   });
 });
 

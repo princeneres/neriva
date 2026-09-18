@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { validateBlockCss, validateBlockTemplate } from './template-validation';
+import {
+  validateBlockCss,
+  validateBlockJavaScript,
+  validateBlockTemplate,
+} from './template-validation';
 
 const SCHEMA = {
   type: 'object',
@@ -79,6 +83,43 @@ describe('validateBlockTemplate', () => {
     const error = validateBlockTemplate('<h1 data-nv-text="ghost"></h1>', [], SCHEMA);
     expect(error).toContain('data-nv-text="ghost"');
     expect(error).toContain('does not exist in propsSchema.properties');
+  });
+
+  it('allows a dynamic semantic tag only when it references a declared prop', () => {
+    expect(validateBlockTemplate('<h2 data-nv-tag="level">Heading</h2>', [], SCHEMA)).toBeNull();
+    expect(validateBlockTemplate('<h2 data-nv-tag="missing">Heading</h2>', [], SCHEMA)).toContain(
+      'does not exist',
+    );
+  });
+
+  it('only accepts declared collection runtimes', () => {
+    expect(
+      validateBlockTemplate('<section data-nv-runtime="content-entries"></section>', [], SCHEMA),
+    ).toBeNull();
+    expect(
+      validateBlockTemplate('<section data-nv-runtime="anything"></section>', [], SCHEMA),
+    ).toContain('data-nv-runtime');
+  });
+
+  it('validates runtime configuration as a schema binding', () => {
+    const schema = {
+      type: 'object',
+      properties: { objectRef: { type: 'string' }, taskTitle: { type: 'string' } },
+    };
+    expect(
+      validateBlockTemplate(
+        '<section data-nv-runtime="object-records" data-nv-runtime-object-definition="objectRef" data-nv-runtime-title-field="taskTitle"></section>',
+        [],
+        schema,
+      ),
+    ).toBeNull();
+    expect(
+      validateBlockTemplate(
+        '<section data-nv-runtime="object-records" data-nv-runtime-object-definition="missing"></section>',
+        [],
+        schema,
+      ),
+    ).toContain('data-nv-runtime-object-definition="missing"');
   });
 
   it('checks the data-nv-alt companion and engine hooks against the schema too', () => {
@@ -200,5 +241,23 @@ describe('validateBlockCss', () => {
     expect(validateBlockCss('.x { background: url( "javascript:alert(1)" ); }')).toContain(
       'url(javascript:)',
     );
+  });
+});
+
+describe('validateBlockJavaScript', () => {
+  it('accepts isolated DOM code that posts a declared action', () => {
+    expect(
+      validateBlockJavaScript(
+        "document.querySelector('button')?.addEventListener('click', () => parent.postMessage({ action: 'object-records:create' }, '*'));",
+      ),
+    ).toBeNull();
+  });
+
+  it('rejects tags, network access, dynamic evaluation, storage and parent access', () => {
+    expect(validateBlockJavaScript('<script>alert(1)</script>')).toContain('<script>');
+    expect(validateBlockJavaScript('fetch("https://example.com")')).toContain('network');
+    expect(validateBlockJavaScript('eval("alert(1)")')).toContain('eval');
+    expect(validateBlockJavaScript('localStorage.getItem("token")')).toContain('storage');
+    expect(validateBlockJavaScript('parent.document.body')).toContain('parent window');
   });
 });

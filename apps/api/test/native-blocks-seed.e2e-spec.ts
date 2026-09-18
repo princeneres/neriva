@@ -22,6 +22,11 @@ interface BlockBody {
   slots: { name: string }[];
   html: string | null;
   css: string | null;
+  js: string | null;
+  nativeHtml: string | null;
+  nativeCss: string | null;
+  nativeJs: string | null;
+  templateSource: 'NATIVE' | 'CUSTOM';
 }
 
 describe('native blocks seed (e2e)', () => {
@@ -93,28 +98,23 @@ describe('native blocks seed (e2e)', () => {
     await testDb.stop();
   });
 
-  const REGISTRY_RENDERED_ERCS: readonly string[] = ['nv-post-list', 'nv-todo-list'];
-
   it('skips seeding entirely when SEED_NATIVE_BLOCKS=false', () => {
     expect(nativeRowsWhenGated).toBe(0);
   });
 
-  it('seeds every native block, PUBLISHED, with html and css templates', async () => {
+  it('seeds every native block, PUBLISHED, with complete source baselines', async () => {
     expect(NATIVE_BLOCK_ERCS).toHaveLength(16);
     for (const erc of NATIVE_BLOCK_ERCS) {
       const block = await getBlock(erc);
       expect(block.status).toBe('PUBLISHED');
       expect(block.category).toBeTruthy();
       expect(block.description).toBeTruthy();
-      // The registry-rendered blocks read live data, so they ship without a
-      // template on purpose (spec 12); every other block must carry one.
-      if (REGISTRY_RENDERED_ERCS.includes(erc)) {
-        expect(block.html).toBeNull();
-        expect(block.css).toBeNull();
-      } else {
-        expect(block.html).toBeTruthy();
-        expect(block.css).toBeTruthy();
-      }
+      expect(block.html).toBeTruthy();
+      expect(block.css).toBeTruthy();
+      expect(block.nativeHtml).toBe(block.html);
+      expect(block.nativeCss).toBe(block.css);
+      expect(block.nativeJs).toBe(block.js);
+      expect(block.templateSource).toBe('NATIVE');
     }
   });
 
@@ -130,9 +130,6 @@ describe('native blocks seed (e2e)', () => {
     for (const erc of NATIVE_BLOCK_ERCS) {
       const block = byErc.get(erc);
       expect(block, `native block ${erc} missing from the list`).toBeDefined();
-      if (REGISTRY_RENDERED_ERCS.includes(erc)) {
-        continue;
-      }
       expect(block?.html).not.toBeNull();
       expect(block?.css).not.toBeNull();
     }
@@ -153,6 +150,7 @@ describe('native blocks seed (e2e)', () => {
     expect(heading.category).toBe('basic');
     expect(heading.propsSchema.properties?.level?.enum).toEqual(['h1', 'h2', 'h3', 'h4']);
     expect(heading.html).toContain('data-nv-text="text"');
+    expect(heading.html).toContain('data-nv-tag="level"');
     expect(heading.html).toContain('{{level}}');
 
     const button = await getBlock('nv-button');
@@ -179,6 +177,13 @@ describe('native blocks seed (e2e)', () => {
 
     const separator = await getBlock('nv-separator');
     expect(separator.html).toContain('<hr');
+
+    const posts = await getBlock('nv-post-list');
+    expect(posts.html).toContain('data-nv-runtime="content-entries"');
+    const todos = await getBlock('nv-todo-list');
+    expect(todos.html).toContain('data-nv-runtime="object-records"');
+    expect(todos.html).toContain('data-nv-todo-form');
+    expect(todos.js).toContain('object-records:create');
   });
 
   it('uses style book tokens with fallbacks in the css', async () => {
@@ -197,5 +202,49 @@ describe('native blocks seed (e2e)', () => {
       .from(blocks)
       .where(inArray(blocks.externalReferenceCode, [...NATIVE_BLOCK_ERCS]));
     expect(rows).toHaveLength(NATIVE_BLOCK_ERCS.length);
+  });
+
+  it('restores the immutable native source after a saved customization', async () => {
+    const original = await getBlock('nv-heading');
+    const customized = '<h3 class="custom-heading" data-nv-text="text">Custom</h3>';
+    const update = await app.inject({
+      method: 'PATCH',
+      url: '/blocks/erc:nv-heading',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { html: customized, css: '.custom-heading { color: red; }' },
+    });
+    expect(update.statusCode).toBe(200);
+    expect((update.json() as { data: BlockBody }).data.templateSource).toBe('CUSTOM');
+
+    const restore = await app.inject({
+      method: 'POST',
+      url: '/blocks/erc:nv-heading/restore-native-template',
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    expect(restore.statusCode).toBe(200);
+    const restored = (restore.json() as { data: BlockBody }).data;
+    expect(restored.html).toBe(original.nativeHtml);
+    expect(restored.css).toBe(original.nativeCss);
+    expect(restored.js).toBe(original.nativeJs);
+    expect(restored.templateSource).toBe('NATIVE');
+  });
+
+  it('repairs a legacy native row whose active source was saved as empty strings', async () => {
+    const original = await getBlock('nv-todo-list');
+    const blank = await app.inject({
+      method: 'PATCH',
+      url: '/blocks/erc:nv-todo-list',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { html: '', css: '', js: '' },
+    });
+    expect(blank.statusCode).toBe(200);
+    expect((blank.json() as { data: BlockBody }).data.templateSource).toBe('CUSTOM');
+
+    await new NativeBlocksSeedService(testDb.db).run();
+    const repaired = await getBlock('nv-todo-list');
+    expect(repaired.html).toBe(original.nativeHtml);
+    expect(repaired.css).toBe(original.nativeCss);
+    expect(repaired.js).toBe(original.nativeJs);
+    expect(repaired.templateSource).toBe('NATIVE');
   });
 });

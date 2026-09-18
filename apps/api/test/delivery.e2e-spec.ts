@@ -20,6 +20,7 @@ interface DeliveredBlock {
   slots: { name: string }[];
   html: string | null;
   css: string | null;
+  js: string | null;
 }
 
 interface DeliveredPageBody {
@@ -263,6 +264,7 @@ describe('public delivery API (e2e)', () => {
       expect(blocks[erc]).not.toHaveProperty('propsSchema');
       expect(blocks[erc]).toHaveProperty('html');
       expect(blocks[erc]).toHaveProperty('css');
+      expect(blocks[erc]).toHaveProperty('js');
     }
     // The home page is built from the native library, so the map carries its
     // blocks: a slotted layout block and a plain content one.
@@ -283,9 +285,7 @@ describe('public delivery API (e2e)', () => {
     expect(blocks['nv-columns-3']?.html).toContain('data-nv-slot="a"');
   });
 
-  // The two data-driven blocks are rendered by the runtime registry, so they
-  // ship with no template and the map has to say so rather than omitting them.
-  it('maps the registry-rendered blocks with null templates', async () => {
+  it('maps collection Blocks with their persisted runtime templates', async () => {
     const res = await app.inject({
       method: 'GET',
       url: '/public/sites/demo/page',
@@ -293,7 +293,12 @@ describe('public delivery API (e2e)', () => {
     });
     expect(res.statusCode).toBe(200);
     const blocks = (res.json() as DeliveredPageBody).data.blocks;
-    expect(blocks['nv-post-list']).toMatchObject({ name: 'Post List', html: null, css: null });
+    expect(blocks['nv-post-list']).toMatchObject({
+      name: 'Post List',
+      templateSource: 'NATIVE',
+    });
+    expect(blocks['nv-post-list']?.html).toContain('data-nv-runtime="content-entries"');
+    expect(blocks['nv-post-list']?.css).toContain('.nv-post-list');
   });
 
   it('returns 404 for a DRAFT page, indistinguishable from a missing path', async () => {

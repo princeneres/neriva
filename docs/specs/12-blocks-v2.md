@@ -1,6 +1,8 @@
 # Spec 12: Blocks v2, template rendering, native components and per-instance styles
 
-Status: approved for implementation. Implements ADR-003. Brings block authoring to Liferay-fragment parity: HTML+CSS templates with editable bindings, a native component library, and per-block-instance styles with Style Book defaults.
+Status: implemented. Implements ADR-003. Brings block authoring to Liferay-fragment parity: HTML+CSS templates with editable bindings, a native component library, and per-block-instance styles with Style Book defaults.
+
+> Supersession: Spec 16 replaces this specification's registry-rendered data Block exception and its old admin Code tab. Every shipped native Block now has persisted active source plus a native baseline. Collection runtime data is supplied to a persisted template through `data-nv-runtime`, never by selecting markup from an ERC-specific React component.
 
 ## 1. Block template model (API)
 

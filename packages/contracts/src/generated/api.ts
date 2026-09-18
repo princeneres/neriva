@@ -388,6 +388,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/blocks/{id}/restore-native-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["BlocksController_restoreNativeTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/content-types": {
         parameters: {
             query?: never;
@@ -1195,10 +1211,23 @@ export interface components {
                 [key: string]: unknown;
             };
             slots: components["schemas"]["BlockSlotDto"][];
-            /** @description HTML template (spec 12); null means the registry rendering path */
+            /** @description Active HTML source consumed by the shared Block renderer */
             html: string | null;
             /** @description Template CSS, scoped at render time */
             css: string | null;
+            /** @description Active JavaScript source, executed only in the renderer sandbox */
+            js: string | null;
+            /** @description Immutable HTML source supplied by Neriva for a native block */
+            nativeHtml: string | null;
+            /** @description Immutable CSS source supplied by Neriva for a native block */
+            nativeCss: string | null;
+            /** @description Immutable JavaScript source supplied by Neriva for a native block */
+            nativeJs: string | null;
+            /**
+             * @description Whether active source equals the native baseline
+             * @enum {string}
+             */
+            templateSource: "NATIVE" | "CUSTOM";
             /** Format: uuid */
             folderId: string | null;
         };
@@ -1224,10 +1253,12 @@ export interface components {
             };
             /** @description Named slots, defaults to [] */
             slots?: components["schemas"]["BlockSlotDto"][];
-            /** @description HTML template with {{prop}} interpolation, data-nv-* bindings and data-nv-slot placeholders (spec 12); null keeps the registry rendering path */
+            /** @description Active HTML source used by the shared Block renderer. Supports escaped {{prop}} interpolation, data-nv bindings, slots, and declared collection runtimes. */
             html?: string | null;
             /** @description Template CSS, scoped to the block wrapper at render time; may use var(--nv-*) */
             css?: string | null;
+            /** @description Active JavaScript source. It runs only in the Block renderer sandbox and can request declared runtime actions through the safe message bridge. */
+            js?: string | null;
             /** @description Stable code for idempotent upsert; generated when omitted */
             externalReferenceCode?: string;
             /** Format: uuid */
@@ -1247,6 +1278,8 @@ export interface components {
             html?: string | null;
             /** @description Template CSS; explicit null removes it */
             css?: string | null;
+            /** @description JavaScript source executed only in the Block renderer sandbox; explicit null removes it */
+            js?: string | null;
             /** Format: uuid */
             folderId?: string | null;
         };
@@ -1365,10 +1398,14 @@ export interface components {
             name: string;
             category: string | null;
             slots: components["schemas"]["DeliveredBlockSlotDto"][];
-            /** @description HTML template (spec 12); null means the registry rendering path */
+            /** @description Active HTML template consumed by the shared block renderer */
             html: string | null;
             /** @description Template CSS, scoped at render time */
             css: string | null;
+            /** @description Active JavaScript source, executed only in the Block renderer sandbox */
+            js: string | null;
+            /** @enum {string} */
+            templateSource: "NATIVE" | "CUSTOM";
         };
         DeliveredSiteDto: {
             name: string;
@@ -2787,6 +2824,30 @@ export interface operations {
         };
     };
     BlocksController_publish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID or erc:<externalReferenceCode> */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["BlockDto"];
+                    };
+                };
+            };
+        };
+    };
+    BlocksController_restoreNativeTemplate: {
         parameters: {
             query?: never;
             header?: never;

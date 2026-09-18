@@ -127,6 +127,20 @@
       "when": 1789431752305,
       "tag": "0017_misty_malcolm_colcord",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789522253098,
+      "tag": "0018_first_lockheed",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789599692338,
+      "tag": "0019_dashing_warbound",
+      "breakpoints": true
     }
   ]
 }

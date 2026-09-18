@@ -29,6 +29,7 @@ export interface DeliveryBlockInfo {
   slots: string[];
   html: string | null;
   css: string | null;
+  js: string | null;
 }
 
 export interface PublicPageData {

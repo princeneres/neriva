@@ -27,6 +27,25 @@ const SLOT_ATTRIBUTE = 'data-nv-slot';
 // amendment; rendering itself is spec 12 section 5).
 const NAV_ATTRIBUTE = 'data-nv-nav';
 const NAV_ATTRIBUTE_VALUE = 'pages';
+const TAG_ATTRIBUTE = 'data-nv-tag';
+const RUNTIME_ATTRIBUTE = 'data-nv-runtime';
+const RUNTIME_VALUES = new Set(['content-entries', 'object-records']);
+// Runtime configuration names schema keys in the template itself. They are
+// not browser values: the shared renderer resolves each one against the
+// instance props before loading a collection or performing a safe action.
+const RUNTIME_BINDING_ATTRIBUTES = new Set([
+  'data-nv-runtime-content-type',
+  'data-nv-runtime-page-size',
+  'data-nv-runtime-summary-field',
+  'data-nv-runtime-body-field',
+  'data-nv-runtime-date-field',
+  'data-nv-runtime-image-field',
+  'data-nv-runtime-object-definition',
+  'data-nv-runtime-title-field',
+  'data-nv-runtime-done-field',
+  'data-nv-runtime-priority-field',
+  'data-nv-runtime-due-date-field',
+]);
 
 // HTML void elements never have children, so they are always leaves.
 const VOID_ELEMENTS = new Set([
@@ -208,6 +227,9 @@ export function validateBlockTemplate(
     const bindings = token.attributes.filter((a) => BINDING_ATTRIBUTES.has(a.name));
     const slotAttribute = token.attributes.find((a) => a.name === SLOT_ATTRIBUTE);
     const navAttribute = token.attributes.find((a) => a.name === NAV_ATTRIBUTE);
+    const tagAttribute = token.attributes.find((a) => a.name === TAG_ATTRIBUTE);
+    const runtimeAttribute = token.attributes.find((a) => a.name === RUNTIME_ATTRIBUTE);
+    const runtimeBindings = token.attributes.filter((a) => RUNTIME_BINDING_ATTRIBUTES.has(a.name));
 
     for (const binding of bindings) {
       if (!binding.value) {
@@ -227,6 +249,25 @@ export function validateBlockTemplate(
     }
     if (navAttribute !== undefined && navAttribute.value !== NAV_ATTRIBUTE_VALUE) {
       return `data-nv-nav must be "${NAV_ATTRIBUTE_VALUE}"`;
+    }
+    if (tagAttribute !== undefined) {
+      if (!tagAttribute.value) {
+        return `data-nv-tag on <${token.name}> must name a prop`;
+      }
+      if (!propertyKeys.has(tagAttribute.value)) {
+        return `data-nv-tag="${tagAttribute.value}" references a prop that does not exist in propsSchema.properties`;
+      }
+    }
+    if (runtimeAttribute !== undefined && !RUNTIME_VALUES.has(runtimeAttribute.value ?? '')) {
+      return 'data-nv-runtime must be "content-entries" or "object-records"';
+    }
+    for (const binding of runtimeBindings) {
+      if (!binding.value) {
+        return `${binding.name} must name a prop in propsSchema.properties`;
+      }
+      if (!propertyKeys.has(binding.value)) {
+        return `${binding.name}="${binding.value}" references a prop that does not exist in propsSchema.properties`;
+      }
     }
 
     const markers = bindings.length + (navAttribute !== undefined ? 1 : 0);
@@ -269,6 +310,30 @@ export function validateBlockCss(css: string): string | null {
   }
   if (/url\(\s*["']?\s*javascript/i.test(css)) {
     return 'Template css may not use url(javascript:)';
+  }
+  return null;
+}
+
+// JavaScript belongs to the Block definition, but it never enters the host
+// document. The web renderer creates an opaque-origin iframe with a network-
+// denying CSP and exposes only a narrow action bridge. These checks avoid
+// breaking out of the srcdoc script element and reject APIs that do not make
+// sense in that isolated contract.
+export function validateBlockJavaScript(js: string): string | null {
+  if (/<\/?script\b/i.test(js)) {
+    return 'Block JavaScript must contain JavaScript only, not <script> tags';
+  }
+  if (/\b(?:fetch|XMLHttpRequest|WebSocket|EventSource|importScripts)\b/i.test(js)) {
+    return 'Block JavaScript may not make network requests; use a declared runtime action';
+  }
+  if (/\b(?:eval|Function)\s*\(/.test(js)) {
+    return 'Block JavaScript may not use eval() or Function()';
+  }
+  if (/\b(?:localStorage|sessionStorage|indexedDB|document\.cookie)\b/i.test(js)) {
+    return 'Block JavaScript may not access browser storage or cookies';
+  }
+  if (/\b(?:window\.)?(?:top|opener)\b|\bparent\.(?!postMessage\b)/i.test(js)) {
+    return 'Block JavaScript may not access the parent window; only parent.postMessage() is available';
   }
   return null;
 }
