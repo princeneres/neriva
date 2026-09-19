@@ -166,6 +166,10 @@ export default function ObjectRecordsPage() {
   }
 
   const fields = definition?.fields ?? [];
+  // One column per Object field, plus Created and the row actions. The width
+  // follows the definition instead of a fixed number, since a record table can
+  // have any number of columns.
+  const tableMinWidth = fields.length * 160 + 280;
   const needle = search.trim().toLowerCase();
   const visibleItems = items.filter((record) => {
     if (!needle) return true;
@@ -348,61 +352,63 @@ export default function ObjectRecordsPage() {
               )}
             </Stack>
           ) : (
-            <Table highlightOnHover verticalSpacing="sm">
-              <Table.Thead>
-                <Table.Tr>
-                  {fields.map((field) => (
-                    <Table.Th key={field.key}>{field.label}</Table.Th>
-                  ))}
-                  <Table.Th>Created</Table.Th>
-                  <Table.Th aria-label="Actions" />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {loading && items.length === 0
-                  ? SKELETON_ROWS.map((row) => (
-                      <Table.Tr key={row}>
-                        <Table.Td colSpan={fields.length + 2}>
-                          <Skeleton height={14} />
-                        </Table.Td>
-                      </Table.Tr>
-                    ))
-                  : visibleItems.map((record) => (
-                      <Table.Tr key={record.id}>
-                        {fields.map((field) => (
-                          <Table.Td key={field.key}>
-                            {renderValue(field, record.data[field.key])}
-                          </Table.Td>
-                        ))}
-                        <Table.Td>{new Date(record.createdAt).toLocaleString()}</Table.Td>
-                        <Table.Td>
-                          <Group gap={4} justify="flex-end" wrap="nowrap">
-                            <Tooltip label="Edit record">
-                              <ActionIcon
-                                component={Link}
-                                href={`/admin/objects/records/${record.id}`}
-                                variant="subtle"
-                                aria-label="Edit record"
-                              >
-                                <IconPencil size={16} />
-                              </ActionIcon>
-                            </Tooltip>
-                            <Tooltip label="Delete record">
-                              <ActionIcon
-                                variant="subtle"
-                                color="red"
-                                aria-label="Delete record"
-                                onClick={() => confirmDelete(record)}
-                              >
-                                <IconTrash size={16} />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
+            <Table.ScrollContainer minWidth={tableMinWidth} type="native">
+              <Table highlightOnHover verticalSpacing="sm">
+                <Table.Thead>
+                  <Table.Tr>
+                    {fields.map((field) => (
+                      <Table.Th key={field.key}>{field.label}</Table.Th>
                     ))}
-              </Table.Tbody>
-            </Table>
+                    <Table.Th>Created</Table.Th>
+                    <Table.Th aria-label="Actions" />
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {loading && items.length === 0
+                    ? SKELETON_ROWS.map((row) => (
+                        <Table.Tr key={row}>
+                          <Table.Td colSpan={fields.length + 2}>
+                            <Skeleton height={14} />
+                          </Table.Td>
+                        </Table.Tr>
+                      ))
+                    : visibleItems.map((record) => (
+                        <Table.Tr key={record.id}>
+                          {fields.map((field) => (
+                            <Table.Td key={field.key}>
+                              {renderValue(field, record.data[field.key])}
+                            </Table.Td>
+                          ))}
+                          <Table.Td>{new Date(record.createdAt).toLocaleString()}</Table.Td>
+                          <Table.Td>
+                            <Group gap={4} justify="flex-end" wrap="nowrap">
+                              <Tooltip label="Edit record">
+                                <ActionIcon
+                                  component={Link}
+                                  href={`/admin/objects/records/${record.id}`}
+                                  variant="subtle"
+                                  aria-label="Edit record"
+                                >
+                                  <IconPencil size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                              <Tooltip label="Delete record">
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="red"
+                                  aria-label="Delete record"
+                                  onClick={() => confirmDelete(record)}
+                                >
+                                  <IconTrash size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
           )}
         </Card>
       ) : null}

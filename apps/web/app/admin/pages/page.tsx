@@ -343,68 +343,70 @@ function SitePages({ site, view }: { site: SiteSummary; view: 'tree' | 'table' }
   return (
     <>
       <Card padding={0}>
-        <Table highlightOnHover verticalSpacing="sm">
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Title</Table.Th>
-              <Table.Th>
-                Path
-                <HelpTip label="The address of the page inside its site, for example /about." />
-              </Table.Th>
-              <Table.Th>
-                Status
-                <HelpTip label="Only published pages are visible to visitors. Drafts are safe to work on." />
-              </Table.Th>
-              <Table.Th>Updated</Table.Th>
-              <Table.Th aria-label="Actions" />
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {showSkeleton
-              ? [0, 1, 2].map((row) => (
-                  <Table.Tr key={row}>
-                    {[0, 1, 2, 3, 4].map((cell) => (
-                      <Table.Td key={cell}>
-                        <Skeleton height={16} radius="sm" />
-                      </Table.Td>
-                    ))}
-                  </Table.Tr>
-                ))
-              : null}
-            {items.map((page) => (
-              <Table.Tr
-                key={page.id}
-                style={{ cursor: 'pointer' }}
-                title="Open the page settings"
-                onClick={() => router.push(`/admin/pages/${page.id}`)}
-              >
-                <Table.Td fw={500}>{page.title}</Table.Td>
-                <Table.Td>
-                  <Code>{page.path}</Code>
-                </Table.Td>
-                <Table.Td>
-                  <Badge color={statusColor(page.status)}>{page.status}</Badge>
-                </Table.Td>
-                <Table.Td c="slate.5">{new Date(page.updatedAt).toLocaleString()}</Table.Td>
-                <Table.Td>
-                  <PageRowActions
-                    page={page}
-                    siteSlug={site.slug}
-                    onPublish={confirmPublish}
-                    onDelete={confirmDelete}
-                  />
-                </Table.Td>
-              </Table.Tr>
-            ))}
-            {!loading && items.length === 0 ? (
+        <Table.ScrollContainer minWidth={820} type="native">
+          <Table highlightOnHover verticalSpacing="sm">
+            <Table.Thead>
               <Table.Tr>
-                <Table.Td colSpan={5}>
-                  <EmptyState siteId={site.id} />
-                </Table.Td>
+                <Table.Th>Title</Table.Th>
+                <Table.Th>
+                  Path
+                  <HelpTip label="The address of the page inside its site, for example /about." />
+                </Table.Th>
+                <Table.Th>
+                  Status
+                  <HelpTip label="Only published pages are visible to visitors. Drafts are safe to work on." />
+                </Table.Th>
+                <Table.Th>Updated</Table.Th>
+                <Table.Th aria-label="Actions" />
               </Table.Tr>
-            ) : null}
-          </Table.Tbody>
-        </Table>
+            </Table.Thead>
+            <Table.Tbody>
+              {showSkeleton
+                ? [0, 1, 2].map((row) => (
+                    <Table.Tr key={row}>
+                      {[0, 1, 2, 3, 4].map((cell) => (
+                        <Table.Td key={cell}>
+                          <Skeleton height={16} radius="sm" />
+                        </Table.Td>
+                      ))}
+                    </Table.Tr>
+                  ))
+                : null}
+              {items.map((page) => (
+                <Table.Tr
+                  key={page.id}
+                  style={{ cursor: 'pointer' }}
+                  title="Open the page settings"
+                  onClick={() => router.push(`/admin/pages/${page.id}`)}
+                >
+                  <Table.Td fw={500}>{page.title}</Table.Td>
+                  <Table.Td>
+                    <Code>{page.path}</Code>
+                  </Table.Td>
+                  <Table.Td>
+                    <Badge color={statusColor(page.status)}>{page.status}</Badge>
+                  </Table.Td>
+                  <Table.Td c="slate.5">{new Date(page.updatedAt).toLocaleString()}</Table.Td>
+                  <Table.Td>
+                    <PageRowActions
+                      page={page}
+                      siteSlug={site.slug}
+                      onPublish={confirmPublish}
+                      onDelete={confirmDelete}
+                    />
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+              {!loading && items.length === 0 ? (
+                <Table.Tr>
+                  <Table.Td colSpan={5}>
+                    <EmptyState siteId={site.id} />
+                  </Table.Td>
+                </Table.Tr>
+              ) : null}
+            </Table.Tbody>
+          </Table>
+        </Table.ScrollContainer>
       </Card>
       {hasMore ? (
         <Group justify="center" mt="md">

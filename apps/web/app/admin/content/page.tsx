@@ -214,71 +214,75 @@ export default function ContentTypesPage() {
                 </Stack>
               </Center>
             ) : (
-              <Table highlightOnHover verticalSpacing="sm">
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Name</Table.Th>
-                    <Table.Th>Description</Table.Th>
-                    <Table.Th>
-                      Fields
-                      <HelpTip label="How many fields editors fill in for each entry of this type" />
-                    </Table.Th>
-                    <Table.Th>Created</Table.Th>
-                    <Table.Th aria-label="Actions" />
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {loading && items.length === 0 ? (
-                    <SkeletonRows />
-                  ) : (
-                    visibleItems.map((row) => (
-                      <Table.Tr
-                        key={row.id}
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => router.push(`/admin/content/${row.id}`)}
-                      >
-                        <Table.Td fw={600}>{row.name}</Table.Td>
-                        <Table.Td c="slate.5">{row.description ?? ''}</Table.Td>
-                        <Table.Td>
-                          <Badge color="slate">
-                            {row.fields.length} {row.fields.length === 1 ? 'field' : 'fields'}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td c="slate.5">{new Date(row.createdAt).toLocaleString()}</Table.Td>
-                        <Table.Td onClick={(event) => event.stopPropagation()}>
-                          <Group gap={4} justify="flex-end" wrap="nowrap">
-                            <FolderPicker
-                              value={folders.folderFor(row.id)}
-                              folders={folders.folders}
-                              onChange={(folderId) => folders.assignItem(row.id, folderId)}
-                            />
-                            <Tooltip label="Edit">
-                              <ActionIcon
-                                component={Link}
-                                href={`/admin/content/${row.id}`}
-                                variant="subtle"
-                                aria-label={`Edit ${row.name}`}
-                              >
-                                <IconPencil size={16} />
-                              </ActionIcon>
-                            </Tooltip>
-                            <Tooltip label="Delete">
-                              <ActionIcon
-                                variant="subtle"
-                                color="red"
-                                aria-label={`Delete ${row.name}`}
-                                onClick={() => confirmDelete(row)}
-                              >
-                                <IconTrash size={16} />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))
-                  )}
-                </Table.Tbody>
-              </Table>
+              <Table.ScrollContainer minWidth={800} type="native">
+                <Table highlightOnHover verticalSpacing="sm">
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Name</Table.Th>
+                      <Table.Th>Description</Table.Th>
+                      <Table.Th>
+                        Fields
+                        <HelpTip label="How many fields editors fill in for each entry of this type" />
+                      </Table.Th>
+                      <Table.Th>Created</Table.Th>
+                      <Table.Th aria-label="Actions" />
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {loading && items.length === 0 ? (
+                      <SkeletonRows />
+                    ) : (
+                      visibleItems.map((row) => (
+                        <Table.Tr
+                          key={row.id}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => router.push(`/admin/content/${row.id}`)}
+                        >
+                          <Table.Td fw={600}>{row.name}</Table.Td>
+                          <Table.Td c="slate.5">{row.description ?? ''}</Table.Td>
+                          <Table.Td>
+                            <Badge color="slate">
+                              {row.fields.length} {row.fields.length === 1 ? 'field' : 'fields'}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td c="slate.5">
+                            {new Date(row.createdAt).toLocaleString()}
+                          </Table.Td>
+                          <Table.Td onClick={(event) => event.stopPropagation()}>
+                            <Group gap={4} justify="flex-end" wrap="nowrap">
+                              <FolderPicker
+                                value={folders.folderFor(row.id)}
+                                folders={folders.folders}
+                                onChange={(folderId) => folders.assignItem(row.id, folderId)}
+                              />
+                              <Tooltip label="Edit">
+                                <ActionIcon
+                                  component={Link}
+                                  href={`/admin/content/${row.id}`}
+                                  variant="subtle"
+                                  aria-label={`Edit ${row.name}`}
+                                >
+                                  <IconPencil size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                              <Tooltip label="Delete">
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="red"
+                                  aria-label={`Delete ${row.name}`}
+                                  onClick={() => confirmDelete(row)}
+                                >
+                                  <IconTrash size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))
+                    )}
+                  </Table.Tbody>
+                </Table>
+              </Table.ScrollContainer>
             )}
           </Card>
         </Grid.Col>

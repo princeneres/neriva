@@ -134,78 +134,80 @@ export default function UsersPage() {
       </Group>
 
       <Card padding={0}>
-        <Table highlightOnHover verticalSpacing="sm">
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>User</Table.Th>
-              <Table.Th>
-                Must change password
-                <HelpTip label="New users get a temporary password. This badge shows who still has to pick their own password on first sign-in." />
-              </Table.Th>
-              <Table.Th>Created</Table.Th>
-              <Table.Th />
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {items.map((user) => (
-              <Table.Tr key={user.id}>
-                <Table.Td>
-                  <Group gap="sm" wrap="nowrap">
-                    <Avatar color="neriva" radius="xl" size={34}>
-                      {userInitials(user.displayName)}
-                    </Avatar>
-                    <Box miw={0}>
-                      <Text size="sm" fw={600} truncate>
-                        {user.displayName}
-                      </Text>
-                      <Text size="xs" c="slate.5" truncate>
-                        {user.email}
-                      </Text>
-                    </Box>
-                  </Group>
-                </Table.Td>
-                <Table.Td>
-                  {user.mustChangePassword ? (
-                    <Badge color="yellow">Pending</Badge>
-                  ) : (
-                    <Badge color="gray">No</Badge>
-                  )}
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" c="slate.5">
-                    {new Date(user.createdAt).toLocaleString()}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Group gap={4} justify="flex-end" wrap="nowrap">
-                    <Tooltip label="Edit user">
-                      <ActionIcon
-                        component={Link}
-                        href={`/admin/users/${encodeURIComponent(user.id)}`}
-                        variant="subtle"
-                        aria-label={`Edit ${user.email}`}
-                      >
-                        <IconPencil size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Delete user">
-                      <ActionIcon
-                        variant="subtle"
-                        color="red"
-                        aria-label={`Delete ${user.email}`}
-                        onClick={() => confirmDelete(user)}
-                      >
-                        <IconTrash size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
-                </Table.Td>
+        <Table.ScrollContainer minWidth={740} type="native">
+          <Table highlightOnHover verticalSpacing="sm">
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>User</Table.Th>
+                <Table.Th>
+                  Must change password
+                  <HelpTip label="New users get a temporary password. This badge shows who still has to pick their own password on first sign-in." />
+                </Table.Th>
+                <Table.Th>Created</Table.Th>
+                <Table.Th />
               </Table.Tr>
-            ))}
-            {loading && items.length === 0 ? <SkeletonRows /> : null}
-            {!loading && items.length === 0 ? <EmptyState /> : null}
-          </Table.Tbody>
-        </Table>
+            </Table.Thead>
+            <Table.Tbody>
+              {items.map((user) => (
+                <Table.Tr key={user.id}>
+                  <Table.Td>
+                    <Group gap="sm" wrap="nowrap">
+                      <Avatar color="neriva" radius="xl" size={34}>
+                        {userInitials(user.displayName)}
+                      </Avatar>
+                      <Box miw={0}>
+                        <Text size="sm" fw={600} truncate>
+                          {user.displayName}
+                        </Text>
+                        <Text size="xs" c="slate.5" truncate>
+                          {user.email}
+                        </Text>
+                      </Box>
+                    </Group>
+                  </Table.Td>
+                  <Table.Td>
+                    {user.mustChangePassword ? (
+                      <Badge color="yellow">Pending</Badge>
+                    ) : (
+                      <Badge color="gray">No</Badge>
+                    )}
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm" c="slate.5">
+                      {new Date(user.createdAt).toLocaleString()}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Group gap={4} justify="flex-end" wrap="nowrap">
+                      <Tooltip label="Edit user">
+                        <ActionIcon
+                          component={Link}
+                          href={`/admin/users/${encodeURIComponent(user.id)}`}
+                          variant="subtle"
+                          aria-label={`Edit ${user.email}`}
+                        >
+                          <IconPencil size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <Tooltip label="Delete user">
+                        <ActionIcon
+                          variant="subtle"
+                          color="red"
+                          aria-label={`Delete ${user.email}`}
+                          onClick={() => confirmDelete(user)}
+                        >
+                          <IconTrash size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+              {loading && items.length === 0 ? <SkeletonRows /> : null}
+              {!loading && items.length === 0 ? <EmptyState /> : null}
+            </Table.Tbody>
+          </Table>
+        </Table.ScrollContainer>
       </Card>
 
       {hasMore ? (

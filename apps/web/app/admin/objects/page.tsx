@@ -186,79 +186,83 @@ export default function ObjectDefinitionsPage() {
                 </Button>
               </Stack>
             ) : (
-              <Table highlightOnHover verticalSpacing="sm">
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Name</Table.Th>
-                    <Table.Th>Plural name</Table.Th>
-                    <Table.Th>
-                      Fields
-                      <HelpTip label="How many columns this table has" />
-                    </Table.Th>
-                    <Table.Th>Created</Table.Th>
-                    <Table.Th aria-label="Actions" />
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {loading && items.length === 0
-                    ? SKELETON_ROWS.map((row) => (
-                        <Table.Tr key={row}>
-                          <Table.Td colSpan={5}>
-                            <Skeleton height={14} />
-                          </Table.Td>
-                        </Table.Tr>
-                      ))
-                    : visibleItems.map((definition) => (
-                        <Table.Tr key={definition.id}>
-                          <Table.Td fw={600}>{definition.name}</Table.Td>
-                          <Table.Td>{definition.pluralName}</Table.Td>
-                          <Table.Td>
-                            <Badge color="gray">{definition.fields.length}</Badge>
-                          </Table.Td>
-                          <Table.Td>{new Date(definition.createdAt).toLocaleString()}</Table.Td>
-                          <Table.Td>
-                            <Group gap={4} justify="flex-end" wrap="nowrap">
-                              <FolderPicker
-                                value={folders.folderFor(definition.id)}
-                                folders={folders.folders}
-                                onChange={(folderId) => folders.assignItem(definition.id, folderId)}
-                              />
-                              <Tooltip label="Browse records">
-                                <ActionIcon
-                                  component={Link}
-                                  href={`/admin/objects/${definition.id}/records`}
-                                  variant="subtle"
-                                  aria-label={`Browse ${definition.pluralName} records`}
-                                >
-                                  <IconTable size={16} />
-                                </ActionIcon>
-                              </Tooltip>
-                              <Tooltip label="Edit object">
-                                <ActionIcon
-                                  component={Link}
-                                  href={`/admin/objects/${definition.id}`}
-                                  variant="subtle"
-                                  aria-label={`Edit ${definition.name}`}
-                                >
-                                  <IconPencil size={16} />
-                                </ActionIcon>
-                              </Tooltip>
-                              <Tooltip label="Delete object">
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="red"
-                                  aria-label={`Delete ${definition.name}`}
-                                  onClick={() => confirmDelete(definition)}
-                                >
-                                  <IconTrash size={16} />
-                                </ActionIcon>
-                              </Tooltip>
-                            </Group>
-                          </Table.Td>
-                        </Table.Tr>
-                      ))}
-                </Table.Tbody>
-              </Table>
+              <Table.ScrollContainer minWidth={780} type="native">
+                <Table highlightOnHover verticalSpacing="sm">
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Name</Table.Th>
+                      <Table.Th>Plural name</Table.Th>
+                      <Table.Th>
+                        Fields
+                        <HelpTip label="How many columns this table has" />
+                      </Table.Th>
+                      <Table.Th>Created</Table.Th>
+                      <Table.Th aria-label="Actions" />
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {loading && items.length === 0
+                      ? SKELETON_ROWS.map((row) => (
+                          <Table.Tr key={row}>
+                            <Table.Td colSpan={5}>
+                              <Skeleton height={14} />
+                            </Table.Td>
+                          </Table.Tr>
+                        ))
+                      : visibleItems.map((definition) => (
+                          <Table.Tr key={definition.id}>
+                            <Table.Td fw={600}>{definition.name}</Table.Td>
+                            <Table.Td>{definition.pluralName}</Table.Td>
+                            <Table.Td>
+                              <Badge color="gray">{definition.fields.length}</Badge>
+                            </Table.Td>
+                            <Table.Td>{new Date(definition.createdAt).toLocaleString()}</Table.Td>
+                            <Table.Td>
+                              <Group gap={4} justify="flex-end" wrap="nowrap">
+                                <FolderPicker
+                                  value={folders.folderFor(definition.id)}
+                                  folders={folders.folders}
+                                  onChange={(folderId) =>
+                                    folders.assignItem(definition.id, folderId)
+                                  }
+                                />
+                                <Tooltip label="Browse records">
+                                  <ActionIcon
+                                    component={Link}
+                                    href={`/admin/objects/${definition.id}/records`}
+                                    variant="subtle"
+                                    aria-label={`Browse ${definition.pluralName} records`}
+                                  >
+                                    <IconTable size={16} />
+                                  </ActionIcon>
+                                </Tooltip>
+                                <Tooltip label="Edit object">
+                                  <ActionIcon
+                                    component={Link}
+                                    href={`/admin/objects/${definition.id}`}
+                                    variant="subtle"
+                                    aria-label={`Edit ${definition.name}`}
+                                  >
+                                    <IconPencil size={16} />
+                                  </ActionIcon>
+                                </Tooltip>
+                                <Tooltip label="Delete object">
+                                  <ActionIcon
+                                    variant="subtle"
+                                    color="red"
+                                    aria-label={`Delete ${definition.name}`}
+                                    onClick={() => confirmDelete(definition)}
+                                  >
+                                    <IconTrash size={16} />
+                                  </ActionIcon>
+                                </Tooltip>
+                              </Group>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                  </Table.Tbody>
+                </Table>
+              </Table.ScrollContainer>
             )}
           </Card>
         </Grid.Col>

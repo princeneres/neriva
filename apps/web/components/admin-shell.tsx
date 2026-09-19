@@ -14,6 +14,7 @@ import {
   Tooltip,
   UnstyledButton,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
   IconChevronDown,
   IconCheck,
@@ -137,6 +138,9 @@ const NAV_GROUPS: {
 const RAIL_WIDTH = 64;
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 380;
+// Below this the expanded navbar eats a quarter of the window and screens
+// start losing content, so the rail takes over until there is room again.
+const AUTO_COLLAPSE_QUERY = '(max-width: 1024px)';
 
 function SiteSwitcher({ collapsed }: { collapsed: boolean }) {
   const router = useRouter();
@@ -298,7 +302,15 @@ function ShellInner({
   // Keys are namespaced so the two surfaces don't fight over one preference.
   const widthKey = `neriva.navWidth.${storageNamespace}`;
   const collapsedKey = `neriva.navCollapsed.${storageNamespace}`;
-  const [collapsed, setCollapsed] = useState(storageNamespace === 'site');
+  const [collapsedPreference, setCollapsedPreference] = useState(storageNamespace === 'site');
+  // Width-driven collapse is an override on top of the saved preference, never
+  // a write to it: a narrow window shows the rail, and going back to a wide one
+  // restores whatever the user last chose. null means "follow the preference".
+  const [viewportOverride, setViewportOverride] = useState<boolean | null>(null);
+  // useMediaQuery resolves in an effect, so server and first client render both
+  // see undefined. Treating that as "wide" keeps hydration and the first paint
+  // in agreement with the markup Next.js sent.
+  const narrowViewport = useMediaQuery(AUTO_COLLAPSE_QUERY) ?? false;
   const [width, setWidth] = useState(248);
   const [resolvingEdit, setResolvingEdit] = useState(false);
   const [treeOpen, setTreeOpen] = useState(false);
@@ -311,16 +323,36 @@ function ShellInner({
     }
     const storedCollapsed = localStorage.getItem(collapsedKey);
     if (storedCollapsed !== null) {
-      setCollapsed(storedCollapsed === 'true');
+      setCollapsedPreference(storedCollapsed === 'true');
     }
   }, [widthKey, collapsedKey]);
 
+  // Entering a narrow viewport forces the rail; leaving it drops the override
+  // so the saved preference applies again.
+  useEffect(() => {
+    setViewportOverride(narrowViewport ? true : null);
+  }, [narrowViewport]);
+
+  const collapsed = viewportOverride ?? collapsedPreference;
+
+  const applyCollapsed = useCallback(
+    (next: boolean) => {
+      if (narrowViewport) {
+        // A manual toggle while narrow wins over the override, but stays out of
+        // localStorage: it is about this window size, not a lasting choice.
+        setViewportOverride(next);
+        return;
+      }
+      setViewportOverride(null);
+      setCollapsedPreference(next);
+      localStorage.setItem(collapsedKey, String(next));
+    },
+    [collapsedKey, narrowViewport],
+  );
+
   const toggleCollapsed = useCallback(() => {
-    setCollapsed((value) => {
-      localStorage.setItem(collapsedKey, String(!value));
-      return !value;
-    });
-  }, [collapsedKey]);
+    applyCollapsed(!collapsed);
+  }, [applyCollapsed, collapsed]);
 
   const startResize = useCallback(
     (event: React.MouseEvent) => {
@@ -490,8 +522,7 @@ function ShellInner({
                       mb={4}
                       aria-label="Open the page tree"
                       onClick={() => {
-                        setCollapsed(false);
-                        localStorage.setItem(collapsedKey, 'false');
+                        applyCollapsed(false);
                         setTreeOpen(true);
                       }}
                     >

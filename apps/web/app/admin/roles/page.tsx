@@ -127,66 +127,68 @@ export default function RolesPage() {
       </Group>
 
       <Card padding={0}>
-        <Table highlightOnHover verticalSpacing="sm">
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Name</Table.Th>
-              <Table.Th>Description</Table.Th>
-              <Table.Th>
-                Permissions
-                <HelpTip label="How many things this role allows. Users can only do what a role explicitly grants; everything else is denied." />
-              </Table.Th>
-              <Table.Th />
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {items.map((role) => (
-              <Table.Tr key={role.id}>
-                <Table.Td>
-                  <Text size="sm" fw={600}>
-                    {role.name}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" c="slate.5">
-                    {roleDescription(role)}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Badge color={role.permissions.length > 0 ? 'neriva' : 'gray'}>
-                    {role.permissions.length}
-                  </Badge>
-                </Table.Td>
-                <Table.Td>
-                  <Group gap={4} justify="flex-end" wrap="nowrap">
-                    <Tooltip label="Edit role">
-                      <ActionIcon
-                        component={Link}
-                        href={`/admin/roles/${encodeURIComponent(role.id)}`}
-                        variant="subtle"
-                        aria-label={`Edit ${role.name}`}
-                      >
-                        <IconPencil size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Delete role">
-                      <ActionIcon
-                        variant="subtle"
-                        color="red"
-                        aria-label={`Delete ${role.name}`}
-                        onClick={() => confirmDelete(role)}
-                      >
-                        <IconTrash size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
-                </Table.Td>
+        <Table.ScrollContainer minWidth={700} type="native">
+          <Table highlightOnHover verticalSpacing="sm">
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Name</Table.Th>
+                <Table.Th>Description</Table.Th>
+                <Table.Th>
+                  Permissions
+                  <HelpTip label="How many things this role allows. Users can only do what a role explicitly grants; everything else is denied." />
+                </Table.Th>
+                <Table.Th />
               </Table.Tr>
-            ))}
-            {loading && items.length === 0 ? <SkeletonRows /> : null}
-            {!loading && items.length === 0 ? <EmptyState /> : null}
-          </Table.Tbody>
-        </Table>
+            </Table.Thead>
+            <Table.Tbody>
+              {items.map((role) => (
+                <Table.Tr key={role.id}>
+                  <Table.Td>
+                    <Text size="sm" fw={600}>
+                      {role.name}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm" c="slate.5">
+                      {roleDescription(role)}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Badge color={role.permissions.length > 0 ? 'neriva' : 'gray'}>
+                      {role.permissions.length}
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td>
+                    <Group gap={4} justify="flex-end" wrap="nowrap">
+                      <Tooltip label="Edit role">
+                        <ActionIcon
+                          component={Link}
+                          href={`/admin/roles/${encodeURIComponent(role.id)}`}
+                          variant="subtle"
+                          aria-label={`Edit ${role.name}`}
+                        >
+                          <IconPencil size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <Tooltip label="Delete role">
+                        <ActionIcon
+                          variant="subtle"
+                          color="red"
+                          aria-label={`Delete ${role.name}`}
+                          onClick={() => confirmDelete(role)}
+                        >
+                          <IconTrash size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+              {loading && items.length === 0 ? <SkeletonRows /> : null}
+              {!loading && items.length === 0 ? <EmptyState /> : null}
+            </Table.Tbody>
+          </Table>
+        </Table.ScrollContainer>
       </Card>
 
       {hasMore ? (

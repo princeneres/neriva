@@ -285,84 +285,88 @@ export default function ContentEntriesPage() {
                 </Stack>
               </Center>
             ) : (
-              <Table highlightOnHover verticalSpacing="sm">
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Title</Table.Th>
-                    <Table.Th>
-                      Type
-                      <HelpTip label="The content type this entry fills in" />
-                    </Table.Th>
-                    <Table.Th>
-                      Status
-                      <HelpTip label="Drafts are only visible here; published entries are live" />
-                    </Table.Th>
-                    <Table.Th>Updated</Table.Th>
-                    <Table.Th aria-label="Actions" />
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {loading && items.length === 0 ? (
-                    <SkeletonRows />
-                  ) : (
-                    visibleItems.map((row) => (
-                      <Table.Tr
-                        key={row.id}
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => router.push(`/admin/content/entries/${row.id}`)}
-                      >
-                        <Table.Td fw={600}>{row.title}</Table.Td>
-                        <Table.Td c="slate.5">{typeNames.get(row.contentTypeId) ?? '…'}</Table.Td>
-                        <Table.Td>
-                          <Badge color={STATUS_COLORS[row.status]}>{row.status}</Badge>
-                        </Table.Td>
-                        <Table.Td c="slate.5">{new Date(row.updatedAt).toLocaleString()}</Table.Td>
-                        <Table.Td onClick={(event) => event.stopPropagation()}>
-                          <Group gap={4} justify="flex-end" wrap="nowrap">
-                            <FolderPicker
-                              value={folders.folderFor(row.id)}
-                              folders={folders.folders}
-                              onChange={(folderId) => folders.assignItem(row.id, folderId)}
-                            />
-                            {row.status !== 'PUBLISHED' ? (
-                              <Tooltip label="Publish">
+              <Table.ScrollContainer minWidth={800} type="native">
+                <Table highlightOnHover verticalSpacing="sm">
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Title</Table.Th>
+                      <Table.Th>
+                        Type
+                        <HelpTip label="The content type this entry fills in" />
+                      </Table.Th>
+                      <Table.Th>
+                        Status
+                        <HelpTip label="Drafts are only visible here; published entries are live" />
+                      </Table.Th>
+                      <Table.Th>Updated</Table.Th>
+                      <Table.Th aria-label="Actions" />
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {loading && items.length === 0 ? (
+                      <SkeletonRows />
+                    ) : (
+                      visibleItems.map((row) => (
+                        <Table.Tr
+                          key={row.id}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => router.push(`/admin/content/entries/${row.id}`)}
+                        >
+                          <Table.Td fw={600}>{row.title}</Table.Td>
+                          <Table.Td c="slate.5">{typeNames.get(row.contentTypeId) ?? '…'}</Table.Td>
+                          <Table.Td>
+                            <Badge color={STATUS_COLORS[row.status]}>{row.status}</Badge>
+                          </Table.Td>
+                          <Table.Td c="slate.5">
+                            {new Date(row.updatedAt).toLocaleString()}
+                          </Table.Td>
+                          <Table.Td onClick={(event) => event.stopPropagation()}>
+                            <Group gap={4} justify="flex-end" wrap="nowrap">
+                              <FolderPicker
+                                value={folders.folderFor(row.id)}
+                                folders={folders.folders}
+                                onChange={(folderId) => folders.assignItem(row.id, folderId)}
+                              />
+                              {row.status !== 'PUBLISHED' ? (
+                                <Tooltip label="Publish">
+                                  <ActionIcon
+                                    variant="subtle"
+                                    color="green"
+                                    aria-label={`Publish ${row.title}`}
+                                    onClick={() => confirmPublish(row)}
+                                  >
+                                    <IconSend size={16} />
+                                  </ActionIcon>
+                                </Tooltip>
+                              ) : null}
+                              <Tooltip label="Edit">
                                 <ActionIcon
+                                  component={Link}
+                                  href={`/admin/content/entries/${row.id}`}
                                   variant="subtle"
-                                  color="green"
-                                  aria-label={`Publish ${row.title}`}
-                                  onClick={() => confirmPublish(row)}
+                                  aria-label={`Edit ${row.title}`}
                                 >
-                                  <IconSend size={16} />
+                                  <IconPencil size={16} />
                                 </ActionIcon>
                               </Tooltip>
-                            ) : null}
-                            <Tooltip label="Edit">
-                              <ActionIcon
-                                component={Link}
-                                href={`/admin/content/entries/${row.id}`}
-                                variant="subtle"
-                                aria-label={`Edit ${row.title}`}
-                              >
-                                <IconPencil size={16} />
-                              </ActionIcon>
-                            </Tooltip>
-                            <Tooltip label="Delete">
-                              <ActionIcon
-                                variant="subtle"
-                                color="red"
-                                aria-label={`Delete ${row.title}`}
-                                onClick={() => confirmDelete(row)}
-                              >
-                                <IconTrash size={16} />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))
-                  )}
-                </Table.Tbody>
-              </Table>
+                              <Tooltip label="Delete">
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="red"
+                                  aria-label={`Delete ${row.title}`}
+                                  onClick={() => confirmDelete(row)}
+                                >
+                                  <IconTrash size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))
+                    )}
+                  </Table.Tbody>
+                </Table>
+              </Table.ScrollContainer>
             )}
           </Card>
         </Grid.Col>
