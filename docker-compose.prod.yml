@@ -34,6 +34,14 @@ services:
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-30d}
       WEB_ORIGIN: ${WEB_ORIGIN:?set WEB_ORIGIN}
       MEDIA_STORAGE_DIR: /data/uploads
+      # Every request reaches the API through the proxy below, so the API only
+      # learns the real client IP by trusting that proxy's X-Forwarded-For.
+      # Without it the per-IP rate limits collapse into a single shared bucket
+      # and one caller can lock everyone out of /auth/login. The value is the
+      # fixed subnet declared at the bottom of this file, never "true", which
+      # would let any caller forge the header and defeat the limits entirely.
+      TRUST_PROXY: ${TRUST_PROXY:-172.28.0.0/16}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
       - media-uploads:/data/uploads
     expose:
@@ -99,3 +107,12 @@ volumes:
   media-uploads:
   caddy-data:
   caddy-config:
+
+# The subnet is pinned rather than drawn from Docker's default pool, so
+# TRUST_PROXY above can name it. A generated subnet changes between hosts and
+# would silently stop matching the proxy.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

@@ -6,7 +6,7 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { AppModule } from './app.module';
-import { configureApp } from './app.setup';
+import { configureApp, resolveLoggerOptions, resolveTrustProxy } from './app.setup';
 import { runMigrations } from './db/run-migrations';
 
 // dotenv never overrides variables already set in the environment, so loading
@@ -38,7 +38,18 @@ async function bootstrap(): Promise<void> {
     new Logger('Bootstrap').log('Migrations applied');
   }
 
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
+  const trustProxy = resolveTrustProxy();
+  if (trustProxy === true) {
+    new Logger('Bootstrap').warn(
+      'TRUST_PROXY=true trusts X-Forwarded-For from every caller, so a client can forge its ' +
+        'IP and bypass the per-IP rate limits. Set the proxy network instead, for example ' +
+        'TRUST_PROXY=172.18.0.0/16.',
+    );
+  }
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    new FastifyAdapter({ trustProxy, logger: resolveLoggerOptions() }),
+  );
   await app.register(helmet, {
     // The web app on another origin embeds media served by this API
     // (<img src=".../public/media/...">); the default same-origin CORP

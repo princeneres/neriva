@@ -136,6 +136,7 @@ NEXT_PUBLIC_API_URL=https://api.example.com
 POSTGRES_PASSWORD=<unique-database-password>
 JWT_ACCESS_SECRET=<random-value-at-least-32-characters>
 NERIVA_INITIAL_ADMIN_PASSWORD=<temporary-password-at-least-15-characters>
+TRUST_PROXY=<docker-network-subnet, see "Client IP behind the proxy">
 ```
 
 The initial administrator is `admin@neriva.com`. The password above is read
@@ -162,6 +163,47 @@ curl -I https://cms.example.com
 
 Open `https://cms.example.com/admin`, sign in, change the administrator
 password, create the client Site and publish its first Page.
+
+### Client IP behind the proxy
+
+Caddy terminates the client connection, so by default every request reaches the
+API from the proxy container address. The per-IP login rate limit then becomes
+one global bucket, and a single caller locks every user out with ten requests a
+minute. `TRUST_PROXY` fixes that: it lists the peers allowed to name the client
+through `X-Forwarded-For`. Fastify walks that header from right to left and
+stops at the first address outside the list, which is the entry Caddy appended
+for the real client. Anything the caller forged sits further left and is
+ignored, so the rate limiter and the request log both see the real address.
+
+Keep the list as narrow as the proxy network. Never set `TRUST_PROXY=true` on a
+reachable API: blanket trust lets any caller invent a new client IP on every
+request, which defeats rate limiting more thoroughly than trusting no proxy at
+all. Unset is the safe default and is what local development uses.
+
+Read the subnet Compose created for the stack:
+
+```bash
+docker network inspect neriva_default \
+  -f '{{range .IPAM.Config}}{{.Subnet}}{{end}}'
+```
+
+Put that value in `.env` as `TRUST_PROXY`, and pass it to the API service in
+`docker-compose.prod.yml` together with the log level:
+
+```yaml
+# services -> api -> environment
+TRUST_PROXY: ${TRUST_PROXY:?set TRUST_PROXY}
+LOG_LEVEL: ${LOG_LEVEL:-info}
+```
+
+Pinning the subnet in the compose file instead keeps the value stable across
+`docker compose down`. In production the API writes one JSON line per request,
+with the client IP and without credentials, authorization headers, cookies or
+request bodies. Check it after the stack is up:
+
+```bash
+docker compose --env-file .env -f docker-compose.prod.yml logs --tail=20 api
+```
 
 ### Typical client workflow
 
