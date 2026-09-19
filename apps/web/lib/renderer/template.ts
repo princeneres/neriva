@@ -174,20 +174,86 @@ export function escapeHtml(value: unknown): string {
     .replace(/'/g, '&#39;');
 }
 
+// Elements a rendered template may never contain. The API validates saved
+// source against a tag allow-list, so this list is its render-time mirror: it
+// only has to name the tags that are dangerous, since anything else the API
+// would have rejected is inert markup. They either load or execute a foreign
+// document (script, iframe, object, embed, frame, frameset, portal), rewrite
+// the page context (base, meta, link, style) or host a legacy plugin (applet).
+// <object type="text/html"> in particular is an iframe under another name, and
+// the Studio canvas renders on the admin origin.
+const FORBIDDEN_TAGS = [
+  'script',
+  'iframe',
+  'object',
+  'embed',
+  'applet',
+  'base',
+  'meta',
+  'link',
+  'style',
+  'frame',
+  'frameset',
+  'noscript',
+  'noembed',
+  'noframes',
+  'template',
+  'portal',
+  'marquee',
+  // SVG and MathML escape hatches: foreignObject carries html back in, the
+  // SMIL animation elements can retarget an <a href> after load, and
+  // annotation-xml is the classic mutation-xss parser confusion.
+  'foreignobject',
+  'animate',
+  'animatetransform',
+  'animatemotion',
+  'set',
+  'math',
+  'annotation-xml',
+];
+
+// Element with its content first (a removed <style> must not leave its rules
+// behind as text), then any leftover opening, void or closing tag.
+const FORBIDDEN_TAG_PATTERNS = FORBIDDEN_TAGS.flatMap((tag) => [
+  new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?</${tag}\\s*>`, 'gi'),
+  new RegExp(`</?${tag}\\b[^>]*>`, 'gi'),
+]);
+
+const FORBIDDEN_TAG_OPENINGS = new RegExp(`</?(?:${FORBIDDEN_TAGS.join('|')})\\b`, 'gi');
+
 // Saved source is validated by the API. The renderer also sanitizes before
 // injection so an unsaved Studio draft, an old database row, or a headless
 // caller cannot turn the preview into an executable document.
 export function sanitizeTemplateMarkup(html: string): string {
-  return html
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
-    .replace(/<script\b[^>]*\/?\s*>/gi, '')
-    .replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe\s*>/gi, '')
-    .replace(/<iframe\b[^>]*\/?\s*>/gi, '')
-    .replace(/\son[a-z0-9_-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(
-      /\s(?:href|src|xlink:href)\s*=\s*(?:"\s*(?:javascript|vbscript|data:text)[^"]*"|'\s*(?:javascript|vbscript|data:text)[^']*'|(?:javascript|vbscript|data:text)[^\s>]*)/gi,
-      '',
-    );
+  let out = html;
+  // Removing a tag can splice its neighbours into a new one
+  // ("<obj<object>ect data=x>"), so repeat until a pass changes nothing.
+  // Every pass that changes anything makes the string shorter, so this
+  // terminates; the budget only bounds adversarially deep nesting, which the
+  // escaping below then neutralizes.
+  for (let pass = 0; pass < 8; pass += 1) {
+    const before = out;
+    for (const pattern of FORBIDDEN_TAG_PATTERNS) {
+      out = out.replace(pattern, '');
+    }
+    if (out === before) {
+      break;
+    }
+  }
+  return (
+    out
+      // Safety net: what outlived the budget gets its "<" escaped instead of
+      // removed, which can never splice a new tag together.
+      .replace(FORBIDDEN_TAG_OPENINGS, (match) => `&lt;${match.slice(1)}`)
+      .replace(/\son[a-z0-9_-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+      // A template form is markup, never a submission: without these a form
+      // in a public page can post the visitor's input to any host.
+      .replace(/\s(?:action|formaction)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+      .replace(
+        /\s(?:href|src|xlink:href)\s*=\s*(?:"\s*(?:javascript|vbscript|data:text)[^"]*"|'\s*(?:javascript|vbscript|data:text)[^']*'|(?:javascript|vbscript|data:text)[^\s>]*)/gi,
+        '',
+      )
+  );
 }
 
 // {{propKey}} interpolation, always escaped. Single pass: values containing

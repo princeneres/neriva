@@ -47,6 +47,114 @@ const RUNTIME_BINDING_ATTRIBUTES = new Set([
   'data-nv-runtime-due-date-field',
 ]);
 
+// Tags a block template may use. This is an allow-list on purpose: a block is
+// presentational markup, so the set it needs is small and known, while the set
+// of elements that load a foreign document (script, iframe, object, embed,
+// frame), rewrite the page context (base, meta, link, style) or host a legacy
+// plugin (applet) keeps growing, and a deny-list always trails it. Anything
+// not listed here is rejected, including unknown and custom elements.
+const ALLOWED_TAGS = new Set([
+  // Document structure and landmarks.
+  'div',
+  'section',
+  'article',
+  'aside',
+  'header',
+  'footer',
+  'main',
+  'nav',
+  'figure',
+  'figcaption',
+  'details',
+  'summary',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  // Text level markup.
+  'p',
+  'span',
+  'strong',
+  'em',
+  'b',
+  'i',
+  'u',
+  's',
+  'small',
+  'mark',
+  'sub',
+  'sup',
+  'abbr',
+  'cite',
+  'q',
+  'blockquote',
+  'pre',
+  'code',
+  'kbd',
+  'samp',
+  'var',
+  'time',
+  'address',
+  'del',
+  'ins',
+  'br',
+  'wbr',
+  'hr',
+  'ul',
+  'ol',
+  'li',
+  'dl',
+  'dt',
+  'dd',
+  // Links and media. Embeds go through data-nv-embed, which renders a
+  // sandboxed iframe for allowlisted hosts only.
+  'a',
+  'img',
+  'picture',
+  'source',
+  'video',
+  'audio',
+  'track',
+  'table',
+  'caption',
+  'colgroup',
+  'col',
+  'thead',
+  'tbody',
+  'tfoot',
+  'tr',
+  'th',
+  'td',
+  // Form controls: native blocks own interactive markup (the header theme
+  // toggle, the todo list). They can never post anywhere, because action and
+  // formaction are rejected below.
+  'form',
+  'label',
+  'input',
+  'button',
+  'select',
+  'option',
+  'optgroup',
+  'textarea',
+  'fieldset',
+  'legend',
+  // Inline svg for icons. foreignObject (html inside svg), use (external
+  // references) and the animation elements (they can retarget href) stay out.
+  'svg',
+  'g',
+  'path',
+  'circle',
+  'ellipse',
+  'line',
+  'polyline',
+  'polygon',
+  'rect',
+  'text',
+  'tspan',
+]);
+
 // HTML void elements never have children, so they are always leaves.
 const VOID_ELEMENTS = new Set([
   'area',
@@ -196,6 +304,17 @@ function findSanitizationViolation(html: string, tokens: TagToken[]): string | n
       if (/^data:(?:text|image\/svg\+xml)/.test(value)) {
         return `Template html may not contain data:text URLs ("${attribute.name}")`;
       }
+      if (attribute.name === 'action' || attribute.name === 'formaction') {
+        return `Template html may not contain form submission targets ("${attribute.name}")`;
+      }
+    }
+  }
+  // The tag allow-list runs after the attribute rules so an unsafe attribute
+  // still reports its own reason, and because neither check covers the other:
+  // an allowed tag can carry a handler, a disallowed tag needs no attribute.
+  for (const token of tokens) {
+    if (!ALLOWED_TAGS.has(token.name)) {
+      return `Template html may not contain <${token.name}>; block templates allow content markup only`;
     }
   }
   return null;

