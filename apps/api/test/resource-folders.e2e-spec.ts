@@ -95,7 +95,7 @@ describe('resource folders (e2e)', () => {
       payload: {
         name: 'Folder test object',
         pluralName: 'Folder test objects',
-        fields: [{ key: 'name', label: 'Name', type: 'text' }],
+        fields: [{ key: 'name', label: 'Name', type: 'text', required: false }],
       },
     });
     expect(object.statusCode).toBe(201);

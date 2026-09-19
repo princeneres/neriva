@@ -183,7 +183,14 @@ describe('native blocks seed (e2e)', () => {
     const todos = await getBlock('nv-todo-list');
     expect(todos.html).toContain('data-nv-runtime="object-records"');
     expect(todos.html).toContain('data-nv-todo-form');
-    expect(todos.js).toContain('object-records:create');
+    // Spec 16: the source owns its mutations through the Neriva.request
+    // bridge on the REST paths it declares, not the legacy action names.
+    expect(todos.js).toContain(
+      'const recordsPath = `/object-definitions/${encodeURIComponent(objectDefinition)}/records`;',
+    );
+    expect(todos.js).toContain("Neriva.request({ method: 'POST', path: recordsPath");
+    expect(todos.js).toContain("Neriva.request({ method: 'PATCH', path: `/object-records/${");
+    expect(todos.js).toContain("Neriva.request({ method: 'DELETE', path: `/object-records/${");
   });
 
   it('uses style book tokens with fallbacks in the css', async () => {
