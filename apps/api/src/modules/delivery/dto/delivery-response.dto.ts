@@ -64,12 +64,22 @@ export class DeliveredBlockDto {
   @ApiProperty({
     type: String,
     nullable: true,
-    description: 'HTML template (spec 12); null means the registry rendering path',
+    description: 'Active HTML template consumed by the shared block renderer',
   })
   html!: string | null;
 
   @ApiProperty({ type: String, nullable: true, description: 'Template CSS, scoped at render time' })
   css!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Active JavaScript source, executed only in the Block renderer sandbox',
+  })
+  js!: string | null;
+
+  @ApiProperty({ enum: ['NATIVE', 'CUSTOM'] })
+  templateSource!: 'NATIVE' | 'CUSTOM';
 }
 
 export class DeliveredPageViewDto {

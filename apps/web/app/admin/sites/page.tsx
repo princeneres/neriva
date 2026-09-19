@@ -99,66 +99,68 @@ export default function SitesPage() {
             </Button>
           </Stack>
         ) : (
-          <Table highlightOnHover verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>
-                  Slug
-                  <HelpTip label="The short name used in the site's web address, like example.com/my-site." />
-                </Table.Th>
-                <Table.Th>Description</Table.Th>
-                <Table.Th>Created</Table.Th>
-                <Table.Th aria-label="Actions" />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {showSkeleton
-                ? Array.from({ length: SKELETON_ROWS }, (_, index) => (
-                    <Table.Tr key={index}>
-                      {Array.from({ length: 5 }, (_, cell) => (
-                        <Table.Td key={cell}>
-                          <Skeleton height={12} radius="xl" />
+          <Table.ScrollContainer minWidth={840} type="native">
+            <Table highlightOnHover verticalSpacing="sm">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Name</Table.Th>
+                  <Table.Th>
+                    Slug
+                    <HelpTip label="The short name used in the site's web address, like example.com/my-site." />
+                  </Table.Th>
+                  <Table.Th>Description</Table.Th>
+                  <Table.Th>Created</Table.Th>
+                  <Table.Th aria-label="Actions" />
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {showSkeleton
+                  ? Array.from({ length: SKELETON_ROWS }, (_, index) => (
+                      <Table.Tr key={index}>
+                        {Array.from({ length: 5 }, (_, cell) => (
+                          <Table.Td key={cell}>
+                            <Skeleton height={12} radius="xl" />
+                          </Table.Td>
+                        ))}
+                      </Table.Tr>
+                    ))
+                  : items.map((site) => (
+                      <Table.Tr key={site.id}>
+                        <Table.Td fw={500}>{site.name}</Table.Td>
+                        <Table.Td>
+                          <Code>{site.slug}</Code>
                         </Table.Td>
-                      ))}
-                    </Table.Tr>
-                  ))
-                : items.map((site) => (
-                    <Table.Tr key={site.id}>
-                      <Table.Td fw={500}>{site.name}</Table.Td>
-                      <Table.Td>
-                        <Code>{site.slug}</Code>
-                      </Table.Td>
-                      <Table.Td c="slate.5">{site.description ?? ''}</Table.Td>
-                      <Table.Td>{new Date(site.createdAt).toLocaleString()}</Table.Td>
-                      <Table.Td>
-                        <Group gap={4} justify="flex-end" wrap="nowrap">
-                          <Tooltip label="Edit">
-                            <ActionIcon
-                              component={Link}
-                              href={`/admin/sites/${site.id}`}
-                              variant="subtle"
-                              aria-label={`Edit ${site.name}`}
-                            >
-                              <IconPencil size={16} />
-                            </ActionIcon>
-                          </Tooltip>
-                          <Tooltip label="Delete">
-                            <ActionIcon
-                              variant="subtle"
-                              color="red"
-                              aria-label={`Delete ${site.name}`}
-                              onClick={() => confirmDelete(site)}
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-            </Table.Tbody>
-          </Table>
+                        <Table.Td c="slate.5">{site.description ?? ''}</Table.Td>
+                        <Table.Td>{new Date(site.createdAt).toLocaleString()}</Table.Td>
+                        <Table.Td>
+                          <Group gap={4} justify="flex-end" wrap="nowrap">
+                            <Tooltip label="Edit">
+                              <ActionIcon
+                                component={Link}
+                                href={`/admin/sites/${site.id}`}
+                                variant="subtle"
+                                aria-label={`Edit ${site.name}`}
+                              >
+                                <IconPencil size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label="Delete">
+                              <ActionIcon
+                                variant="subtle"
+                                color="red"
+                                aria-label={`Delete ${site.name}`}
+                                onClick={() => confirmDelete(site)}
+                              >
+                                <IconTrash size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+              </Table.Tbody>
+            </Table>
+          </Table.ScrollContainer>
         )}
       </Card>
 

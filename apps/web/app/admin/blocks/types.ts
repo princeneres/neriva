@@ -6,11 +6,21 @@ export type BlockSlot = components['schemas']['BlockSlotDto'];
 // quirk); at runtime the API returns plain strings. Refine locally.
 export type Block = Omit<
   components['schemas']['BlockDto'],
-  'category' | 'description' | 'createdBy'
+  | 'category'
+  | 'description'
+  | 'createdBy'
+  | 'nativeHtml'
+  | 'nativeCss'
+  | 'nativeJs'
+  | 'templateSource'
 > & {
   category: string | null;
   description: string | null;
   createdBy: string | null;
+  nativeHtml: string | null;
+  nativeCss: string | null;
+  nativeJs: string | null;
+  templateSource: 'NATIVE' | 'CUSTOM';
 };
 
 export interface BlockPayload {
@@ -21,6 +31,7 @@ export interface BlockPayload {
   slots: BlockSlot[];
   html: string | null;
   css: string | null;
+  js: string | null;
 }
 
 // Values handed from "Duplicate" on a built-in block to the create form,
@@ -33,6 +44,7 @@ export interface BlockDraft {
   slots: BlockSlot[];
   html: string | null;
   css: string | null;
+  js: string | null;
 }
 
 export const BLOCK_DRAFT_STORAGE_KEY = 'neriva.blockDraft';
@@ -67,6 +79,7 @@ export function parseBlockDraft(raw: string | null): BlockDraft | null {
       : [],
     html: typeof parsed.html === 'string' ? parsed.html : null,
     css: typeof parsed.css === 'string' ? parsed.css : null,
+    js: typeof parsed.js === 'string' ? parsed.js : null,
   };
 }
 
@@ -75,6 +88,8 @@ export type BuilderFieldType = 'text' | 'longtext' | 'number' | 'boolean' | 'cho
 export interface BuilderField {
   key: string;
   label: string;
+  description?: string;
+  defaultValue?: string | number | boolean;
   type: BuilderFieldType;
   options: string[];
   required: boolean;
@@ -126,6 +141,12 @@ export function fieldsToSchema(fields: BuilderField[]): Record<string, unknown> 
     if (field.label.trim()) {
       property.title = field.label.trim();
     }
+    if (field.description?.trim()) {
+      property.description = field.description.trim();
+    }
+    if (field.defaultValue !== undefined && field.defaultValue !== '') {
+      property.default = field.defaultValue;
+    }
     properties[key] = property;
     if (field.required) {
       required.push(key);
@@ -140,7 +161,14 @@ export function fieldsToSchema(fields: BuilderField[]): Record<string, unknown> 
 }
 
 const BUILDER_TOP_KEYS = new Set(['type', 'properties', 'required', 'additionalProperties']);
-const BUILDER_PROPERTY_KEYS = new Set(['type', 'title', 'format', 'enum']);
+const BUILDER_PROPERTY_KEYS = new Set([
+  'type',
+  'title',
+  'description',
+  'default',
+  'format',
+  'enum',
+]);
 
 // Inverse of fieldsToSchema. Returns null when the schema uses anything the
 // builder cannot represent, which sends the form into advanced mode.
@@ -180,6 +208,21 @@ export function schemaToFields(schema: unknown): BuilderField[] | null {
       return null;
     }
     const label = typeof raw.title === 'string' ? raw.title : '';
+    if (raw.description !== undefined && typeof raw.description !== 'string') {
+      return null;
+    }
+    const description = typeof raw.description === 'string' ? raw.description : '';
+    const defaultValue =
+      typeof raw.default === 'string' ||
+      typeof raw.default === 'number' ||
+      typeof raw.default === 'boolean'
+        ? raw.default
+        : raw.default === undefined
+          ? undefined
+          : null;
+    if (defaultValue === null) {
+      return null;
+    }
     let type: BuilderFieldType;
     let options: string[] = [];
     if (raw.enum !== undefined) {
@@ -205,7 +248,15 @@ export function schemaToFields(schema: unknown): BuilderField[] | null {
     } else {
       return null;
     }
-    fields.push({ key, label, type, options, required: rawRequired.includes(key) });
+    fields.push({
+      key,
+      label,
+      description,
+      defaultValue,
+      type,
+      options,
+      required: rawRequired.includes(key),
+    });
   }
   return fields;
 }

@@ -27,6 +27,133 @@ const SLOT_ATTRIBUTE = 'data-nv-slot';
 // amendment; rendering itself is spec 12 section 5).
 const NAV_ATTRIBUTE = 'data-nv-nav';
 const NAV_ATTRIBUTE_VALUE = 'pages';
+const TAG_ATTRIBUTE = 'data-nv-tag';
+const RUNTIME_ATTRIBUTE = 'data-nv-runtime';
+const RUNTIME_VALUES = new Set(['content-entries', 'object-records']);
+// Runtime configuration names schema keys in the template itself. They are
+// not browser values: the shared renderer resolves each one against the
+// instance props before loading a collection or performing a safe action.
+const RUNTIME_BINDING_ATTRIBUTES = new Set([
+  'data-nv-runtime-content-type',
+  'data-nv-runtime-page-size',
+  'data-nv-runtime-summary-field',
+  'data-nv-runtime-body-field',
+  'data-nv-runtime-date-field',
+  'data-nv-runtime-image-field',
+  'data-nv-runtime-object-definition',
+  'data-nv-runtime-title-field',
+  'data-nv-runtime-done-field',
+  'data-nv-runtime-priority-field',
+  'data-nv-runtime-due-date-field',
+]);
+
+// Tags a block template may use. This is an allow-list on purpose: a block is
+// presentational markup, so the set it needs is small and known, while the set
+// of elements that load a foreign document (script, iframe, object, embed,
+// frame), rewrite the page context (base, meta, link, style) or host a legacy
+// plugin (applet) keeps growing, and a deny-list always trails it. Anything
+// not listed here is rejected, including unknown and custom elements.
+const ALLOWED_TAGS = new Set([
+  // Document structure and landmarks.
+  'div',
+  'section',
+  'article',
+  'aside',
+  'header',
+  'footer',
+  'main',
+  'nav',
+  'figure',
+  'figcaption',
+  'details',
+  'summary',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  // Text level markup.
+  'p',
+  'span',
+  'strong',
+  'em',
+  'b',
+  'i',
+  'u',
+  's',
+  'small',
+  'mark',
+  'sub',
+  'sup',
+  'abbr',
+  'cite',
+  'q',
+  'blockquote',
+  'pre',
+  'code',
+  'kbd',
+  'samp',
+  'var',
+  'time',
+  'address',
+  'del',
+  'ins',
+  'br',
+  'wbr',
+  'hr',
+  'ul',
+  'ol',
+  'li',
+  'dl',
+  'dt',
+  'dd',
+  // Links and media. Embeds go through data-nv-embed, which renders a
+  // sandboxed iframe for allowlisted hosts only.
+  'a',
+  'img',
+  'picture',
+  'source',
+  'video',
+  'audio',
+  'track',
+  'table',
+  'caption',
+  'colgroup',
+  'col',
+  'thead',
+  'tbody',
+  'tfoot',
+  'tr',
+  'th',
+  'td',
+  // Form controls: native blocks own interactive markup (the header theme
+  // toggle, the todo list). They can never post anywhere, because action and
+  // formaction are rejected below.
+  'form',
+  'label',
+  'input',
+  'button',
+  'select',
+  'option',
+  'optgroup',
+  'textarea',
+  'fieldset',
+  'legend',
+  // Inline svg for icons. foreignObject (html inside svg), use (external
+  // references) and the animation elements (they can retarget href) stay out.
+  'svg',
+  'g',
+  'path',
+  'circle',
+  'ellipse',
+  'line',
+  'polyline',
+  'polygon',
+  'rect',
+  'text',
+  'tspan',
+]);
 
 // HTML void elements never have children, so they are always leaves.
 const VOID_ELEMENTS = new Set([
@@ -134,6 +261,26 @@ function schemaPropertyKeys(propsSchema: Record<string, unknown>): Set<string> {
   return new Set(Object.keys(properties));
 }
 
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: '&',
+  colon: ':',
+  semi: ';',
+  sol: '/',
+};
+
+// Browsers decode character references before interpreting URL attributes.
+// Decode the common named and numeric forms before checking protocols, or an
+// attacker can hide `javascript:` behind `j&#x61;vascript:`.
+function decodeHtmlEntities(value: string): string {
+  return value.replace(/&(?:#x([0-9a-fA-F]+)|#(\d+)|([a-zA-Z]+));?/g, (whole, hex, dec, named) => {
+    if (hex || dec) {
+      const code = hex ? parseInt(hex as string, 16) : parseInt(dec as string, 10);
+      return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
+    }
+    return NAMED_ENTITIES[(named as string).toLowerCase()] ?? whole;
+  });
+}
+
 // Sanitization (spec 12): templates are authored by permissioned users but
 // still must not carry executable content into every visitor's page.
 function findSanitizationViolation(html: string, tokens: TagToken[]): string | null {
@@ -148,13 +295,26 @@ function findSanitizationViolation(html: string, tokens: TagToken[]): string | n
       if (/^on/i.test(attribute.name)) {
         return `Template html may not contain event handler attributes ("${attribute.name}")`;
       }
-      const value = (attribute.value ?? '').replace(/\s+/g, '').toLowerCase();
-      if (value.includes('javascript:')) {
+      const value = decodeHtmlEntities(attribute.value ?? '')
+        .replace(/\s+/g, '')
+        .toLowerCase();
+      if (/^(?:javascript|vbscript):/.test(value) || value.includes('javascript:')) {
         return `Template html may not contain javascript: URLs ("${attribute.name}")`;
       }
-      if (value.includes('data:text')) {
+      if (/^data:(?:text|image\/svg\+xml)/.test(value)) {
         return `Template html may not contain data:text URLs ("${attribute.name}")`;
       }
+      if (attribute.name === 'action' || attribute.name === 'formaction') {
+        return `Template html may not contain form submission targets ("${attribute.name}")`;
+      }
+    }
+  }
+  // The tag allow-list runs after the attribute rules so an unsafe attribute
+  // still reports its own reason, and because neither check covers the other:
+  // an allowed tag can carry a handler, a disallowed tag needs no attribute.
+  for (const token of tokens) {
+    if (!ALLOWED_TAGS.has(token.name)) {
+      return `Template html may not contain <${token.name}>; block templates allow content markup only`;
     }
   }
   return null;
@@ -186,6 +346,9 @@ export function validateBlockTemplate(
     const bindings = token.attributes.filter((a) => BINDING_ATTRIBUTES.has(a.name));
     const slotAttribute = token.attributes.find((a) => a.name === SLOT_ATTRIBUTE);
     const navAttribute = token.attributes.find((a) => a.name === NAV_ATTRIBUTE);
+    const tagAttribute = token.attributes.find((a) => a.name === TAG_ATTRIBUTE);
+    const runtimeAttribute = token.attributes.find((a) => a.name === RUNTIME_ATTRIBUTE);
+    const runtimeBindings = token.attributes.filter((a) => RUNTIME_BINDING_ATTRIBUTES.has(a.name));
 
     for (const binding of bindings) {
       if (!binding.value) {
@@ -205,6 +368,25 @@ export function validateBlockTemplate(
     }
     if (navAttribute !== undefined && navAttribute.value !== NAV_ATTRIBUTE_VALUE) {
       return `data-nv-nav must be "${NAV_ATTRIBUTE_VALUE}"`;
+    }
+    if (tagAttribute !== undefined) {
+      if (!tagAttribute.value) {
+        return `data-nv-tag on <${token.name}> must name a prop`;
+      }
+      if (!propertyKeys.has(tagAttribute.value)) {
+        return `data-nv-tag="${tagAttribute.value}" references a prop that does not exist in propsSchema.properties`;
+      }
+    }
+    if (runtimeAttribute !== undefined && !RUNTIME_VALUES.has(runtimeAttribute.value ?? '')) {
+      return 'data-nv-runtime must be "content-entries" or "object-records"';
+    }
+    for (const binding of runtimeBindings) {
+      if (!binding.value) {
+        return `${binding.name} must name a prop in propsSchema.properties`;
+      }
+      if (!propertyKeys.has(binding.value)) {
+        return `${binding.name}="${binding.value}" references a prop that does not exist in propsSchema.properties`;
+      }
     }
 
     const markers = bindings.length + (navAttribute !== undefined ? 1 : 0);
@@ -247,6 +429,30 @@ export function validateBlockCss(css: string): string | null {
   }
   if (/url\(\s*["']?\s*javascript/i.test(css)) {
     return 'Template css may not use url(javascript:)';
+  }
+  return null;
+}
+
+// JavaScript belongs to the Block definition, but it never enters the host
+// document. The web renderer creates an opaque-origin iframe with a network-
+// denying CSP and exposes only a narrow action bridge. These checks avoid
+// breaking out of the srcdoc script element and reject APIs that do not make
+// sense in that isolated contract.
+export function validateBlockJavaScript(js: string): string | null {
+  if (/<\/?script\b/i.test(js)) {
+    return 'Block JavaScript must contain JavaScript only, not <script> tags';
+  }
+  if (/\b(?:fetch|XMLHttpRequest|WebSocket|EventSource|importScripts)\b/i.test(js)) {
+    return 'Block JavaScript may not make network requests; use a declared runtime action';
+  }
+  if (/\b(?:eval|Function)\s*\(/.test(js)) {
+    return 'Block JavaScript may not use eval() or Function()';
+  }
+  if (/\b(?:localStorage|sessionStorage|indexedDB|document\.cookie)\b/i.test(js)) {
+    return 'Block JavaScript may not access browser storage or cookies';
+  }
+  if (/\b(?:window\.)?(?:top|opener)\b|\bparent\.(?!postMessage\b)/i.test(js)) {
+    return 'Block JavaScript may not access the parent window; only parent.postMessage() is available';
   }
   return null;
 }

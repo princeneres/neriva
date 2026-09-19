@@ -1,0 +1,101 @@
+.studio {
+  min-width: 0;
+}
+
+.header {
+  position: sticky;
+  z-index: 10;
+  top: 0;
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mantine-spacing-md);
+  margin: -1rem -1rem var(--mantine-spacing-md);
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--mantine-color-gray-3);
+  background: color-mix(in srgb, var(--mantine-color-body) 94%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.titleGroup {
+  min-width: 0;
+}
+
+.nameInput {
+  max-width: 28rem;
+  padding: 0;
+  color: var(--mantine-color-text);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.problem {
+  margin-bottom: var(--mantine-spacing-md);
+}
+
+.tabs :global(.mantine-Tabs-list) {
+  border-bottom-color: var(--mantine-color-gray-3);
+}
+
+.codeWorkspace {
+  display: grid;
+  height: calc(100dvh - 10.8rem);
+  min-height: 38rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--mantine-spacing-sm);
+}
+
+.workspacePane,
+.previewPane {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--mantine-color-gray-0);
+}
+
+.workspacePane > :last-child,
+.previewPane > :last-child {
+  min-height: 0;
+  flex: 1;
+}
+
+.previewSticky {
+  position: sticky;
+  top: 4.75rem;
+}
+
+@media (max-width: 72rem) {
+  .codeWorkspace {
+    height: auto;
+    min-height: 0;
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(4, minmax(28rem, auto));
+  }
+}
+
+@media (max-width: 48rem) {
+  .header {
+    position: static;
+    align-items: flex-start;
+    margin: 0 0 var(--mantine-spacing-md);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    backdrop-filter: none;
+  }
+
+  .header > div {
+    flex-wrap: wrap;
+  }
+
+  .codeWorkspace {
+    grid-template-rows: repeat(4, minmax(24rem, auto));
+  }
+
+  .previewSticky {
+    position: static;
+  }
+}

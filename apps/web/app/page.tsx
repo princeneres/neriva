@@ -70,5 +70,5 @@ export default async function RootPage() {
     return <WelcomeScreen />;
   }
   const css = await fetchSiteCss(site.slug);
-  return <PublishedPage data={data} css={css} />;
+  return <PublishedPage data={data} css={css} siteBasePath="" />;
 }

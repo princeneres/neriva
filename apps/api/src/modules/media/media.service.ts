@@ -15,6 +15,7 @@ import { TenantScopedRepository, type CursorPage } from '../../db/tenant-scoped.
 import { SitesService } from '../sites/sites.service';
 import { sanitizeFileName } from './file-name';
 import { StorageService } from './storage.service';
+import { validateUploadSignature } from './file-signature';
 
 export type MediaFolderRow = InferSelectModel<typeof mediaFolders>;
 export type MediaFileRow = InferSelectModel<typeof mediaFiles>;
@@ -267,6 +268,7 @@ export class MediaService {
     if (input.bytes.length === 0) {
       throw new BadRequestException({ detail: 'Empty files are rejected' });
     }
+    const contentType = validateUploadSignature(input.contentType, input.bytes);
     let folderId: string | null = null;
     if (input.folderId !== undefined) {
       folderId = (await this.getFolderByRef(tenantId, input.folderId)).id;
@@ -281,7 +283,7 @@ export class MediaService {
       const values = {
         folderId,
         fileName,
-        contentType: input.contentType.slice(0, 127) || 'application/octet-stream',
+        contentType,
         sizeBytes: input.bytes.length,
         storageKey,
         createdBy,

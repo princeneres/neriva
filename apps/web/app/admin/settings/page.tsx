@@ -99,80 +99,82 @@ export default function SettingsListPage() {
             </Button>
           </Stack>
         ) : (
-          <Table highlightOnHover verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>
-                  Key
-                  <HelpTip label="The unique name used to look this setting up, in the admin and through the API." />
-                </Table.Th>
-                <Table.Th>
-                  Value
-                  <HelpTip label="Stored as JSON: text, a number, true/false, or a whole object." />
-                </Table.Th>
-                <Table.Th>Updated</Table.Th>
-                <Table.Th aria-label="Actions" />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {showSkeleton
-                ? Array.from({ length: SKELETON_ROWS }, (_, index) => (
-                    <Table.Tr key={index}>
-                      <Table.Td>
-                        <Skeleton height={12} width="60%" />
-                      </Table.Td>
-                      <Table.Td>
-                        <Skeleton height={12} width="80%" />
-                      </Table.Td>
-                      <Table.Td>
-                        <Skeleton height={12} width="50%" />
-                      </Table.Td>
-                      <Table.Td />
-                    </Table.Tr>
-                  ))
-                : items.map((setting) => (
-                    <Table.Tr key={setting.id}>
-                      <Table.Td>
-                        <Code>{setting.key}</Code>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm" ff="monospace" c="slate.6">
-                          {previewValue(setting.value)}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm" c="slate.5">
-                          {new Date(setting.updatedAt).toLocaleString()}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Group gap={4} justify="flex-end" wrap="nowrap">
-                          <Tooltip label="Edit value">
-                            <ActionIcon
-                              component={Link}
-                              href={`/admin/settings/${encodeURIComponent(setting.key)}`}
-                              variant="subtle"
-                              aria-label={`Edit ${setting.key}`}
-                            >
-                              <IconPencil size={16} />
-                            </ActionIcon>
-                          </Tooltip>
-                          <Tooltip label="Delete">
-                            <ActionIcon
-                              variant="subtle"
-                              color="red"
-                              aria-label={`Delete ${setting.key}`}
-                              onClick={() => confirmDelete(setting)}
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-            </Table.Tbody>
-          </Table>
+          <Table.ScrollContainer minWidth={760} type="native">
+            <Table highlightOnHover verticalSpacing="sm">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>
+                    Key
+                    <HelpTip label="The unique name used to look this setting up, in the admin and through the API." />
+                  </Table.Th>
+                  <Table.Th>
+                    Value
+                    <HelpTip label="Stored as JSON: text, a number, true/false, or a whole object." />
+                  </Table.Th>
+                  <Table.Th>Updated</Table.Th>
+                  <Table.Th aria-label="Actions" />
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {showSkeleton
+                  ? Array.from({ length: SKELETON_ROWS }, (_, index) => (
+                      <Table.Tr key={index}>
+                        <Table.Td>
+                          <Skeleton height={12} width="60%" />
+                        </Table.Td>
+                        <Table.Td>
+                          <Skeleton height={12} width="80%" />
+                        </Table.Td>
+                        <Table.Td>
+                          <Skeleton height={12} width="50%" />
+                        </Table.Td>
+                        <Table.Td />
+                      </Table.Tr>
+                    ))
+                  : items.map((setting) => (
+                      <Table.Tr key={setting.id}>
+                        <Table.Td>
+                          <Code>{setting.key}</Code>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="sm" ff="monospace" c="slate.6">
+                            {previewValue(setting.value)}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="sm" c="slate.5">
+                            {new Date(setting.updatedAt).toLocaleString()}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Group gap={4} justify="flex-end" wrap="nowrap">
+                            <Tooltip label="Edit value">
+                              <ActionIcon
+                                component={Link}
+                                href={`/admin/settings/${encodeURIComponent(setting.key)}`}
+                                variant="subtle"
+                                aria-label={`Edit ${setting.key}`}
+                              >
+                                <IconPencil size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label="Delete">
+                              <ActionIcon
+                                variant="subtle"
+                                color="red"
+                                aria-label={`Delete ${setting.key}`}
+                                onClick={() => confirmDelete(setting)}
+                              >
+                                <IconTrash size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+              </Table.Tbody>
+            </Table>
+          </Table.ScrollContainer>
         )}
       </Card>
 

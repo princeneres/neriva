@@ -3,6 +3,7 @@ import { contentTypes } from './content-types';
 import { customFieldsColumn, envelopeColumns, statusColumn } from './envelope';
 import { sites } from './sites';
 import { tenants } from './tenants';
+import { resourceFolders } from './resource-folders';
 
 export const contentEntries = pgTable(
   'content_entries',
@@ -20,11 +21,13 @@ export const contentEntries = pgTable(
     siteId: uuid('site_id').references(() => sites.id, { onDelete: 'set null' }),
     title: varchar('title', { length: 255 }).notNull(),
     values: jsonb('values').$type<Record<string, unknown>>().notNull(),
+    folderId: uuid('folder_id').references(() => resourceFolders.id, { onDelete: 'set null' }),
   },
   (t) => [
     uniqueIndex('content_entries_tenant_erc_uq').on(t.tenantId, t.externalReferenceCode),
     index('content_entries_tenant_type_idx').on(t.tenantId, t.contentTypeId),
     index('content_entries_tenant_site_idx').on(t.tenantId, t.siteId),
+    index('content_entries_tenant_folder_id_idx').on(t.tenantId, t.folderId, t.id),
     foreignKey({
       columns: [t.tenantId],
       foreignColumns: [tenants.id],

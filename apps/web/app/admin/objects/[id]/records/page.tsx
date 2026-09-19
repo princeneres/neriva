@@ -26,6 +26,7 @@ import {
   IconFilter,
   IconPencil,
   IconPlus,
+  IconSearch,
   IconTable,
   IconTrash,
   IconX,
@@ -33,7 +34,8 @@ import {
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import { useCursorList } from '../../../../../components/data-table';
+import { CursorPagination } from '../../../../../components/cursor-pagination';
+import { useCursorPage } from '../../../../../components/data-table';
 import { HelpTip } from '../../../../../components/help-tip';
 import { ApiError, api } from '../../../../../lib/api';
 import type { ObjectDefinition, ObjectField, ObjectRecord } from '../../types';
@@ -65,6 +67,8 @@ export default function ObjectRecordsPage() {
   const [filterKey, setFilterKey] = useState<string | null>(null);
   const [filterValue, setFilterValue] = useState('');
   const [applied, setApplied] = useState<AppliedFilter | null>(null);
+  const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState<string | null>(null);
 
   useEffect(() => {
     api
@@ -75,25 +79,40 @@ export default function ObjectRecordsPage() {
       });
   }, [id]);
 
-  // Spec 05: cursor pagination only supports the default id sort, so the
-  // browser keeps the default order and offers no custom sort.
+  // Sorted record queries are intentionally kept separate from cursor pages by
+  // the API. Selecting a field therefore resets the list to its first page.
   const listPath = useMemo(() => {
     const base = `/object-definitions/${id}/records`;
-    if (!applied) {
-      return base;
+    const params = new URLSearchParams();
+    if (applied) {
+      params.set(`filter[${applied.key}]`, applied.value);
     }
-    const param = encodeURIComponent(`filter[${applied.key}]`);
-    return `${base}?${param}=${encodeURIComponent(applied.value)}`;
-  }, [id, applied]);
+    if (sortKey) {
+      params.set('sort', sortKey);
+    }
+    const query = params.toString();
+    return query ? `${base}?${query}` : base;
+  }, [id, applied, sortKey]);
 
-  const { items, loading, hasMore, refresh, loadMore } = useCursorList<ObjectRecord>(
-    listPath,
-    (error) =>
-      notifications.show({
-        color: 'red',
-        title: 'Could not load records',
-        message: error.message,
-      }),
+  const {
+    items,
+    loading,
+    page,
+    limit,
+    hasPrevious,
+    hasNext,
+    refresh,
+    first,
+    next,
+    previous,
+    last,
+    setLimit,
+  } = useCursorPage<ObjectRecord>(listPath, (error) =>
+    notifications.show({
+      color: 'red',
+      title: 'Could not load records',
+      message: error.message,
+    }),
   );
 
   const filterField = definition?.fields.find((field) => field.key === filterKey) ?? null;
@@ -147,6 +166,19 @@ export default function ObjectRecordsPage() {
   }
 
   const fields = definition?.fields ?? [];
+  // One column per Object field, plus Created and the row actions. The width
+  // follows the definition instead of a fixed number, since a record table can
+  // have any number of columns.
+  const tableMinWidth = fields.length * 160 + 280;
+  const needle = search.trim().toLowerCase();
+  const visibleItems = items.filter((record) => {
+    if (!needle) return true;
+    return Object.values(record.data).some((value) =>
+      String(value ?? '')
+        .toLowerCase()
+        .includes(needle),
+    );
+  });
   const showEmptyState = definition !== null && !loading && items.length === 0;
 
   return (
@@ -193,6 +225,14 @@ export default function ObjectRecordsPage() {
 
       {definition && fields.length > 0 ? (
         <Group gap="sm" mb="md" align="flex-end">
+          <TextInput
+            w={240}
+            label="Search records"
+            placeholder="Search field values"
+            leftSection={<IconSearch size={16} />}
+            value={search}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+          />
           <Select
             w={200}
             label={
@@ -266,6 +306,15 @@ export default function ObjectRecordsPage() {
               Clear filter
             </Button>
           ) : null}
+          <Select
+            w={200}
+            label="Sort by"
+            placeholder="Default order"
+            data={fields.map((field) => ({ value: field.key, label: field.label }))}
+            value={sortKey}
+            onChange={setSortKey}
+            clearable
+          />
         </Group>
       ) : null}
 
@@ -303,72 +352,79 @@ export default function ObjectRecordsPage() {
               )}
             </Stack>
           ) : (
-            <Table highlightOnHover verticalSpacing="sm">
-              <Table.Thead>
-                <Table.Tr>
-                  {fields.map((field) => (
-                    <Table.Th key={field.key}>{field.label}</Table.Th>
-                  ))}
-                  <Table.Th>Created</Table.Th>
-                  <Table.Th aria-label="Actions" />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {loading && items.length === 0
-                  ? SKELETON_ROWS.map((row) => (
-                      <Table.Tr key={row}>
-                        <Table.Td colSpan={fields.length + 2}>
-                          <Skeleton height={14} />
-                        </Table.Td>
-                      </Table.Tr>
-                    ))
-                  : items.map((record) => (
-                      <Table.Tr key={record.id}>
-                        {fields.map((field) => (
-                          <Table.Td key={field.key}>
-                            {renderValue(field, record.data[field.key])}
-                          </Table.Td>
-                        ))}
-                        <Table.Td>{new Date(record.createdAt).toLocaleString()}</Table.Td>
-                        <Table.Td>
-                          <Group gap={4} justify="flex-end" wrap="nowrap">
-                            <Tooltip label="Edit record">
-                              <ActionIcon
-                                component={Link}
-                                href={`/admin/objects/records/${record.id}`}
-                                variant="subtle"
-                                aria-label="Edit record"
-                              >
-                                <IconPencil size={16} />
-                              </ActionIcon>
-                            </Tooltip>
-                            <Tooltip label="Delete record">
-                              <ActionIcon
-                                variant="subtle"
-                                color="red"
-                                aria-label="Delete record"
-                                onClick={() => confirmDelete(record)}
-                              >
-                                <IconTrash size={16} />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
+            <Table.ScrollContainer minWidth={tableMinWidth} type="native">
+              <Table highlightOnHover verticalSpacing="sm">
+                <Table.Thead>
+                  <Table.Tr>
+                    {fields.map((field) => (
+                      <Table.Th key={field.key}>{field.label}</Table.Th>
                     ))}
-              </Table.Tbody>
-            </Table>
+                    <Table.Th>Created</Table.Th>
+                    <Table.Th aria-label="Actions" />
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {loading && items.length === 0
+                    ? SKELETON_ROWS.map((row) => (
+                        <Table.Tr key={row}>
+                          <Table.Td colSpan={fields.length + 2}>
+                            <Skeleton height={14} />
+                          </Table.Td>
+                        </Table.Tr>
+                      ))
+                    : visibleItems.map((record) => (
+                        <Table.Tr key={record.id}>
+                          {fields.map((field) => (
+                            <Table.Td key={field.key}>
+                              {renderValue(field, record.data[field.key])}
+                            </Table.Td>
+                          ))}
+                          <Table.Td>{new Date(record.createdAt).toLocaleString()}</Table.Td>
+                          <Table.Td>
+                            <Group gap={4} justify="flex-end" wrap="nowrap">
+                              <Tooltip label="Edit record">
+                                <ActionIcon
+                                  component={Link}
+                                  href={`/admin/objects/records/${record.id}`}
+                                  variant="subtle"
+                                  aria-label="Edit record"
+                                >
+                                  <IconPencil size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                              <Tooltip label="Delete record">
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="red"
+                                  aria-label="Delete record"
+                                  onClick={() => confirmDelete(record)}
+                                >
+                                  <IconTrash size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
           )}
         </Card>
       ) : null}
 
-      {hasMore ? (
-        <Group justify="center" mt="md">
-          <Button variant="light" loading={loading} onClick={() => void loadMore()}>
-            Load more
-          </Button>
-        </Group>
-      ) : null}
+      <CursorPagination
+        page={page}
+        hasPrevious={hasPrevious}
+        hasNext={hasNext}
+        loading={loading}
+        limit={limit}
+        onFirst={() => void first()}
+        onPrevious={() => void previous()}
+        onNext={() => void next()}
+        onLast={() => void last()}
+        onLimitChange={(nextLimit) => void setLimit(nextLimit)}
+      />
     </>
   );
 }

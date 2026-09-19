@@ -11,6 +11,7 @@ import { ObjectsModule } from './modules/objects/objects.module';
 import { PageTemplatesModule } from './modules/page-templates/page-templates.module';
 import { PagesModule } from './modules/pages/pages.module';
 import { RolesModule } from './modules/roles/roles.module';
+import { ResourceFoldersModule } from './modules/resource-folders/resource-folders.module';
 import { SitesModule } from './modules/sites/sites.module';
 import { StylebookModule } from './modules/stylebook/stylebook.module';
 import { SystemModule } from './modules/system/system.module';
@@ -25,6 +26,7 @@ import { UsersModule } from './modules/users/users.module';
     DbModule,
     AuthModule,
     RolesModule,
+    ResourceFoldersModule,
     UsersModule,
     SitesModule,
     PageTemplatesModule,

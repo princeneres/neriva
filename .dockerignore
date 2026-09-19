@@ -4,7 +4,12 @@ node_modules
 **/.next
 .git
 .claude
+.codex
+.agents
 coverage
 *.log
 .env
 .env.*
+# Embedded PostgreSQL data dir from `pnpm dev` and locally uploaded media.
+.neriva
+apps/api/uploads

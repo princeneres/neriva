@@ -49,5 +49,5 @@ export default async function DefaultSitePage({ params }: { params: Promise<Rout
     notFound();
   }
   const css = await fetchSiteCss(data.site.slug);
-  return <PublishedPage data={data} css={css} />;
+  return <PublishedPage data={data} css={css} siteBasePath="" />;
 }

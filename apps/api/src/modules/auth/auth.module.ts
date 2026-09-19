@@ -5,14 +5,13 @@ import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import { MustChangePasswordGuard } from './must-change-password.guard';
+import { assertProductionAuthConfig } from './auth-config';
 
 @Module({
   imports: [
     JwtModule.registerAsync({
       useFactory: () => {
-        if (process.env.NODE_ENV === 'production' && !process.env.JWT_ACCESS_SECRET) {
-          throw new Error('JWT_ACCESS_SECRET must be set in production');
-        }
+        assertProductionAuthConfig();
         return {
           secret: process.env.JWT_ACCESS_SECRET ?? 'dev-insecure-access-secret',
           signOptions: {

@@ -33,7 +33,10 @@ export default function PageTemplateEditPage() {
     setBusy(true);
     setError(null);
     try {
-      const { data } = await api.patch<{ data: PageTemplate }>(`/page-templates/${id}`, values);
+      const { data } = await api.patch<{ data: PageTemplate }>(`/page-templates/${id}`, {
+        ...values,
+        expectedUpdatedAt: template?.updatedAt,
+      });
       setTemplate(data);
       notifications.show({ color: 'green', message: 'Template saved.' });
     } catch (err) {

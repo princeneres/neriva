@@ -55,6 +55,10 @@ export const DEMO_MEDIA_FILE_ERCS = [
   'demo-cover-roles',
 ] as const;
 
+export function shouldSeedDemo(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.SEED_DEMO !== 'false' && !(env.NODE_ENV === 'production' && env.SEED_DEMO !== 'true');
+}
+
 interface DemoBlockDefinition {
   erc: (typeof DEMO_BLOCK_ERCS)[number];
   name: string;
@@ -704,7 +708,9 @@ async function deleteDemoMediaBytes(storageKey: string): Promise<void> {
 }
 
 // First-boot demo content so a new install does not greet the user with
-// empty screens. Idempotent per item by ERC; disabled with SEED_DEMO=false.
+// empty screens. Idempotent per item by ERC; disabled by default in production
+// and explicitly with SEED_DEMO=false elsewhere. Production demo data is only
+// allowed when an operator opts in with SEED_DEMO=true.
 @Injectable()
 export class DemoSeedService implements OnApplicationBootstrap {
   private readonly logger = new Logger(DemoSeedService.name);
@@ -737,8 +743,8 @@ export class DemoSeedService implements OnApplicationBootstrap {
   }
 
   async run(): Promise<void> {
-    if (process.env.SEED_DEMO === 'false') {
-      this.logger.log('SEED_DEMO=false, skipping demo content seed');
+    if (!shouldSeedDemo()) {
+      this.logger.log('Demo content seed disabled');
       return;
     }
     const tenant = await this.resolveDefaultTenant();

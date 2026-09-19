@@ -1,5 +1,5 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { InferSelectModel } from 'drizzle-orm';
 import type { CursorPage } from '../../db/tenant-scoped.repository';
 import { DB, type Database } from '../../db/database';
@@ -103,11 +103,33 @@ export class RolesService {
     }
 
     try {
-      if (Object.keys(values).length > 0) {
-        await this.repo(tenantId).updateById(existing.id, values);
-      }
       if (input.permissions !== undefined) {
-        await this.replacePermissions(tenantId, existing.id, input.permissions);
+        const permissions = dedupePermissions(input.permissions);
+        await this.db.transaction(async (tx) => {
+          if (Object.keys(values).length > 0) {
+            await tx
+              .update(roles)
+              .set({ ...values, updatedAt: new Date() })
+              .where(and(eq(roles.tenantId, tenantId), eq(roles.id, existing.id)));
+          }
+          await tx
+            .delete(rolePermissions)
+            .where(
+              and(eq(rolePermissions.roleId, existing.id), eq(rolePermissions.tenantId, tenantId)),
+            );
+          if (permissions.length > 0) {
+            await tx.insert(rolePermissions).values(
+              permissions.map((p) => ({
+                roleId: existing.id,
+                tenantId,
+                resourceType: p.resourceType,
+                action: p.action,
+              })),
+            );
+          }
+        });
+      } else if (Object.keys(values).length > 0) {
+        await this.repo(tenantId).updateById(existing.id, values);
       }
       return this.getByRef(tenantId, existing.id);
     } catch (error) {
@@ -130,7 +152,9 @@ export class RolesService {
   ): Promise<void> {
     const permissions = dedupePermissions(input);
     await this.db.transaction(async (tx) => {
-      await tx.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));
+      await tx
+        .delete(rolePermissions)
+        .where(and(eq(rolePermissions.roleId, roleId), eq(rolePermissions.tenantId, tenantId)));
       if (permissions.length > 0) {
         await tx.insert(rolePermissions).values(
           permissions.map((p) => ({

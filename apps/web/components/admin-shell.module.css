@@ -43,27 +43,108 @@
   color: var(--admin-nav-accent) !important;
 }
 
+/* The collapsed rail uses a small icon tile, instead of Mantine's full-width
+   light variant. This keeps the hover state from reading as a rectangle. */
+.collapsedNavItem {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  margin-block: 3px;
+  border-radius: 10px;
+  color: var(--admin-nav-muted);
+  transition: color 140ms ease;
+}
+
+.collapsedNavItem:hover,
+.collapsedNavItem:focus-visible {
+  color: var(--admin-nav-text);
+}
+
+.collapsedNavItem:focus-visible {
+  outline: 2px solid var(--admin-nav-accent);
+  outline-offset: 1px;
+}
+
+.collapsedNavIcon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 9px;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.collapsedNavItem:hover .collapsedNavIcon,
+.collapsedNavItem:focus-visible .collapsedNavIcon {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.collapsedNavItemActive {
+  color: #fff;
+}
+
+.collapsedNavItemActive::before {
+  position: absolute;
+  inset-inline-start: -8px;
+  width: 3px;
+  height: 22px;
+  border-radius: 0 4px 4px 0;
+  background: var(--admin-nav-accent);
+  content: '';
+}
+
+.collapsedNavItemActive .collapsedNavIcon {
+  background: rgba(224, 106, 112, 0.18);
+  color: #ff9da1;
+  box-shadow: 0 0 0 1px rgba(224, 106, 112, 0.16);
+}
+
 .navGroupLabel {
   color: var(--admin-nav-label) !important;
 }
 
 .navLink {
+  position: relative;
+  min-height: 40px;
   color: var(--admin-nav-muted) !important;
+  border: 1px solid transparent;
   transition:
     background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
     color 140ms ease;
 }
 
 .navLink:hover,
 .navLink:focus-visible {
   background: var(--admin-nav-surface-hover) !important;
+  border-color: rgba(255, 255, 255, 0.06);
   color: var(--admin-nav-text) !important;
 }
 
 .navLink[data-active='true'] {
-  background: var(--admin-nav-surface) !important;
-  box-shadow: inset 2px 0 0 var(--admin-nav-accent);
-  color: var(--admin-nav-text) !important;
+  background:
+    linear-gradient(105deg, rgba(224, 106, 112, 0.2), rgba(224, 106, 112, 0.08) 58%, transparent),
+    var(--admin-nav-surface) !important;
+  border-color: rgba(224, 106, 112, 0.24);
+  box-shadow:
+    inset 3px 0 0 var(--admin-nav-accent),
+    0 6px 16px rgba(0, 0, 0, 0.12);
+  color: #fff !important;
+}
+
+.navLink[data-active='true'] :global(.mantine-NavLink-section) {
+  color: #ff9da1;
+}
+
+.navLink[data-active='true'] :global(.mantine-NavLink-label) {
+  font-weight: 650;
 }
 
 .navLink :global(.mantine-NavLink-label),
@@ -91,24 +172,55 @@
   outline-offset: 2px;
 }
 
-.siteSwitcher :global(.mantine-Select-input) {
+.siteContextButton {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  margin-top: var(--mantine-spacing-sm);
+  padding: 7px 8px;
+  border: 1px solid var(--admin-nav-border);
+  border-radius: 9px;
   background: var(--admin-nav-surface);
-  border-color: var(--admin-nav-border);
   color: var(--admin-nav-text);
+  text-align: left;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease;
 }
 
-.siteSwitcher :global(.mantine-Select-input)::placeholder,
-.siteSwitcher :global(.mantine-Select-section) {
+.siteContextButton:hover,
+.siteContextButton:focus-visible {
+  border-color: rgba(224, 106, 112, 0.5);
+  background: var(--admin-nav-surface-hover);
+  outline: 0;
+}
+
+.siteContextCopy {
+  min-width: 0;
+  flex: 1;
+}
+
+.siteContextSlug {
   color: var(--admin-nav-muted);
 }
 
-.siteSwitcher :global(.mantine-Select-input):focus,
-.siteSwitcher :global(.mantine-Select-input):focus-within {
-  border-color: var(--admin-nav-accent);
+.siteSwitcherRail {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  margin: 4px auto;
+  border-radius: 9px;
+  color: var(--admin-nav-muted);
 }
 
-.siteSwitcher :global(.mantine-Input-section) {
-  color: var(--admin-nav-muted);
+.siteSwitcherRail:hover,
+.siteSwitcherRail:focus-visible {
+  background: var(--admin-nav-surface-hover);
+  color: var(--admin-nav-text);
+  outline: 0;
 }
 
 .divider {
@@ -131,6 +243,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .navLink,
+  .collapsedNavItem,
+  .collapsedNavIcon,
   .editButton,
   .accountButton {
     transition: none;

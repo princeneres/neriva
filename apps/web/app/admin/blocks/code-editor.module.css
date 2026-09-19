@@ -1,0 +1,244 @@
+.editor {
+  --code-bg: #17181c;
+  --code-panel: #202126;
+  --code-line: #777b89;
+  --code-text: #f4f3f1;
+  --code-muted: #858894;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: var(--code-bg);
+  color: var(--code-text);
+  box-shadow: 0 10px 28px rgba(29, 25, 24, 0.12);
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.editorFill {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.editorFill .editorBody {
+  min-height: 0;
+  flex: 1;
+}
+
+.editorFill .textarea {
+  height: 100%;
+  min-height: 0;
+  resize: none;
+}
+
+.codeIcon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(224, 106, 112, 0.28);
+  border-radius: 10px;
+  background: rgba(224, 106, 112, 0.1);
+  color: #ff9da1;
+}
+
+.codeStudio {
+  padding: 10px;
+  border: 1px solid var(--mantine-color-slate-3);
+  border-radius: 14px;
+  background: #f2f0ec;
+}
+
+.codeStudioBar {
+  padding: 2px 4px 4px;
+}
+
+.editorFocused {
+  border-color: rgba(224, 106, 112, 0.72);
+  box-shadow:
+    0 0 0 3px rgba(224, 106, 112, 0.12),
+    0 12px 30px rgba(29, 25, 24, 0.16);
+}
+
+.editorHeader,
+.editorFooter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 12px;
+  background: var(--code-panel);
+  color: var(--code-muted);
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.editorHeader {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.editorFooter {
+  min-height: 30px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 10px;
+  letter-spacing: 0;
+}
+
+.languageDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ff9da1;
+  box-shadow: 0 0 0 3px rgba(255, 157, 161, 0.12);
+}
+
+.languageDotHtml {
+  background: #ff9da1;
+}
+
+.languageDotCss {
+  background: #8bb7ff;
+  box-shadow: 0 0 0 3px rgba(139, 183, 255, 0.12);
+}
+
+.languageDotJavaScript {
+  background: #f7cf67;
+  box-shadow: 0 0 0 3px rgba(247, 207, 103, 0.12);
+}
+
+.languageName {
+  color: #fff;
+  font-weight: 700;
+}
+
+.editorHint {
+  margin-left: auto;
+  color: var(--code-muted);
+  font-size: 10px;
+  letter-spacing: 0;
+}
+
+.editorAction {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--code-muted);
+  cursor: pointer;
+}
+
+.editorAction:hover,
+.editorAction:focus-visible {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  outline: 0;
+}
+
+.findBar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--code-panel);
+}
+
+.findBar input,
+.findBar button {
+  min-width: 0;
+  padding: 5px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--code-text);
+  font: inherit;
+  font-size: 11px;
+}
+
+.findBar button {
+  cursor: pointer;
+}
+
+.editorBody {
+  position: relative;
+  min-height: 360px;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px) 54px 0 / 1px 100%,
+    var(--code-bg);
+}
+
+.lineNumbers {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  display: flex;
+  width: 48px;
+  flex-direction: column;
+  padding: 16px 10px 16px 0;
+  color: var(--code-line);
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  line-height: 1.65;
+  pointer-events: none;
+  text-align: right;
+  user-select: none;
+  transition: transform 0ms linear;
+}
+
+.textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 360px;
+  padding: 16px 16px 16px 64px;
+  resize: vertical;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--code-text);
+  caret-color: #ff9da1;
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  line-height: 1.65;
+  tab-size: 2;
+  white-space: pre;
+}
+
+.textarea::placeholder {
+  color: #686b77;
+  opacity: 1;
+}
+
+.textarea::selection {
+  background: rgba(224, 106, 112, 0.35);
+}
+
+.footerSpacer {
+  flex: 1;
+}
+
+@media (max-width: 700px) {
+  .editorBody,
+  .textarea {
+    min-height: 280px;
+  }
+
+  .editorHint {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor {
+    transition: none;
+  }
+}

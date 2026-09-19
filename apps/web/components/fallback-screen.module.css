@@ -1,0 +1,148 @@
+/* Public-facing fallback screens (404 and runtime error).
+   Mantine lives under AdminProviders, which sits below these boundaries, so
+   these screens are styled straight from the Style Book tokens and follow the
+   site's own light/dark attribute instead of Mantine's colour scheme. */
+
+.screen {
+  --fallback-surface: var(--nv-color-neutral-0);
+  --fallback-panel: var(--nv-color-neutral-50);
+  --fallback-border: var(--nv-color-neutral-200);
+  --fallback-text: var(--nv-color-neutral-900);
+  --fallback-muted: var(--nv-color-neutral-500);
+  --fallback-ghost-hover: var(--nv-color-neutral-100);
+
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--nv-space-6) var(--nv-space-4);
+  background: var(--fallback-surface);
+  color: var(--fallback-text);
+  font-family: var(--font-body), var(--nv-font-sans);
+}
+
+/* Dark comes from two signals on purpose. The attribute is the site's own
+   choice and always wins, but these screens render outside ThemeSync, so
+   nothing re-stamps the attribute after hydration and it can go missing. The
+   OS preference then takes over, unless the visitor explicitly picked light. */
+:global(:root[data-nv-theme='dark']) .screen {
+  --fallback-surface: var(--nv-color-neutral-900);
+  --fallback-panel: var(--nv-color-neutral-800);
+  --fallback-border: var(--nv-color-neutral-700);
+  --fallback-text: var(--nv-color-neutral-0);
+  --fallback-muted: var(--nv-color-neutral-400);
+  --fallback-ghost-hover: var(--nv-color-neutral-700);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-nv-theme='light'])) .screen {
+    --fallback-surface: var(--nv-color-neutral-900);
+    --fallback-panel: var(--nv-color-neutral-800);
+    --fallback-border: var(--nv-color-neutral-700);
+    --fallback-text: var(--nv-color-neutral-0);
+    --fallback-muted: var(--nv-color-neutral-400);
+    --fallback-ghost-hover: var(--nv-color-neutral-700);
+    color-scheme: dark;
+  }
+}
+
+.panel {
+  width: 100%;
+  max-width: 34rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--nv-space-3);
+  text-align: center;
+}
+
+.code {
+  margin: 0;
+  font-family: var(--font-mono), var(--nv-font-mono);
+  font-size: var(--nv-text-sm);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--nv-color-primary);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display), var(--nv-font-sans);
+  font-size: clamp(1.5rem, 1.2rem + 1.6vw, 2rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.description {
+  margin: 0;
+  max-width: 30rem;
+  font-size: var(--nv-text-md);
+  line-height: 1.6;
+  color: var(--fallback-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--nv-space-2);
+  margin-top: var(--nv-space-2);
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0 var(--nv-space-5);
+  border-radius: var(--nv-radius-md);
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: var(--nv-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.action:focus-visible {
+  outline: 2px solid var(--nv-color-primary);
+  outline-offset: 2px;
+}
+
+.primary {
+  background: var(--nv-color-primary);
+  color: var(--nv-color-on-primary);
+}
+
+.primary:hover {
+  background: var(--nv-color-primary-hover);
+}
+
+.ghost {
+  background: transparent;
+  border-color: var(--fallback-border);
+  color: inherit;
+}
+
+.ghost:hover {
+  background: var(--fallback-ghost-hover);
+}
+
+.reference {
+  margin: var(--nv-space-3) 0 0;
+  font-size: var(--nv-text-xs);
+  color: var(--fallback-muted);
+}
+
+.referenceCode {
+  padding: 0.15em 0.45em;
+  border-radius: var(--nv-radius-sm);
+  border: 1px solid var(--fallback-border);
+  background: var(--fallback-panel);
+  font-family: var(--font-mono), var(--nv-font-mono);
+}

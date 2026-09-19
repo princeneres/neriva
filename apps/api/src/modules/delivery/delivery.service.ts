@@ -41,6 +41,8 @@ export interface DeliveredBlock {
   slots: BlockSlot[];
   html: string | null;
   css: string | null;
+  js: string | null;
+  templateSource: 'NATIVE' | 'CUSTOM';
 }
 
 // Spec 13: well-known system setting holding the default site slug.
@@ -212,6 +214,8 @@ export class DeliveryService {
           slots: blocks.slots,
           html: blocks.html,
           css: blocks.css,
+          js: blocks.js,
+          templateSource: blocks.templateSource,
         })
         .from(blocks)
         .where(and(eq(blocks.tenantId, tenantId), inArray(blocks.externalReferenceCode, refs)));
@@ -222,6 +226,8 @@ export class DeliveryService {
           slots: row.slots,
           html: row.html,
           css: row.css,
+          js: row.js,
+          templateSource: row.templateSource,
         };
       }
     }

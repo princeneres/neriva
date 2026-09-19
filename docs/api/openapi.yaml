@@ -262,6 +262,163 @@ paths:
         - bearer: []
       tags:
         - roles
+  /resource-folders:
+    get:
+      operationId: ResourceFoldersController_list
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+        - name: resource
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - blocks
+              - content-types
+              - content-entries
+              - objects
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ResourceFolderDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      security:
+        - bearer: []
+      tags:
+        - resource-folders
+    post:
+      operationId: ResourceFoldersController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateResourceFolderDto"
+      responses:
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ResourceFolderDto"
+      security:
+        - bearer: []
+      tags:
+        - resource-folders
+  /resource-folders/{id}:
+    get:
+      operationId: ResourceFoldersController_get
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ResourceFolderDto"
+      security:
+        - bearer: []
+      tags:
+        - resource-folders
+    patch:
+      operationId: ResourceFoldersController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateResourceFolderDto"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ResourceFolderDto"
+      security:
+        - bearer: []
+      tags:
+        - resource-folders
+    delete:
+      operationId: ResourceFoldersController_delete
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      security:
+        - bearer: []
+      tags:
+        - resource-folders
   /users:
     get:
       operationId: UsersController_list
@@ -994,6 +1151,13 @@ paths:
               - DRAFT
               - PUBLISHED
               - ARCHIVED
+        - name: folder
+          required: false
+          in: query
+          description: Only blocks assigned to this folder
+          schema:
+            format: uuid
+            type: string
       responses:
         "200":
           description: ""
@@ -1149,6 +1313,32 @@ paths:
         - bearer: []
       tags:
         - blocks
+  /blocks/{id}/restore-native-template:
+    post:
+      operationId: BlocksController_restoreNativeTemplate
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/BlockDto"
+      security:
+        - bearer: []
+      tags:
+        - blocks
   /content-types:
     get:
       operationId: ContentTypesController_list
@@ -1166,6 +1356,13 @@ paths:
           in: query
           description: Opaque cursor from the previous page meta
           schema:
+            type: string
+        - name: folder
+          required: false
+          in: query
+          description: Only content types assigned to this folder
+          schema:
+            format: uuid
             type: string
       responses:
         "200":
@@ -1325,6 +1522,13 @@ paths:
           in: query
           description: "Filter by site: UUID or erc:<externalReferenceCode>"
           schema:
+            type: string
+        - name: folder
+          required: false
+          in: query
+          description: Only entries assigned to this folder
+          schema:
+            format: uuid
             type: string
       responses:
         "200":
@@ -1674,6 +1878,15 @@ paths:
   /health:
     get:
       operationId: HealthController_check
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags:
+        - Health
+  /health/ready:
+    get:
+      operationId: HealthController_ready
       parameters: []
       responses:
         "200":
@@ -2162,6 +2375,13 @@ paths:
           in: query
           description: Opaque cursor from the previous page meta
           schema:
+            type: string
+        - name: folder
+          required: false
+          in: query
+          description: Only objects assigned to this folder
+          schema:
+            format: uuid
             type: string
       responses:
         "200":
@@ -2860,6 +3080,75 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PermissionDto"
+    ResourceFolderDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReferenceCode:
+          type: string
+        tenantId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type:
+            - object
+            - "null"
+          format: uuid
+        resource:
+          type: string
+          enum:
+            - blocks
+            - content-types
+            - content-entries
+            - objects
+        name:
+          type: string
+      required:
+        - id
+        - externalReferenceCode
+        - tenantId
+        - createdAt
+        - updatedAt
+        - createdBy
+        - resource
+        - name
+    CreateResourceFolderDto:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          example: Marketing
+        resource:
+          type: string
+          enum:
+            - blocks
+            - content-types
+            - content-entries
+            - objects
+          example: blocks
+        externalReferenceCode:
+          type: string
+          description: Stable code for idempotent upsert; generated when omitted
+      required:
+        - name
+        - resource
+    UpdateResourceFolderDto:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+      required:
+        - name
     CreateUserDto:
       type: object
       properties:
@@ -3068,6 +3357,10 @@ components:
     UpdatePageTemplateDto:
       type: object
       properties:
+        expectedUpdatedAt:
+          type: string
+          format: date-time
+          description: The updatedAt value returned when the template was loaded
         name:
           type: string
           maxLength: 255
@@ -3193,6 +3486,10 @@ components:
     UpdatePageDto:
       type: object
       properties:
+        expectedUpdatedAt:
+          type: string
+          format: date-time
+          description: The updatedAt value returned when the page was loaded
         title:
           type: string
           maxLength: 255
@@ -3257,7 +3554,7 @@ components:
           format: date-time
         createdBy:
           type:
-            - object
+            - string
             - "null"
           format: uuid
         status:
@@ -3288,12 +3585,43 @@ components:
           type:
             - string
             - "null"
-          description: HTML template (spec 12); null means the registry rendering path
+          description: Active HTML source consumed by the shared Block renderer
         css:
           type:
             - string
             - "null"
           description: Template CSS, scoped at render time
+        js:
+          type:
+            - string
+            - "null"
+          description: Active JavaScript source, executed only in the renderer sandbox
+        nativeHtml:
+          type:
+            - string
+            - "null"
+          description: Immutable HTML source supplied by Neriva for a native block
+        nativeCss:
+          type:
+            - string
+            - "null"
+          description: Immutable CSS source supplied by Neriva for a native block
+        nativeJs:
+          type:
+            - string
+            - "null"
+          description: Immutable JavaScript source supplied by Neriva for a native block
+        templateSource:
+          type: string
+          enum:
+            - NATIVE
+            - CUSTOM
+          description: Whether active source equals the native baseline
+        folderId:
+          type:
+            - string
+            - "null"
+          format: uuid
       required:
         - id
         - externalReferenceCode
@@ -3309,6 +3637,12 @@ components:
         - slots
         - html
         - css
+        - js
+        - nativeHtml
+        - nativeCss
+        - nativeJs
+        - templateSource
+        - folderId
     CreateBlockDto:
       type: object
       properties:
@@ -3338,18 +3672,30 @@ components:
           type:
             - string
             - "null"
-          description: HTML template with {{prop}} interpolation, data-nv-* bindings and
-            data-nv-slot placeholders (spec 12); null keeps the registry
-            rendering path
+          description: Active HTML source used by the shared Block renderer. Supports
+            escaped {{prop}} interpolation, data-nv bindings, slots, and
+            declared collection runtimes.
         css:
           type:
             - string
             - "null"
           description: Template CSS, scoped to the block wrapper at render time; may use
             var(--nv-*)
+        js:
+          type:
+            - string
+            - "null"
+          description: Active JavaScript source. It runs only in the Block renderer
+            sandbox and can request declared runtime actions through the safe
+            message bridge.
         externalReferenceCode:
           type: string
           description: Stable code for idempotent upsert; generated when omitted
+        folderId:
+          type:
+            - string
+            - "null"
+          format: uuid
       required:
         - name
         - propsSchema
@@ -3381,6 +3727,17 @@ components:
             - string
             - "null"
           description: Template CSS; explicit null removes it
+        js:
+          type:
+            - string
+            - "null"
+          description: JavaScript source executed only in the Block renderer sandbox;
+            explicit null removes it
+        folderId:
+          type:
+            - string
+            - "null"
+          format: uuid
     ContentFieldDto:
       type: object
       properties:
@@ -3425,7 +3782,7 @@ components:
           format: date-time
         createdBy:
           type:
-            - object
+            - string
             - "null"
           format: uuid
         name:
@@ -3438,6 +3795,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ContentFieldDto"
+        folderId:
+          type:
+            - string
+            - "null"
+          format: uuid
       required:
         - id
         - externalReferenceCode
@@ -3448,6 +3810,7 @@ components:
         - name
         - description
         - fields
+        - folderId
     CreateContentTypeDto:
       type: object
       properties:
@@ -3459,6 +3822,11 @@ components:
         externalReferenceCode:
           type: string
           description: Stable code for idempotent upsert; generated when omitted
+        folderId:
+          type:
+            - string
+            - "null"
+          format: uuid
         fields:
           type: array
           items:
@@ -3479,6 +3847,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ContentFieldDto"
+        folderId:
+          type:
+            - string
+            - "null"
+          format: uuid
     ContentEntryDto:
       type: object
       properties:
@@ -3524,6 +3897,11 @@ components:
         customFields:
           type: object
           additionalProperties: true
+        folderId:
+          type:
+            - string
+            - "null"
+          format: uuid
       required:
         - id
         - externalReferenceCode
@@ -3537,6 +3915,7 @@ components:
         - title
         - values
         - customFields
+        - folderId
     CreateContentEntryDto:
       type: object
       properties:
@@ -3557,6 +3936,11 @@ components:
         externalReferenceCode:
           type: string
           description: Stable code for idempotent upsert; generated when omitted
+        folderId:
+          type:
+            - string
+            - "null"
+          format: uuid
       required:
         - contentType
         - title
@@ -3564,6 +3948,10 @@ components:
     UpdateContentEntryDto:
       type: object
       properties:
+        expectedUpdatedAt:
+          type: string
+          format: date-time
+          description: The updatedAt value returned when the entry was loaded
         title:
           type: string
           maxLength: 255
@@ -3578,6 +3966,11 @@ components:
             - "null"
           description: "Site reference: UUID or erc:<externalReferenceCode>; null detaches
             the entry to tenant-wide"
+        folderId:
+          type:
+            - string
+            - "null"
+          format: uuid
     DeliveredBlockSlotDto:
       type: object
       properties:
@@ -3606,18 +3999,30 @@ components:
           type:
             - string
             - "null"
-          description: HTML template (spec 12); null means the registry rendering path
+          description: Active HTML template consumed by the shared block renderer
         css:
           type:
             - string
             - "null"
           description: Template CSS, scoped at render time
+        js:
+          type:
+            - string
+            - "null"
+          description: Active JavaScript source, executed only in the Block renderer sandbox
+        templateSource:
+          type: string
+          enum:
+            - NATIVE
+            - CUSTOM
       required:
         - name
         - category
         - slots
         - html
         - css
+        - js
+        - templateSource
     DeliveredSiteDto:
       type: object
       properties:
@@ -3759,8 +4164,13 @@ components:
           example: site.name
           description: Unique per tenant, pattern ^[a-z][a-z0-9.-]*$
         value:
-          type: object
-          description: Any JSON value
+          type:
+            - object
+            - "null"
+          description: Any JSON value. Null when the setting is sensitive.
+        isSensitive:
+          type: boolean
+          description: Whether the value is redacted from API responses.
       required:
         - id
         - externalReferenceCode
@@ -3770,6 +4180,7 @@ components:
         - createdBy
         - key
         - value
+        - isSensitive
     UpsertSystemSettingDto:
       type: object
       properties:
@@ -3977,7 +4388,7 @@ components:
           format: date-time
         createdBy:
           type:
-            - object
+            - string
             - "null"
           format: uuid
         name:
@@ -3992,6 +4403,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ObjectFieldDto"
+        folderId:
+          type:
+            - string
+            - "null"
+          format: uuid
       required:
         - id
         - externalReferenceCode
@@ -4003,6 +4419,7 @@ components:
         - pluralName
         - description
         - fields
+        - folderId
     CreateObjectDefinitionDto:
       type: object
       properties:
@@ -4017,6 +4434,11 @@ components:
         externalReferenceCode:
           type: string
           description: Stable code for idempotent upsert; generated when omitted
+        folderId:
+          type:
+            - string
+            - "null"
+          format: uuid
         fields:
           type: array
           items:
@@ -4041,6 +4463,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ObjectFieldDto"
+        folderId:
+          type:
+            - string
+            - "null"
+          format: uuid
     ObjectRecordDto:
       type: object
       properties:

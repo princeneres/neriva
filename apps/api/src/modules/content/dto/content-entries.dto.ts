@@ -1,5 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsDateString,
+  IsNotEmpty,
+  IsObject,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 import { ListQueryDto } from '../../../common/list-query.dto';
 
 export const CONTENT_ENTRY_STATUSES = ['DRAFT', 'PUBLISHED', 'ARCHIVED'] as const;
@@ -40,9 +47,22 @@ export class CreateContentEntryDto {
   @IsString()
   @IsNotEmpty()
   externalReferenceCode?: string;
+
+  @ApiPropertyOptional({ type: String, format: 'uuid', nullable: true })
+  @IsOptional()
+  @IsString()
+  folderId?: string | null;
 }
 
 export class UpdateContentEntryDto {
+  @ApiPropertyOptional({
+    format: 'date-time',
+    description: 'The updatedAt value returned when the entry was loaded',
+  })
+  @IsOptional()
+  @IsDateString()
+  expectedUpdatedAt?: string;
+
   @ApiPropertyOptional({ maxLength: 255 })
   @IsOptional()
   @IsString()
@@ -69,6 +89,11 @@ export class UpdateContentEntryDto {
   @IsString()
   @IsNotEmpty()
   site?: string | null;
+
+  @ApiPropertyOptional({ type: String, format: 'uuid', nullable: true })
+  @IsOptional()
+  @IsString()
+  folderId?: string | null;
 }
 
 export class ListContentEntriesQueryDto extends ListQueryDto {
@@ -83,4 +108,9 @@ export class ListContentEntriesQueryDto extends ListQueryDto {
   @IsString()
   @IsNotEmpty()
   site?: string;
+
+  @ApiPropertyOptional({ format: 'uuid', description: 'Only entries assigned to this folder' })
+  @IsOptional()
+  @IsString()
+  folder?: string;
 }

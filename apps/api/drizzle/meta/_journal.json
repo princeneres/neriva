@@ -106,6 +106,41 @@
       "when": 1786395135521,
       "tag": "0014_tense_silvermane",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1789431228138,
+      "tag": "0015_curly_tomas",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1789431461027,
+      "tag": "0016_shallow_avengers",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789431752305,
+      "tag": "0017_misty_malcolm_colcord",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789522253098,
+      "tag": "0018_first_lockheed",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789599692338,
+      "tag": "0019_dashing_warbound",
+      "breakpoints": true
     }
   ]
 }

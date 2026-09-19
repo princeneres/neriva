@@ -30,10 +30,12 @@ interface NativeBlockDefinition {
   description: string;
   propsSchema: Record<string, unknown>;
   slots: BlockSlot[];
-  // null on the blocks the renderer draws from its own registry instead of a
-  // template (spec 12): they read live data, which a static template cannot.
+  // The active native definition is versioned by this catalog. Existing
+  // customizations remain untouched while rows that still use the native
+  // baseline are promoted to its current HTML, CSS and JavaScript source.
   html: string | null;
   css: string | null;
+  js?: string | null;
 }
 
 // The native component library (spec 12 section 2): the Liferay-style basic
@@ -261,7 +263,7 @@ export const NATIVE_BLOCKS: NativeBlockDefinition[] = [
       },
     },
     slots: [],
-    html: '<h2 class="nv-heading nv-heading-{{level}}" data-nv-text="text">Heading</h2>',
+    html: '<h2 data-nv-tag="level" class="nv-heading nv-heading-{{level}}" data-nv-text="text">Heading</h2>',
     css: [
       '.nv-heading { margin: 0; font-family: var(--nv-font-body, system-ui); color: var(--nv-color-text, #1a1917); line-height: 1.2; font-size: 2rem; font-weight: 700; letter-spacing: -0.01em; }',
       '.nv-heading-h1 { font-size: 2.75rem; letter-spacing: -0.02em; }',
@@ -575,8 +577,33 @@ export const NATIVE_BLOCKS: NativeBlockDefinition[] = [
       },
     },
     slots: [],
-    html: null,
-    css: null,
+    html: [
+      '<section class="nv-post-list" data-nv-runtime="content-entries" data-nv-runtime-content-type="contentType" data-nv-runtime-page-size="pageSize" data-nv-runtime-summary-field="summaryField" data-nv-runtime-body-field="bodyField" data-nv-runtime-date-field="dateField" data-nv-runtime-image-field="imageField">',
+      '  <header class="nv-post-list-head">',
+      '    <h2 class="nv-post-list-title" data-nv-text="heading">Latest articles</h2>',
+      '  </header>',
+      '  <div class="nv-post-list-grid">',
+      '    {{#each entries}}',
+      '      <article class="nv-post-card">',
+      '        <img class="nv-post-card-image" src="{{image}}" alt="">',
+      '        <div class="nv-post-card-body"><time class="nv-post-card-date">{{date}}</time><h3 class="nv-post-card-title">{{title}}</h3><p class="nv-post-card-summary">{{summary}}</p></div>',
+      '      </article>',
+      '    {{/each}}',
+      '  </div>',
+      '</section>',
+    ].join('\n'),
+    css: [
+      '.nv-post-list { max-width: 72rem; margin: 0 auto; padding: var(--nv-space-md, 1rem); color: var(--nv-color-text, #1a1917); font-family: var(--nv-font-body, system-ui); }',
+      '.nv-post-list-head { margin-bottom: var(--nv-space-lg, 2rem); }',
+      '.nv-post-list-title { margin: 0; font-size: 1.75rem; }',
+      '.nv-post-list-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: var(--nv-space-lg, 2rem); }',
+      '.nv-post-card { overflow: hidden; border: 1px solid var(--nv-color-border, rgba(0, 0, 0, 0.1)); border-radius: var(--nv-radius-md, 8px); background: var(--nv-color-surface, #fff); }',
+      '.nv-post-card-image { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }',
+      '.nv-post-card-body { padding: var(--nv-space-md, 1rem); }',
+      '.nv-post-card-date { font-size: 0.75rem; opacity: 0.55; }',
+      '.nv-post-card-title { margin: 0.35rem 0; font-size: 1.125rem; }',
+      '.nv-post-card-summary { margin: 0; line-height: 1.55; opacity: 0.8; }',
+    ].join('\n'),
   },
   {
     erc: 'nv-todo-list',
@@ -628,14 +655,95 @@ export const NATIVE_BLOCKS: NativeBlockDefinition[] = [
       },
     },
     slots: [],
-    html: null,
-    css: null,
+    html: [
+      '<section class="nv-todo" data-nv-runtime="object-records" data-nv-runtime-object-definition="objectDefinition" data-nv-runtime-title-field="titleField" data-nv-runtime-done-field="doneField" data-nv-runtime-priority-field="priorityField" data-nv-runtime-due-date-field="dueDateField">',
+      '  <h2 class="nv-todo-title" data-nv-text="heading">Things to do</h2>',
+      '  <form class="nv-todo-create" data-nv-todo-form>',
+      '    <label class="nv-sr-only" for="nv-todo-title">New task</label>',
+      '    <input id="nv-todo-title" class="nv-todo-input" data-nv-todo-title type="text" autocomplete="off" placeholder="Add a task" required>',
+      '    <button class="nv-todo-add" type="submit">Add task</button>',
+      '  </form>',
+      '  <p class="nv-todo-empty" data-nv-todo-empty hidden>No tasks yet.</p>',
+      '  <ul class="nv-todo-items">',
+      '    {{#each records}}',
+      '      <li class="nv-todo-item" data-nv-record-id="{{id}}" data-nv-done="{{done}}">',
+      '        <label class="nv-todo-check"><input type="checkbox" data-nv-todo-toggle><span class="nv-sr-only">Mark {{title}} as done</span></label>',
+      '        <span class="nv-todo-text">{{title}}</span><span class="nv-todo-tag">{{priority}}</span><time class="nv-todo-due">{{dueDate}}</time>',
+      '        <button class="nv-todo-delete" type="button" data-nv-todo-delete aria-label="Remove {{title}}">Remove</button>',
+      '      </li>',
+      '    {{/each}}',
+      '  </ul>',
+      '</section>',
+    ].join('\n'),
+    css: [
+      '.nv-todo { max-width: 40rem; margin: 0 auto; padding: var(--nv-space-md, 1rem); color: var(--nv-color-text, #1a1917); font-family: var(--nv-font-body, system-ui); }',
+      '.nv-todo-title { margin: 0 0 var(--nv-space-md, 1rem); font-size: 1.5rem; }',
+      '.nv-todo-create { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }',
+      '.nv-todo-input { min-width: 0; flex: 1; border: 1px solid var(--nv-color-border, rgba(0, 0, 0, 0.16)); border-radius: var(--nv-radius-sm, 6px); padding: 0.625rem 0.75rem; color: inherit; background: var(--nv-color-surface, #fff); font: inherit; }',
+      '.nv-todo-add, .nv-todo-delete { border: 0; border-radius: var(--nv-radius-sm, 6px); font: inherit; font-weight: 650; cursor: pointer; }',
+      '.nv-todo-add { padding: 0.625rem 0.8rem; background: var(--nv-color-primary, #cc3d47); color: #fff; }',
+      '.nv-todo-add:hover { filter: brightness(0.94); }',
+      '.nv-todo-items { margin: 0; padding: 0; list-style: none; overflow: hidden; border: 1px solid var(--nv-color-border, rgba(0, 0, 0, 0.1)); border-radius: var(--nv-radius-md, 8px); background: var(--nv-color-surface, #fff); }',
+      '.nv-todo-item { display: flex; gap: 0.75rem; align-items: center; padding: 0.7rem var(--nv-space-md, 1rem); border-bottom: 1px solid var(--nv-color-border, rgba(0, 0, 0, 0.06)); }',
+      '.nv-todo-item:last-child { border-bottom: 0; }',
+      '.nv-todo-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }',
+      '.nv-todo-item[data-nv-done="true"] .nv-todo-text { text-decoration: line-through; opacity: 0.55; }',
+      '.nv-todo-tag { padding: 0.15rem 0.5rem; border-radius: 999px; background: var(--nv-color-surface-alt, #f1efec); font-size: 0.6875rem; font-weight: 700; }',
+      '.nv-todo-due { font-size: 0.75rem; opacity: 0.55; }',
+      '.nv-todo-delete { padding: 0.3rem 0.45rem; color: #9d2637; background: transparent; font-size: 0.75rem; }',
+      '.nv-todo-delete:hover { background: rgba(157, 38, 55, 0.08); }',
+      '.nv-todo-empty { margin: 0.75rem 0; color: var(--nv-color-text, #1a1917); opacity: 0.65; }',
+      '.nv-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }',
+    ].join('\n'),
+    js: [
+      '/*',
+      ' * Object Records REST contract, executed through Neriva.request:',
+      ' * GET    /object-definitions/:objectDefinition',
+      ' * GET    /object-definitions/:objectDefinition/records?limit=100',
+      ' * POST   /object-definitions/:objectDefinition/records',
+      ' * PATCH  /object-records/:id',
+      ' * DELETE /object-records/:id',
+      ' *',
+      ' * The generic object-records runtime performs the two reads before',
+      ' * rendering {{#each records}}. This script owns the mutation requests.',
+      " * Neriva.request validates each route against this Block's configured",
+      ' * objectDefinition and sends it through the authenticated host API.',
+      ' */',
+      "const root = document.querySelector('.nv-todo');",
+      'if (root) {',
+      '  const objectDefinition = Neriva.props.objectDefinition;',
+      '  const recordsPath = `/object-definitions/${encodeURIComponent(objectDefinition)}/records`;',
+      "  const titleField = Neriva.props.titleField || 'title';",
+      "  const doneField = Neriva.props.doneField || 'done';",
+      "  const empty = root.querySelector('[data-nv-todo-empty]');",
+      "  const items = root.querySelectorAll('[data-nv-record-id]');",
+      '  if (empty) empty.hidden = items.length > 0;',
+      "  root.querySelector('[data-nv-todo-form]')?.addEventListener('submit', (event) => {",
+      '    event.preventDefault();',
+      "    const input = root.querySelector('[data-nv-todo-title]');",
+      "    const title = input instanceof HTMLInputElement ? input.value.trim() : '';",
+      "    if (title === '') return;",
+      "    Neriva.request({ method: 'POST', path: recordsPath, body: { data: { [titleField]: title } } });",
+      "    if (input instanceof HTMLInputElement) input.value = '';",
+      '  });',
+      "  root.querySelectorAll('[data-nv-todo-toggle]').forEach((toggle) => {",
+      "    const row = toggle.closest('[data-nv-record-id]');",
+      '    if (!(toggle instanceof HTMLInputElement) || !row) return;',
+      "    toggle.checked = row.dataset.nvDone === 'true';",
+      "    toggle.addEventListener('change', () => Neriva.request({ method: 'PATCH', path: `/object-records/${encodeURIComponent(row.dataset.nvRecordId)}`, body: { data: { [doneField]: toggle.checked } } }));",
+      '  });',
+      "  root.querySelectorAll('[data-nv-todo-delete]').forEach((button) => {",
+      "    button.addEventListener('click', () => { const row = button.closest('[data-nv-record-id]'); if (row) Neriva.request({ method: 'DELETE', path: `/object-records/${encodeURIComponent(row.dataset.nvRecordId)}` }); });",
+      '  });',
+      '}',
+    ].join('\n'),
   },
 ];
 
-// Seeds the native component library on boot (spec 12 section 2). Idempotent
-// per block by ERC: existing rows are never retro-updated, so user edits to
-// a native block survive restarts and upgrades only reach fresh installs.
+// Seeds and evolves the native component library on boot. A row using the
+// previous native baseline follows a new baseline; a custom row always keeps
+// its active source. Empty active strings from the pre-Studio implementation
+// are recovered as native source rather than shown as a misleading blank editor.
 @Injectable()
 export class NativeBlocksSeedService implements OnApplicationBootstrap {
   private readonly logger = new Logger(NativeBlocksSeedService.name);
@@ -676,17 +784,23 @@ export class NativeBlocksSeedService implements OnApplicationBootstrap {
     const tenant = await this.resolveDefaultTenant();
     await this.db.transaction(async (tx) => {
       for (const block of NATIVE_BLOCKS) {
-        const exists =
-          (
-            await tx
-              .select({ id: blocks.id })
-              .from(blocks)
-              .where(
-                and(eq(blocks.tenantId, tenant.id), eq(blocks.externalReferenceCode, block.erc)),
-              )
-              .limit(1)
-          ).length > 0;
-        if (!exists) {
+        const existing = (
+          await tx
+            .select({
+              id: blocks.id,
+              html: blocks.html,
+              css: blocks.css,
+              js: blocks.js,
+              nativeHtml: blocks.nativeHtml,
+              nativeCss: blocks.nativeCss,
+              nativeJs: blocks.nativeJs,
+              templateSource: blocks.templateSource,
+            })
+            .from(blocks)
+            .where(and(eq(blocks.tenantId, tenant.id), eq(blocks.externalReferenceCode, block.erc)))
+            .limit(1)
+        )[0];
+        if (!existing) {
           await tx.insert(blocks).values({
             tenantId: tenant.id,
             externalReferenceCode: block.erc,
@@ -697,9 +811,41 @@ export class NativeBlocksSeedService implements OnApplicationBootstrap {
             slots: block.slots,
             html: block.html,
             css: block.css,
+            js: block.js ?? null,
+            nativeHtml: block.html,
+            nativeCss: block.css,
+            nativeJs: block.js ?? null,
+            templateSource: block.html !== null && block.css !== null ? 'NATIVE' : 'CUSTOM',
             status: 'PUBLISHED',
           });
           this.logger.log(`Seeded native block "${block.name}"`);
+        } else if (block.html !== null && block.css !== null) {
+          const hasNoPriorSource =
+            (existing.html === null || existing.html.trim() === '') &&
+            (existing.css === null || existing.css.trim() === '') &&
+            (existing.js === null || existing.js.trim() === '');
+          const matchesPriorNative =
+            existing.nativeHtml !== null &&
+            existing.nativeCss !== null &&
+            existing.html === existing.nativeHtml &&
+            existing.css === existing.nativeCss &&
+            existing.js === existing.nativeJs;
+          const useNativeSource =
+            hasNoPriorSource || matchesPriorNative || existing.templateSource === 'NATIVE';
+          await tx
+            .update(blocks)
+            .set({
+              ...(useNativeSource
+                ? { html: block.html, css: block.css, js: block.js ?? null }
+                : {}),
+              nativeHtml: block.html,
+              nativeCss: block.css,
+              nativeJs: block.js ?? null,
+              templateSource: useNativeSource ? 'NATIVE' : 'CUSTOM',
+              updatedAt: new Date(),
+            })
+            .where(and(eq(blocks.tenantId, tenant.id), eq(blocks.id, existing.id)));
+          this.logger.log(`Synced native source for "${block.name}"`);
         }
       }
     });

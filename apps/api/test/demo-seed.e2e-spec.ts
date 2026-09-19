@@ -289,7 +289,7 @@ describe('demo content seed (e2e)', () => {
     expect(paths.sort()).toEqual(['/', '/blog', '/todo']);
   });
 
-  it('drives the list and the to do page from the two registry-rendered blocks', () => {
+  it('drives the list and the to do page from the two collection template Blocks', () => {
     const blogRefs = DEMO_BLOG_PAGE_TREE.blocks.map((node) => node.block);
     expect(blogRefs).toContain('nv-post-list');
     const todoRefs = DEMO_TODO_PAGE_TREE.blocks.map((node) => node.block);

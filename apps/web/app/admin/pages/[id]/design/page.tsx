@@ -73,7 +73,10 @@ export default function DesignPagePage() {
     setBusy(true);
     setError(null);
     try {
-      const { data } = await api.patch<{ data: Page }>(`/pages/${id}`, values);
+      const { data } = await api.patch<{ data: Page }>(`/pages/${id}`, {
+        ...values,
+        expectedUpdatedAt: page?.updatedAt,
+      });
       setPage(data);
       notifications.show({
         color: 'green',

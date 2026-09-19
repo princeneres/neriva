@@ -1,13 +1,11 @@
-import type { CSSProperties, ReactNode } from 'react';
-import { PostList } from './blocks/post-list';
-import { TodoList } from './blocks/todo-list';
+import { createElement, type CSSProperties, type ReactNode } from 'react';
 
 // A block renderer receives the node's props and its rendered slot children.
 // Components are server-safe by default (no hooks), since the public route
 // renders them on the server and the admin previews on the client. A block
 // that needs live data opts out by being a 'use client' component, which
 // React mounts as an island inside the server-rendered tree: see the two
-// data-driven blocks in ./blocks.
+// Blocks without persisted source use this small compatibility fallback.
 export interface BlockRenderProps {
   props: Record<string, unknown>;
   slots: Record<string, ReactNode>;
@@ -74,6 +72,28 @@ function RichText({ props }: BlockRenderProps) {
   );
 }
 
+function Heading({ props }: BlockRenderProps) {
+  const level = text(props.level);
+  const tag = level === 'h1' || level === 'h2' || level === 'h3' || level === 'h4' ? level : 'h2';
+  return createElement(
+    tag,
+    {
+      className: `nv-heading nv-heading-${tag}`,
+      style: {
+        margin: 0,
+        fontFamily: 'var(--nv-font-body, system-ui)',
+        color: 'var(--nv-color-text, #1a1917)',
+        lineHeight: 1.2,
+        fontSize:
+          tag === 'h1' ? '2.75rem' : tag === 'h2' ? '2rem' : tag === 'h3' ? '1.5rem' : '1.25rem',
+        fontWeight: 700,
+        letterSpacing: tag === 'h1' ? '-0.02em' : '-0.01em',
+      },
+    },
+    text(props.text),
+  );
+}
+
 function TwoColumns({ slots }: BlockRenderProps) {
   const column: CSSProperties = { flex: 1, minWidth: 260 };
   return (
@@ -104,6 +124,8 @@ function ImageBlock({ props }: BlockRenderProps) {
       <img
         src={url}
         alt={text(props.alt)}
+        loading="lazy"
+        decoding="async"
         style={{ width: '100%', borderRadius: 'var(--nv-radius-md, 8px)', display: 'block' }}
       />
     </figure>
@@ -129,6 +151,8 @@ function GenericBlock({ props, slots, blockName }: BlockRenderProps) {
         <img
           src={text(imageEntry[1])}
           alt={blockName}
+          loading="lazy"
+          decoding="async"
           style={{ maxWidth: '100%', borderRadius: 8 }}
         />
       ) : null}
@@ -149,8 +173,7 @@ const RENDERERS: Record<string, BlockRenderer> = {
   'rich-text': RichText,
   'two-columns': TwoColumns,
   image: ImageBlock,
-  'nv-post-list': PostList,
-  'nv-todo-list': TodoList,
+  'nv-heading': Heading,
 };
 
 export function rendererFor(erc: string): BlockRenderer {

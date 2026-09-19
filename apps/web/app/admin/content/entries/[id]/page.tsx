@@ -45,6 +45,7 @@ export default function EditEntryPage() {
 
   async function onSubmit(values: EntryFormValues) {
     const body: UpdateContentEntryDto = {
+      expectedUpdatedAt: entry?.updatedAt,
       title: values.title,
       values: values.values,
     };

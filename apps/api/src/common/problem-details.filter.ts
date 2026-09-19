@@ -52,7 +52,9 @@ export class ProblemDetailsFilter implements ExceptionFilter {
         `Unhandled error on ${request.method} ${request.url}: ${exception.message}`,
         exception.stack,
       );
-      detail = process.env.NODE_ENV === 'production' ? undefined : exception.message;
+      // Unexpected errors may contain SQL, filesystem paths or credentials in
+      // staging as well as production. Keep details in logs only.
+      detail = undefined;
     } else {
       this.logger.error(
         `Unhandled non-Error thrown on ${request.method} ${request.url}: ${String(exception)}`,

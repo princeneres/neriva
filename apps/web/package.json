@@ -21,7 +21,7 @@
     "@neriva/contracts": "workspace:*",
     "@neriva/ui": "workspace:*",
     "@tabler/icons-react": "^3.46.0",
-    "next": "^15.1.0",
+    "next": "^15.5.25",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

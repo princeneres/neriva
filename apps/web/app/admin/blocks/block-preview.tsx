@@ -1,9 +1,12 @@
 'use client';
 
 import {
+  ActionIcon,
+  Alert,
+  Button,
   Card,
-  Divider,
   Group,
+  Modal,
   NumberInput,
   Select,
   Stack,
@@ -13,372 +16,388 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { type ReactNode, useMemo, useState } from 'react';
-import { HelpTip } from '../../../components/help-tip';
-import { rendererFor } from '../../../lib/renderer/registry';
+import {
+  IconAdjustments,
+  IconArrowsMaximize,
+  IconDeviceDesktop,
+  IconDeviceMobile,
+  IconDeviceTablet,
+  IconInfoCircle,
+  IconRestore,
+} from '@tabler/icons-react';
+import { type MouseEvent, useMemo, useState } from 'react';
 import { type BlockInfo, type RenderNode, RenderTree } from '../../../lib/renderer/render-tree';
+import { useSite } from '../../../lib/site-context';
+import { useSitePreviewData } from '../pages/use-site-preview-data';
 import type { BuilderField } from './types';
-
-const LOREM_SENTENCE =
-  'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.';
-
-// Neutral inline SVG so image-ish props show a picture instead of a broken img.
-const SAMPLE_IMAGE = `data:image/svg+xml,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360">' +
-    '<rect width="640" height="360" fill="#e6e3dd"/>' +
-    '<path d="M0 302 L170 182 L330 302 L450 226 L640 330 V360 H0 Z" fill="#d4d0c8"/>' +
-    '<circle cx="500" cy="96" r="38" fill="#d4d0c8"/>' +
-    '</svg>',
-)}`;
-
-const IMAGE_KEY_PATTERN = /(image|img|photo|picture|avatar|logo|cover|thumbnail)/i;
-const URL_KEY_PATTERN = /(url|href|link|src)/i;
+import classes from './block-preview.module.css';
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-// Lenient counterpart of schemaToFields, used only to drive the preview:
-// derives a sample field per property it understands and skips the rest.
-// Returns null when nothing can be derived, which hides the preview.
 export function schemaTextToPreviewFields(schemaText: string): BuilderField[] | null {
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(schemaText) as unknown;
+    return schemaToPreviewFields(JSON.parse(schemaText) as unknown);
   } catch {
     return null;
   }
-  if (!isPlainObject(parsed)) {
-    return null;
-  }
-  const properties = parsed.properties;
-  if (!isPlainObject(properties)) {
-    return null;
-  }
+}
+
+export function schemaToPreviewFields(schema: unknown): BuilderField[] | null {
+  if (!isPlainObject(schema) || !isPlainObject(schema.properties)) return null;
+  const required = Array.isArray(schema.required)
+    ? schema.required.filter((key): key is string => typeof key === 'string')
+    : [];
   const fields: BuilderField[] = [];
-  for (const [key, raw] of Object.entries(properties)) {
-    if (!isPlainObject(raw)) {
-      continue;
-    }
-    const label = typeof raw.title === 'string' ? raw.title : '';
-    if (Array.isArray(raw.enum)) {
-      const options = raw.enum.filter((option): option is string => typeof option === 'string');
+  for (const [key, definition] of Object.entries(schema.properties)) {
+    if (!isPlainObject(definition)) continue;
+    const label = typeof definition.title === 'string' ? definition.title : key;
+    const description = typeof definition.description === 'string' ? definition.description : '';
+    const defaultValue =
+      typeof definition.default === 'string' ||
+      typeof definition.default === 'number' ||
+      typeof definition.default === 'boolean'
+        ? definition.default
+        : undefined;
+    if (Array.isArray(definition.enum)) {
+      const options = definition.enum.filter((value): value is string => typeof value === 'string');
       if (options.length > 0) {
-        fields.push({ key, label, type: 'choice', options, required: false });
+        fields.push({
+          key,
+          label,
+          description,
+          defaultValue,
+          type: 'choice',
+          options,
+          required: required.includes(key),
+        });
       }
       continue;
     }
-    if (raw.type === 'string') {
-      const type = raw.format === 'multiline' ? 'longtext' : 'text';
-      fields.push({ key, label, type, options: [], required: false });
-    } else if (raw.type === 'number' || raw.type === 'integer') {
-      fields.push({ key, label, type: 'number', options: [], required: false });
-    } else if (raw.type === 'boolean') {
-      fields.push({ key, label, type: 'boolean', options: [], required: false });
+    if (definition.type === 'string') {
+      fields.push({
+        key,
+        label,
+        description,
+        defaultValue,
+        type: definition.format === 'multiline' ? 'longtext' : 'text',
+        options: [],
+        required: required.includes(key),
+      });
+    } else if (definition.type === 'number' || definition.type === 'integer') {
+      fields.push({
+        key,
+        label,
+        description,
+        defaultValue,
+        type: 'number',
+        options: [],
+        required: required.includes(key),
+      });
+    } else if (definition.type === 'boolean') {
+      fields.push({
+        key,
+        label,
+        description,
+        defaultValue,
+        type: 'boolean',
+        options: [],
+        required: required.includes(key),
+      });
     }
-  }
-  if (fields.length === 0 && Object.keys(properties).length > 0) {
-    return null;
   }
   return fields;
 }
 
-function defaultTextSample(field: BuilderField, erc: string): string {
-  if (IMAGE_KEY_PATTERN.test(field.key) || (erc === 'image' && /^(url|src)$/i.test(field.key))) {
-    return SAMPLE_IMAGE;
-  }
-  if (URL_KEY_PATTERN.test(field.key)) {
-    return '#';
-  }
-  return field.label.trim() || field.key;
-}
-
-function defaultSample(field: BuilderField, erc: string): unknown {
-  switch (field.type) {
-    case 'text':
-      return defaultTextSample(field, erc);
-    case 'longtext':
-      return LOREM_SENTENCE;
-    case 'number':
-      return 42;
-    case 'boolean':
-      return true;
-    case 'choice':
-      return field.options[0] ?? '';
-  }
-}
-
-// An override only applies while it still matches the field's current type;
-// changing a field's type in the builder falls back to the generated default.
-function effectiveSample(field: BuilderField, override: unknown, erc: string): unknown {
-  switch (field.type) {
-    case 'text':
-    case 'longtext':
-      return typeof override === 'string' ? override : defaultSample(field, erc);
-    case 'number':
-      return typeof override === 'number' ? override : defaultSample(field, erc);
-    case 'boolean':
-      return typeof override === 'boolean' ? override : defaultSample(field, erc);
-    case 'choice':
-      return typeof override === 'string' && field.options.includes(override)
-        ? override
-        : defaultSample(field, erc);
-  }
-}
-
-function SlotPlaceholder({ name }: { name: string }) {
-  return (
-    <div
-      style={{
-        border: '2px dashed var(--mantine-color-slate-3)',
-        borderRadius: 8,
-        minHeight: 72,
-        margin: '0.75rem',
-        padding: '0.5rem 1rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'var(--mantine-color-slate-5)',
-        fontSize: 13,
-        fontWeight: 600,
-      }}
-    >
-      Slot: {name}
-    </div>
-  );
-}
-
-// The template preview goes through RenderTree, which only nests RenderNodes;
-// each slot receives one synthetic child rendered by this templated pseudo
-// block, reproducing SlotPlaceholder's dashed box.
-const SLOT_PLACEHOLDER_ERC = '__preview-slot__';
-
-const SLOT_PLACEHOLDER_INFO: BlockInfo = {
-  name: 'Slot placeholder',
-  html: '<div class="ph">Slot: {{name}}</div>',
-  css:
-    '.ph { border: 2px dashed var(--mantine-color-slate-3); border-radius: 8px;' +
-    ' min-height: 72px; margin: 0.75rem; padding: 0.5rem 1rem; display: flex;' +
-    ' align-items: center; justify-content: center;' +
-    ' color: var(--mantine-color-slate-5); font-size: 13px; font-weight: 600; }',
-};
-
-// Renders the block being edited through the same engine pages use, with the
-// dashed placeholder standing in for each declared slot.
-function TemplatePreview({
-  erc,
-  blockName,
-  html,
-  css,
-  props,
-  slotNames,
-}: {
-  erc: string;
-  blockName: string;
-  html: string;
-  css: string;
-  props: Record<string, unknown>;
-  slotNames: string[];
-}) {
-  const slots: Record<string, RenderNode[]> = {};
-  for (const name of slotNames) {
-    slots[name] = [{ block: SLOT_PLACEHOLDER_ERC, props: { name } }];
-  }
-  const blockInfo: Record<string, BlockInfo> = {
-    [erc]: { name: blockName, html, css: css.trim() === '' ? null : css, slots: slotNames },
-    [SLOT_PLACEHOLDER_ERC]: SLOT_PLACEHOLDER_INFO,
-  };
-  return <RenderTree tree={{ blocks: [{ block: erc, props, slots }] }} blockInfo={blockInfo} />;
-}
-
-function SampleInput({
+function FieldValueInput({
   field,
   value,
   onChange,
 }: {
   field: BuilderField;
   value: unknown;
-  onChange: (value: unknown) => void;
+  onChange: (value: unknown | undefined) => void;
 }) {
-  const label = field.label.trim() || field.key;
-  switch (field.type) {
-    case 'text': {
-      // The generated sample image is a long data URI; keep it out of the input.
-      const isSampleImage = value === SAMPLE_IMAGE;
-      return (
-        <TextInput
-          size="xs"
-          label={label}
-          placeholder={isSampleImage ? 'Sample image (type a URL to replace it)' : undefined}
-          value={typeof value === 'string' && !isSampleImage ? value : ''}
-          onChange={(event) => onChange(event.currentTarget.value)}
-        />
-      );
-    }
-    case 'longtext':
-      return (
-        <Textarea
-          size="xs"
-          label={label}
-          autosize
-          minRows={2}
-          value={typeof value === 'string' ? value : ''}
-          onChange={(event) => onChange(event.currentTarget.value)}
-        />
-      );
-    case 'number':
-      return (
-        <NumberInput
-          size="xs"
-          label={label}
-          value={typeof value === 'number' ? value : ''}
-          onChange={(next) => onChange(typeof next === 'number' ? next : 0)}
-        />
-      );
-    case 'boolean':
-      return (
-        <Switch
-          size="xs"
-          label={label}
-          checked={value === true}
-          onChange={(event) => onChange(event.currentTarget.checked)}
-        />
-      );
-    case 'choice':
-      return (
-        <Select
-          size="xs"
-          label={label}
-          data={field.options}
-          allowDeselect={false}
-          value={typeof value === 'string' ? value : null}
-          onChange={(next) => onChange(next ?? field.options[0] ?? '')}
-        />
-      );
-  }
+  const label = field.label || field.key;
+  if (field.type === 'boolean')
+    return (
+      <Switch
+        size="xs"
+        label={label}
+        checked={value === true}
+        onChange={(event) => onChange(event.currentTarget.checked)}
+      />
+    );
+  if (field.type === 'number')
+    return (
+      <NumberInput
+        size="xs"
+        label={label}
+        value={typeof value === 'number' ? value : ''}
+        onChange={(next) => onChange(typeof next === 'number' ? next : undefined)}
+      />
+    );
+  if (field.type === 'choice')
+    return (
+      <Select
+        size="xs"
+        label={label}
+        data={field.options}
+        clearable
+        value={typeof value === 'string' ? value : null}
+        onChange={(next) => onChange(next ?? undefined)}
+      />
+    );
+  if (field.type === 'longtext')
+    return (
+      <Textarea
+        size="xs"
+        autosize
+        minRows={2}
+        label={label}
+        value={typeof value === 'string' ? value : ''}
+        onChange={(event) => onChange(event.currentTarget.value)}
+      />
+    );
+  return (
+    <TextInput
+      size="xs"
+      label={label}
+      value={typeof value === 'string' ? value : ''}
+      onChange={(event) => onChange(event.currentTarget.value)}
+    />
+  );
 }
 
-// Live preview of the block being edited. The block goes through the shared
-// renderer registry (rendererFor), which is exactly what RenderTree does per
-// node; RenderTree itself is not called because its slot plumbing only accepts
-// nested RenderNode trees, while the preview injects styled placeholder divs
-// as the already-rendered slot children (the same shape renderers receive).
+const SLOT_ERC = '__block-studio-slot__';
+const SLOT_INFO: BlockInfo = {
+  name: 'Slot placeholder',
+  html: '<div class="nv-studio-slot">Drop child blocks in {{name}}</div>',
+  css: '.nv-studio-slot { display: grid; min-height: 4.5rem; place-items: center; border: 1px dashed #9a968f; color: #6e6962; font: 600 0.75rem system-ui; }',
+};
+
+// The preview constructs an in-memory Block and sends it through RenderTree,
+// the same renderer used by the public route.
 export function BlockPreviewPanel({
   erc,
   blockName,
   fields,
   slotNames,
-  html = '',
-  css = '',
+  html,
+  css,
+  js,
+  fill = false,
 }: {
   erc: string;
   blockName: string;
   fields: BuilderField[] | null;
   slotNames: string[];
-  html?: string;
-  css?: string;
+  html: string | null;
+  css: string | null;
+  js: string | null;
+  fill?: boolean;
 }) {
   const [overrides, setOverrides] = useState<Record<string, unknown>>({});
-
-  // First occurrence wins while the builder briefly holds duplicate keys.
-  const sampleFields = useMemo(() => {
-    if (fields === null) {
-      return [];
-    }
+  const [testDataOpen, setTestDataOpen] = useState(false);
+  const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile' | 'full'>('desktop');
+  const { current: site } = useSite();
+  const { css: siteCss, sitePages } = useSitePreviewData(site?.slug ?? null);
+  const previewFields = useMemo(() => {
     const seen = new Set<string>();
-    const result: BuilderField[] = [];
-    for (const field of fields) {
+    return (fields ?? []).filter((field) => {
       const key = field.key.trim();
-      if (!key || seen.has(key)) {
-        continue;
-      }
+      if (key === '' || seen.has(key)) return false;
       seen.add(key);
-      result.push({ ...field, key });
-    }
-    return result;
+      return true;
+    });
   }, [fields]);
-
-  const sampleProps = useMemo(() => {
-    const props: Record<string, unknown> = {};
-    for (const field of sampleFields) {
-      props[field.key] = effectiveSample(field, overrides[field.key], erc);
+  const props = useMemo(() => {
+    const next: Record<string, unknown> = {};
+    for (const field of previewFields) {
+      if (field.defaultValue !== undefined) next[field.key] = field.defaultValue;
+      if (field.key in overrides) next[field.key] = overrides[field.key];
     }
-    return props;
-  }, [sampleFields, overrides, erc]);
+    return next;
+  }, [overrides, previewFields]);
 
-  const Renderer = rendererFor(erc);
-  const slots: Record<string, ReactNode> = {};
-  for (const name of slotNames) {
-    slots[name] = <SlotPlaceholder key={name} name={name} />;
+  function updateOverride(key: string, value: unknown | undefined) {
+    setOverrides((current) => {
+      if (value === undefined) {
+        const { [key]: _removed, ...rest } = current;
+        return rest;
+      }
+      return { ...current, [key]: value };
+    });
+  }
+  const slots = useMemo<Record<string, RenderNode[]>>(() => {
+    const next: Record<string, RenderNode[]> = {};
+    for (const name of slotNames) next[name] = [{ block: SLOT_ERC, props: { name } }];
+    return next;
+  }, [slotNames]);
+  const info: Record<string, BlockInfo> = {
+    [erc]: { name: blockName, html, css, js, slots: slotNames },
+    [SLOT_ERC]: SLOT_INFO,
+  };
+
+  function preventPreviewNavigation(event: MouseEvent<HTMLDivElement>) {
+    const target = event.target;
+    if (target instanceof Element && target.closest('a')) event.preventDefault();
   }
 
-  // A template renders even without fields or slots; the registry path needs
-  // at least one of them to have something to show.
-  const hasTemplate = html.trim() !== '';
-  const empty = sampleFields.length === 0 && slotNames.length === 0;
+  const viewportClass =
+    viewport === 'tablet'
+      ? classes.previewTablet
+      : viewport === 'mobile'
+        ? classes.previewMobile
+        : viewport === 'full'
+          ? classes.previewFull
+          : undefined;
 
   return (
-    <Card padding="xl" bg="white" withBorder>
-      <Group gap={2} mb="md">
-        <Title order={3} fz="h4">
-          Preview
-        </Title>
-        <HelpTip label="How this block will look on a page, using the sample values below" />
-      </Group>
-
-      {!hasTemplate && fields === null ? (
-        <Text size="sm" c="slate.5">
-          Preview unavailable for this schema.
-        </Text>
-      ) : !hasTemplate && empty ? (
-        <Text size="sm" c="slate.5">
-          Add fields or slots to see how this block will look.
-        </Text>
-      ) : (
-        <>
-          {/* Links inside renderers are real anchors; keep clicks in the preview. */}
-          <div
-            onClickCapture={(event) => event.preventDefault()}
-            style={{
-              border: '1px solid var(--mantine-color-slate-2)',
-              borderRadius: 8,
-              overflow: 'hidden',
-              background: '#fff',
-            }}
-          >
-            {hasTemplate ? (
-              <TemplatePreview
-                erc={erc}
-                blockName={blockName}
-                html={html}
-                css={css}
-                props={sampleProps}
-                slotNames={slotNames}
-              />
-            ) : (
-              <Renderer props={sampleProps} slots={slots} blockName={blockName} />
-            )}
+    <>
+      <Card
+        padding={0}
+        withBorder
+        radius="md"
+        className={fill ? classes.previewCardFill : undefined}
+        style={{ overflow: 'hidden' }}
+      >
+        <Group
+          justify="space-between"
+          px="md"
+          py="sm"
+          style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}
+        >
+          <div>
+            <Title order={3} fz="sm">
+              Live preview
+            </Title>
+            <Text size="xs" c="dimmed">
+              Same renderer used by the published site
+            </Text>
           </div>
-
-          {sampleFields.length > 0 ? (
-            <>
-              <Divider my="md" label="Sample values" labelPosition="left" />
-              <Stack gap="xs">
-                {sampleFields.map((field) => (
-                  <SampleInput
-                    key={field.key}
-                    field={field}
-                    value={effectiveSample(field, overrides[field.key], erc)}
-                    onChange={(value) =>
-                      setOverrides((current) => ({ ...current, [field.key]: value }))
-                    }
-                  />
-                ))}
-              </Stack>
-            </>
-          ) : null}
-        </>
-      )}
-    </Card>
+          <Group gap={2} wrap="nowrap">
+            <ActionIcon.Group>
+              <ActionIcon
+                variant={viewport === 'desktop' ? 'light' : 'subtle'}
+                color="gray"
+                size="sm"
+                onClick={() => setViewport('desktop')}
+                aria-label="Desktop preview"
+                title="Desktop preview"
+              >
+                <IconDeviceDesktop size={15} />
+              </ActionIcon>
+              <ActionIcon
+                variant={viewport === 'tablet' ? 'light' : 'subtle'}
+                color="gray"
+                size="sm"
+                onClick={() => setViewport('tablet')}
+                aria-label="Tablet preview"
+                title="Tablet preview"
+              >
+                <IconDeviceTablet size={15} />
+              </ActionIcon>
+              <ActionIcon
+                variant={viewport === 'mobile' ? 'light' : 'subtle'}
+                color="gray"
+                size="sm"
+                onClick={() => setViewport('mobile')}
+                aria-label="Mobile preview"
+                title="Mobile preview"
+              >
+                <IconDeviceMobile size={15} />
+              </ActionIcon>
+              <ActionIcon
+                variant={viewport === 'full' ? 'light' : 'subtle'}
+                color="gray"
+                size="sm"
+                onClick={() => setViewport('full')}
+                aria-label="Full-width preview"
+                title="Full-width preview"
+              >
+                <IconArrowsMaximize size={15} />
+              </ActionIcon>
+            </ActionIcon.Group>
+            <Button
+              size="compact-xs"
+              variant="subtle"
+              color="gray"
+              leftSection={<IconAdjustments size={14} />}
+              onClick={() => setTestDataOpen(true)}
+            >
+              Test data
+            </Button>
+          </Group>
+        </Group>
+        <div className={`${classes.previewStage} ${fill ? classes.previewStageFill : ''}`}>
+          <div className={`${classes.previewFrame} ${viewportClass ?? ''}`}>
+            <div
+              className={`nv-site-root ${classes.previewRoot}`}
+              data-nv-theme="light"
+              onClickCapture={preventPreviewNavigation}
+            >
+              {siteCss !== '' ? <style>{siteCss}</style> : null}
+              <RenderTree
+                tree={{ blocks: [{ block: erc, props, slots }] }}
+                blockInfo={info}
+                sitePages={sitePages}
+                siteSlug={site?.slug}
+                siteBasePath={site?.slug ? `/s/${encodeURIComponent(site.slug)}` : undefined}
+              />
+            </div>
+          </div>
+        </div>
+        {html === null ? (
+          <Alert icon={<IconInfoCircle size={16} />} color="yellow" variant="light" m="md">
+            <Text size="xs">
+              This legacy runtime Block has no authorable template yet. Its preview still uses the
+              production renderer, but it has no editable source to show.
+            </Text>
+          </Alert>
+        ) : null}
+      </Card>
+      <Modal
+        opened={testDataOpen}
+        onClose={() => setTestDataOpen(false)}
+        title="Temporary preview data"
+        centered
+      >
+        <Stack gap="md">
+          <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
+            These values are only passed to this preview. They do not change the HTML, CSS,
+            JavaScript, schema, or any Block instance on a page.
+          </Alert>
+          {previewFields.length === 0 ? (
+            <Text size="sm" c="dimmed">
+              This Block has no declared fields to test.
+            </Text>
+          ) : (
+            <Stack gap="xs">
+              {previewFields.map((field) => (
+                <FieldValueInput
+                  key={field.key}
+                  field={field}
+                  value={props[field.key]}
+                  onChange={(value) => updateOverride(field.key, value)}
+                />
+              ))}
+            </Stack>
+          )}
+          <Group justify="flex-end">
+            <Button
+              size="xs"
+              variant="default"
+              leftSection={<IconRestore size={14} />}
+              disabled={Object.keys(overrides).length === 0}
+              onClick={() => setOverrides({})}
+            >
+              Reset test data
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+    </>
   );
 }

@@ -69,7 +69,7 @@ export class CreateBlockDto {
     type: String,
     nullable: true,
     description:
-      'HTML template with {{prop}} interpolation, data-nv-* bindings and data-nv-slot placeholders (spec 12); null keeps the registry rendering path',
+      'Active HTML source used by the shared Block renderer. Supports escaped {{prop}} interpolation, data-nv bindings, slots, and declared collection runtimes.',
   })
   @IsOptional()
   @IsString()
@@ -84,11 +84,26 @@ export class CreateBlockDto {
   @IsString()
   css?: string | null;
 
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description:
+      'Active JavaScript source. It runs only in the Block renderer sandbox and can request declared runtime actions through the safe message bridge.',
+  })
+  @IsOptional()
+  @IsString()
+  js?: string | null;
+
   @ApiPropertyOptional({ description: 'Stable code for idempotent upsert; generated when omitted' })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   externalReferenceCode?: string;
+
+  @ApiPropertyOptional({ type: String, format: 'uuid', nullable: true })
+  @IsOptional()
+  @IsString()
+  folderId?: string | null;
 }
 
 export class UpdateBlockDto {
@@ -143,6 +158,21 @@ export class UpdateBlockDto {
   @IsOptional()
   @IsString()
   css?: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description:
+      'JavaScript source executed only in the Block renderer sandbox; explicit null removes it',
+  })
+  @IsOptional()
+  @IsString()
+  js?: string | null;
+
+  @ApiPropertyOptional({ type: String, format: 'uuid', nullable: true })
+  @IsOptional()
+  @IsString()
+  folderId?: string | null;
 }
 
 export class ListBlocksQueryDto extends ListQueryDto {
@@ -150,4 +180,9 @@ export class ListBlocksQueryDto extends ListQueryDto {
   @IsOptional()
   @IsIn(BLOCK_STATUSES)
   status?: BlockStatus;
+
+  @ApiPropertyOptional({ format: 'uuid', description: 'Only blocks assigned to this folder' })
+  @IsOptional()
+  @IsString()
+  folder?: string;
 }

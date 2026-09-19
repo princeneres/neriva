@@ -8,6 +8,7 @@ import {
 import { and, asc, eq, gt, inArray } from 'drizzle-orm';
 import type { InferSelectModel } from 'drizzle-orm';
 import { isUniqueViolation } from '../../common/pg-errors';
+import { expectedUpdatedAt, staleResource } from '../../common/optimistic-concurrency';
 import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
 import { DB, type Database } from '../../db/database';
 import { blocks, pages, type PageTree } from '../../db/schema';
@@ -127,6 +128,7 @@ export class PagesService {
       path?: string;
       tree?: Record<string, unknown>;
       masterPageTemplateId?: string | null;
+      expectedUpdatedAt?: string;
     },
   ): Promise<PageRow> {
     const existing = await this.getByRef(tenantId, ref);
@@ -156,7 +158,13 @@ export class PagesService {
     }
 
     try {
-      const updated = await this.repo(tenantId).updateById(existing.id, values);
+      const expected = expectedUpdatedAt(input.expectedUpdatedAt);
+      const updated = expected
+        ? await this.repo(tenantId).updateByIdIfUnmodified(existing.id, expected, values)
+        : await this.repo(tenantId).updateById(existing.id, values);
+      if (expected && !updated) {
+        throw staleResource('Page');
+      }
       return updated ?? existing;
     } catch (error) {
       if (isUniqueViolation(error)) {

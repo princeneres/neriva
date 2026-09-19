@@ -17,7 +17,7 @@ export class ObjectDefinitionDto {
   @ApiProperty({ format: 'date-time' })
   updatedAt!: string;
 
-  @ApiProperty({ format: 'uuid', nullable: true })
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
   createdBy!: string | null;
 
   @ApiProperty()
@@ -31,6 +31,9 @@ export class ObjectDefinitionDto {
 
   @ApiProperty({ type: [ObjectFieldDto] })
   fields!: ObjectFieldDto[];
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  folderId!: string | null;
 }
 
 export class ObjectRecordDto {

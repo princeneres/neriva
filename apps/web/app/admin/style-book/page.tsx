@@ -137,83 +137,85 @@ export default function StyleBookListPage() {
             </Button>
           </Stack>
         ) : (
-          <Table highlightOnHover verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Status</Table.Th>
-                <Table.Th>
-                  Version
-                  <HelpTip label="Goes up by one every time you publish, so you can tell which set of tokens is live." />
-                </Table.Th>
-                <Table.Th>
-                  Tokens
-                  <HelpTip label="Design decisions with a name: blocks reference the name, you change the value in one place." />
-                </Table.Th>
-                <Table.Th>Updated</Table.Th>
-                <Table.Th aria-label="Actions" />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {showSkeleton
-                ? [0, 1, 2].map((index) => (
-                    <Table.Tr key={index}>
-                      {[0, 1, 2, 3, 4, 5].map((cell) => (
-                        <Table.Td key={cell}>
-                          <Skeleton height={14} />
+          <Table.ScrollContainer minWidth={860} type="native">
+            <Table highlightOnHover verticalSpacing="sm">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Name</Table.Th>
+                  <Table.Th>Status</Table.Th>
+                  <Table.Th>
+                    Version
+                    <HelpTip label="Goes up by one every time you publish, so you can tell which set of tokens is live." />
+                  </Table.Th>
+                  <Table.Th>
+                    Tokens
+                    <HelpTip label="Design decisions with a name: blocks reference the name, you change the value in one place." />
+                  </Table.Th>
+                  <Table.Th>Updated</Table.Th>
+                  <Table.Th aria-label="Actions" />
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {showSkeleton
+                  ? [0, 1, 2].map((index) => (
+                      <Table.Tr key={index}>
+                        {[0, 1, 2, 3, 4, 5].map((cell) => (
+                          <Table.Td key={cell}>
+                            <Skeleton height={14} />
+                          </Table.Td>
+                        ))}
+                      </Table.Tr>
+                    ))
+                  : items.map((row) => (
+                      <Table.Tr key={row.id}>
+                        <Table.Td>
+                          <Text size="sm" fw={500}>
+                            {row.name}
+                          </Text>
                         </Table.Td>
-                      ))}
-                    </Table.Tr>
-                  ))
-                : items.map((row) => (
-                    <Table.Tr key={row.id}>
-                      <Table.Td>
-                        <Text size="sm" fw={500}>
-                          {row.name}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge color={STATUS_COLORS[row.status]}>{row.status}</Badge>
-                      </Table.Td>
-                      <Table.Td>{row.version}</Table.Td>
-                      <Table.Td>{Object.keys(row.tokens).length}</Table.Td>
-                      <Table.Td>{new Date(row.updatedAt).toLocaleString()}</Table.Td>
-                      <Table.Td>
-                        <Group gap={4} justify="flex-end" wrap="nowrap">
-                          <Tooltip label="Publish this version">
-                            <ActionIcon
-                              variant="subtle"
-                              aria-label="Publish"
-                              onClick={() => confirmPublish(row)}
-                            >
-                              <IconRocket size={16} />
-                            </ActionIcon>
-                          </Tooltip>
-                          <Tooltip label="Edit">
-                            <ActionIcon
-                              variant="subtle"
-                              aria-label="Edit"
-                              onClick={() => router.push(`/admin/style-book/${row.id}`)}
-                            >
-                              <IconPencil size={16} />
-                            </ActionIcon>
-                          </Tooltip>
-                          <Tooltip label="Delete">
-                            <ActionIcon
-                              variant="subtle"
-                              color="red"
-                              aria-label="Delete"
-                              onClick={() => confirmDelete(row)}
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-            </Table.Tbody>
-          </Table>
+                        <Table.Td>
+                          <Badge color={STATUS_COLORS[row.status]}>{row.status}</Badge>
+                        </Table.Td>
+                        <Table.Td>{row.version}</Table.Td>
+                        <Table.Td>{Object.keys(row.tokens).length}</Table.Td>
+                        <Table.Td>{new Date(row.updatedAt).toLocaleString()}</Table.Td>
+                        <Table.Td>
+                          <Group gap={4} justify="flex-end" wrap="nowrap">
+                            <Tooltip label="Publish this version">
+                              <ActionIcon
+                                variant="subtle"
+                                aria-label="Publish"
+                                onClick={() => confirmPublish(row)}
+                              >
+                                <IconRocket size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label="Edit">
+                              <ActionIcon
+                                variant="subtle"
+                                aria-label="Edit"
+                                onClick={() => router.push(`/admin/style-book/${row.id}`)}
+                              >
+                                <IconPencil size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label="Delete">
+                              <ActionIcon
+                                variant="subtle"
+                                color="red"
+                                aria-label="Delete"
+                                onClick={() => confirmDelete(row)}
+                              >
+                                <IconTrash size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+              </Table.Tbody>
+            </Table>
+          </Table.ScrollContainer>
         )}
       </Card>
 

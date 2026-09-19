@@ -1,0 +1,31 @@
+# Security headers use the "?" (set if absent) form on purpose. The web app
+# already sends the full set on every response it produces, including the CSP,
+# which is the only place that knows the app's real script, style and embed
+# needs (apps/web/next.config.ts). Setting them here unconditionally would
+# override that policy with a weaker, app blind copy. With "?" the edge only
+# fills the gap: Caddy's own responses (TLS errors, 502 while the app is down,
+# anything that never reaches Next) still carry a safe baseline.
+(security_headers) {
+  header {
+    ?Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    ?X-Content-Type-Options "nosniff"
+    ?Referrer-Policy "strict-origin-when-cross-origin"
+    ?X-Frame-Options "SAMEORIGIN"
+    ?Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    # Caddy generated pages load nothing of their own, so the fallback policy
+    # can be the strictest one. The app's own CSP always wins over this.
+    ?Content-Security-Policy "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+  }
+}
+
+{$WEB_HOST} {
+  import security_headers
+  reverse_proxy web:3000
+}
+
+# The API sets its own headers through @fastify/helmet, so the same fallback
+# only has to cover responses helmet never sees.
+{$API_HOST} {
+  import security_headers
+  reverse_proxy api:3001
+}

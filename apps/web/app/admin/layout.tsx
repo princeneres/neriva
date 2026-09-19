@@ -37,7 +37,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }, [router]);
 
   if (!user) {
-    return null;
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        style={{ padding: '2rem', color: 'var(--mantine-color-dimmed)' }}
+      >
+        Loading admin…
+      </div>
+    );
   }
 
   return (

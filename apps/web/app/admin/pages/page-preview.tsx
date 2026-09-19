@@ -125,6 +125,7 @@ export function PagePreview({
             blockInfo={blockInfo}
             sitePages={sitePages}
             siteSlug={siteSlug ?? undefined}
+            siteBasePath={siteSlug ? `/s/${encodeURIComponent(siteSlug)}` : undefined}
           />
         </div>
       </div>

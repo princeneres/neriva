@@ -30,6 +30,7 @@ import {
   Tooltip,
   UnstyledButton,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import {
@@ -89,6 +90,12 @@ export interface PageStudioValues {
 
 type StyleBook = components['schemas']['StyleBookDto'];
 
+// Below this the palette and the inspector stop sharing the row with the
+// canvas and float above it instead (see studio.module.css). Kept in sync with
+// the media query there by hand: CSS handles the layout, this flag only picks
+// the starting state and whether the inspector is mounted as an overlay.
+const NARROW_QUERY = '(max-width: 1080px)';
+
 // The Page Studio: a WYSIWYG editor where the rendered page is the canvas.
 // Left palette inserts blocks, clicking a block on the page selects it, the
 // right inspector edits it live. This is edit mode only; page configuration
@@ -122,6 +129,9 @@ export function PageStudio({
   const [device, setDevice] = useState<CanvasDevice>('desktop');
   const [paletteCollapsed, setPaletteCollapsed] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
+  // undefined until the effect resolves the query, which keeps the server
+  // render and the hydration pass agreeing on the wide layout.
+  const narrow = useMediaQuery(NARROW_QUERY) ?? false;
 
   const [title, setTitle] = useState(initial.title);
   // The path is configured in the page settings; the studio only echoes it
@@ -174,6 +184,15 @@ export function PageStudio({
       });
   }, []);
 
+  // On a narrow screen the palette starts as its rail so the canvas is visible
+  // on arrival. Expanding it is still one click away, and it then floats over
+  // the canvas rather than squeezing it.
+  useEffect(() => {
+    if (narrow) {
+      setPaletteCollapsed(true);
+    }
+  }, [narrow]);
+
   // Esc deselects the current block anywhere in the studio.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -207,7 +226,7 @@ export function PageStudio({
       Object.fromEntries(
         blocks.map((block) => [
           block.externalReferenceCode,
-          { name: block.name, html: block.html, css: block.css, slots: block.slots },
+          { name: block.name, html: block.html, css: block.css, js: block.js, slots: block.slots },
         ]),
       ),
     [blocks],
@@ -609,20 +628,28 @@ export function PageStudio({
             onRemove={handleRemove}
             onOpenPicker={setInsertTarget}
           />
-          <StudioInspector
-            serverError={serverError}
-            settingsHref={settingsHref}
-            status={status}
-            pageMeta={pageMeta}
-            selectedNode={selectedNode}
-            block={selectedBlock}
-            blocksLoading={blocksLoading}
-            tokens={tokens}
-            onSetProp={(key, name, value) => setNodes(setNodeProp(nodes, key, name, value))}
-            onSetProps={(key, props) => setNodes(setNodeProps(nodes, key, props))}
-            onSetStyle={(key, name, value) => setNodes(setNodeStyle(nodes, key, name, value))}
-            onDeselect={() => setSelectedKey(null)}
-          />
+          {/* Wide screens ignore this wrapper (display: contents). Narrow ones
+              turn it into a right-hand overlay that is only there when it has
+              something to say: a selected block, or a save that failed. */}
+          <div
+            className={classes.inspectorDock}
+            data-open={selectedNode !== null || serverError !== null ? 'true' : undefined}
+          >
+            <StudioInspector
+              serverError={serverError}
+              settingsHref={settingsHref}
+              status={status}
+              pageMeta={pageMeta}
+              selectedNode={selectedNode}
+              block={selectedBlock}
+              blocksLoading={blocksLoading}
+              tokens={tokens}
+              onSetProp={(key, name, value) => setNodes(setNodeProp(nodes, key, name, value))}
+              onSetProps={(key, props) => setNodes(setNodeProps(nodes, key, props))}
+              onSetStyle={(key, name, value) => setNodes(setNodeStyle(nodes, key, name, value))}
+              onDeselect={() => setSelectedKey(null)}
+            />
+          </div>
         </div>
         <DragOverlay>
           {dragLabel !== null ? (

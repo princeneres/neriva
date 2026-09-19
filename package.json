@@ -18,6 +18,10 @@
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "pnpm": {
+    "overrides": {
+      "fastify": "^5.12.5",
+      "find-my-way": "^9.7.0"
+    },
     "onlyBuiltDependencies": [
       "@embedded-postgres/darwin-arm64",
       "@embedded-postgres/darwin-x64",
