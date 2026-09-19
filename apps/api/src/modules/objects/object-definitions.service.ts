@@ -2,7 +2,7 @@ import { ConflictException, Inject, Injectable, NotFoundException } from '@nestj
 import { and, asc, eq, gt } from 'drizzle-orm';
 import type { InferSelectModel } from 'drizzle-orm';
 import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
-import { isUniqueViolation } from '../../common/pg-errors';
+import { isForeignKeyViolation, isUniqueViolation } from '../../common/pg-errors';
 import { DB, type Database } from '../../db/database';
 import { objectDefinitions, type ObjectFieldDefinition } from '../../db/schema';
 import { TenantScopedRepository, type CursorPage } from '../../db/tenant-scoped.repository';
@@ -10,19 +10,6 @@ import { validateDefinitionFields } from './object-field.validation';
 import { ResourceFoldersService } from '../resource-folders/resource-folders.service';
 
 export type ObjectDefinitionRow = InferSelectModel<typeof objectDefinitions>;
-
-// Postgres error code for foreign_key_violation. Local to this module:
-// only the definition delete path needs it.
-const FOREIGN_KEY_VIOLATION = '23503';
-
-function isForeignKeyViolation(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code: unknown }).code === FOREIGN_KEY_VIOLATION
-  );
-}
 
 @Injectable()
 export class ObjectDefinitionsService {
