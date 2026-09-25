@@ -329,7 +329,7 @@ The spec is generated from the code and verified in CI: `pnpm --filter @neriva/a
 - [x] Content Types and Content Entries API
 - [x] Objects API (client-defined entities over JSONB, dynamic filtering)
 - [x] Style Book API (versioned design tokens, CSS endpoint)
-- [x] System settings API (SMTP, site metadata)
+- [x] System settings API (typed catalog of known settings, free-form keys, redacted secrets)
 - [x] Admin UI screens for the feature modules
 - [x] Public delivery API and the page rendering runtime in apps/web
 - [x] Media library (folders, uploads, public URLs)
@@ -337,6 +337,7 @@ The spec is generated from the code and verified in CI: `pnpm --filter @neriva/a
 - [x] Site-first navigation with a default site
 - [x] Page Templates and Master Pages
 - [ ] Trash (Recycle Bin): spec and admin UI done, API pending
+- [ ] Email delivery: SMTP settings are stored but nothing sends mail yet
 - [ ] Workflow and scheduled publishing
 
 ## Contributing

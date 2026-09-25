@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, Param, Put, Query, Res } from 
 import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { ApiDataResponse, ApiListResponse } from '../../common/api-envelope.decorators';
-import { ListQueryDto } from '../../common/list-query.dto';
+import { SearchableListQueryDto } from '../../common/list-query.dto';
 import { CurrentUser } from '../auth/auth.decorators';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { RequirePermission } from '../roles/require-permission.decorator';
@@ -29,7 +29,7 @@ export class SystemSettingsController {
   @RequirePermission('system-setting:read')
   async list(
     @CurrentUser() user: AuthenticatedUser,
-    @Query() query: ListQueryDto,
+    @Query() query: SearchableListQueryDto,
   ): Promise<{ data: SystemSettingResponse[]; meta: { cursor: string | null; limit: number } }> {
     const page = await this.settingsService.list(user.tenantId, query);
     return {

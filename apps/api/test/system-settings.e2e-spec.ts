@@ -19,6 +19,23 @@ interface SettingBody {
   };
 }
 
+interface CatalogBody {
+  data: {
+    groups: { id: string; label: string; notice: string | null }[];
+    settings: {
+      key: string;
+      group: string;
+      type: string;
+      effect: string;
+      defaultValue: unknown;
+      optionsSource: string | null;
+      isSensitive: boolean;
+      isSet: boolean;
+      value: unknown;
+    }[];
+  };
+}
+
 describe('system settings (e2e)', () => {
   let testDb: TestDb;
   let app: NestFastifyApplication;
@@ -260,5 +277,112 @@ describe('system settings (e2e)', () => {
   it('requires authentication', async () => {
     const res = await app.inject({ method: 'GET', url: '/system/settings' });
     expect(res.statusCode).toBe(401);
+  });
+
+  async function getCatalog(token: string): Promise<{ statusCode: number; body: CatalogBody }> {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/system/settings-catalog',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    return { statusCode: res.statusCode, body: res.json() as CatalogBody };
+  }
+
+  it('describes the known settings, their group and whether anything reads them', async () => {
+    const { statusCode, body } = await getCatalog(adminToken);
+    expect(statusCode).toBe(200);
+
+    const groupIds = body.data.groups.map((group) => group.id);
+    expect(groupIds).toContain('site');
+    expect(groupIds).toContain('email');
+    // Nothing sends email yet, so that group has to say so.
+    expect(body.data.groups.find((group) => group.id === 'email')?.notice).toBeTruthy();
+
+    const defaultSite = body.data.settings.find((entry) => entry.key === 'site.default');
+    expect(defaultSite).toMatchObject({
+      group: 'site',
+      type: 'select',
+      optionsSource: 'SITES',
+      effect: 'APPLIED',
+    });
+
+    const smtpPort = body.data.settings.find((entry) => entry.key === 'smtp.port');
+    // smtp.host was deleted above, so the whole group is unset and clients
+    // have to fall back to the catalog default.
+    expect(smtpPort).toMatchObject({ type: 'number', defaultValue: 587, effect: 'STORED' });
+    expect(body.data.settings.find((entry) => entry.key === 'smtp.host')).toMatchObject({
+      isSet: false,
+      value: null,
+    });
+  });
+
+  it('reports the stored value of a known setting that is set', async () => {
+    const put = await app.inject({
+      method: 'PUT',
+      url: '/system/settings/smtp.from',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { value: 'no-reply@example.com' },
+    });
+    expect([200, 201]).toContain(put.statusCode);
+
+    const { body } = await getCatalog(adminToken);
+    expect(body.data.settings.find((entry) => entry.key === 'smtp.from')).toMatchObject({
+      isSet: true,
+      value: 'no-reply@example.com',
+      isSensitive: false,
+    });
+  });
+
+  it('never hands back a password through the catalog', async () => {
+    const put = await app.inject({
+      method: 'PUT',
+      url: '/system/settings/smtp.password',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { value: 'do-not-return-this' },
+    });
+    expect([200, 201]).toContain(put.statusCode);
+
+    const { body } = await getCatalog(adminToken);
+    expect(body.data.settings.find((entry) => entry.key === 'smtp.password')).toMatchObject({
+      type: 'password',
+      isSensitive: true,
+      isSet: true,
+      value: null,
+    });
+    expect(JSON.stringify(body)).not.toContain('do-not-return-this');
+
+    const direct = await app.inject({
+      method: 'GET',
+      url: '/system/settings/smtp.password',
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    expect(direct.statusCode).toBe(200);
+    expect((direct.json() as SettingBody).data.value).toBeNull();
+  });
+
+  it('gates the catalog behind system-setting:read', async () => {
+    const denied = await getCatalog(noGrantToken);
+    expect(denied.statusCode).toBe(403);
+
+    const anonymous = await app.inject({ method: 'GET', url: '/system/settings-catalog' });
+    expect(anonymous.statusCode).toBe(401);
+  });
+
+  it('leaves a stored setting literally named "catalog" reachable', async () => {
+    const put = await app.inject({
+      method: 'PUT',
+      url: '/system/settings/catalog',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { value: 'free-form key, not the catalog route' },
+    });
+    expect([200, 201]).toContain(put.statusCode);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/system/settings/catalog',
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    expect(res.statusCode).toBe(200);
+    expect((res.json() as SettingBody).data.value).toBe('free-form key, not the catalog route');
   });
 });

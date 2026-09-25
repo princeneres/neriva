@@ -596,6 +596,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/system/settings-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SettingsCatalogController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/system/settings": {
         parameters: {
             query?: never;
@@ -770,6 +786,54 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["ObjectRecordsController_update"];
+        trace?: never;
+    };
+    "/public/object-definitions/{defRef}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["PublicObjectsController_definition"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/object-definitions/{defRef}/records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["PublicObjectsController_listRecords"];
+        put?: never;
+        post: operations["PublicObjectsController_createRecord"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/object-definitions/{defRef}/records/{recordId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["PublicObjectsController_deleteRecord"];
+        options?: never;
+        head?: never;
+        patch: operations["PublicObjectsController_updateRecord"];
         trace?: never;
     };
     "/style-books": {
@@ -1459,6 +1523,60 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        SettingGroupDto: {
+            /** @example email */
+            id: string;
+            /** @example Email (SMTP) */
+            label: string;
+            description: string;
+            /** @description Warning a client should show above the whole group, when there is one. */
+            notice: string | null;
+        };
+        SettingOptionDto: {
+            value: string;
+            label: string;
+        };
+        SettingCatalogEntryDto: {
+            /** @example smtp.host */
+            key: string;
+            /**
+             * @description Id of the group this setting belongs to.
+             * @example email
+             */
+            group: string;
+            label: string;
+            description: string;
+            /** @enum {string} */
+            type: "string" | "text" | "number" | "boolean" | "select" | "password";
+            /** @description Value that applies when no row exists. Null means the consumer decides. */
+            defaultValue: Record<string, never> | null;
+            options: components["schemas"]["SettingOptionDto"][] | null;
+            /**
+             * @description When set, the client fills the choices from that resource instead.
+             * @enum {string|null}
+             */
+            optionsSource: "SITES" | null;
+            /**
+             * @description APPLIED: something in Neriva reads this value today. STORED: kept for a feature that does not exist yet.
+             * @enum {string}
+             */
+            effect: "APPLIED" | "STORED";
+            /** @description Plain sentence naming where the value takes effect, or why it does not. */
+            effectNote: string;
+            placeholder: string | null;
+            /** @description Whether the value is redacted from API responses. */
+            isSensitive: boolean;
+            /** @description Whether a row exists for this key. */
+            isSet: boolean;
+            /** @description Stored value. Null when the setting is unset or sensitive. */
+            value: Record<string, never> | null;
+            /** Format: date-time */
+            updatedAt: string | null;
+        };
+        SettingsCatalogDto: {
+            groups: components["schemas"]["SettingGroupDto"][];
+            settings: components["schemas"]["SettingCatalogEntryDto"][];
+        };
         SystemSettingDto: {
             /** Format: uuid */
             id: string;
@@ -1583,6 +1701,11 @@ export interface components {
             pluralName: string;
             description: Record<string, never> | null;
             fields: components["schemas"]["ObjectFieldDto"][];
+            /**
+             * @description Anonymous access mode; "none" means the object is private
+             * @enum {string}
+             */
+            publicAccess: "none" | "read" | "read-write";
             /** Format: uuid */
             folderId: string | null;
         };
@@ -1594,6 +1717,11 @@ export interface components {
             externalReferenceCode?: string;
             /** Format: uuid */
             folderId?: string | null;
+            /**
+             * @description Anonymous access to this object through /public/object-definitions. Defaults to 'none', which keeps it private. 'read' lets anonymous visitors list its records; 'read-write' also lets them create, edit and delete any of them.
+             * @enum {string}
+             */
+            publicAccess?: "none" | "read" | "read-write";
             fields: components["schemas"]["ObjectFieldDto"][];
         };
         UpdateObjectDefinitionDto: {
@@ -1604,6 +1732,11 @@ export interface components {
             fields?: components["schemas"]["ObjectFieldDto"][];
             /** Format: uuid */
             folderId?: string | null;
+            /**
+             * @description Anonymous access to this object through /public/object-definitions. Defaults to 'none', which keeps it private. 'read' lets anonymous visitors list its records; 'read-write' also lets them create, edit and delete any of them.
+             * @enum {string}
+             */
+            publicAccess?: "none" | "read" | "read-write";
         };
         ObjectRecordDto: {
             /** Format: uuid */
@@ -1634,6 +1767,44 @@ export interface components {
         UpdateObjectRecordDto: {
             /** @description Replaces the full data payload; validated against the definition fields */
             data?: {
+                [key: string]: unknown;
+            };
+        };
+        PublicObjectDefinitionDto: {
+            /** Format: uuid */
+            id: string;
+            externalReferenceCode: string;
+            name: string;
+            pluralName: string;
+            description?: string | null;
+            /**
+             * @description Whether anonymous callers may only read this object or also write to it
+             * @enum {string}
+             */
+            publicAccess: "read" | "read-write";
+            fields: components["schemas"]["ObjectFieldDto"][];
+        };
+        PublicObjectRecordDto: {
+            /** Format: uuid */
+            id: string;
+            externalReferenceCode: string;
+            data: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        PublicCreateObjectRecordDto: {
+            /** @description Field values keyed by the definition field keys */
+            data: {
+                [key: string]: unknown;
+            };
+        };
+        PublicUpdateObjectRecordDto: {
+            /** @description Replaces the full data payload; validated against the definition fields */
+            data: {
                 [key: string]: unknown;
             };
         };
@@ -1843,6 +2014,8 @@ export interface operations {
                 limit?: number;
                 /** @description Opaque cursor from the previous page meta */
                 cursor?: string;
+                /** @description Free text search. Accent and case insensitive; blank or whitespace-only is ignored. */
+                search?: string;
             };
             header?: never;
             path?: never;
@@ -2096,6 +2269,8 @@ export interface operations {
                 limit?: number;
                 /** @description Opaque cursor from the previous page meta */
                 cursor?: string;
+                /** @description Free text search. Accent and case insensitive; blank or whitespace-only is ignored. */
+                search?: string;
             };
             header?: never;
             path?: never;
@@ -2267,6 +2442,8 @@ export interface operations {
                 limit?: number;
                 /** @description Opaque cursor from the previous page meta */
                 cursor?: string;
+                /** @description Free text search. Accent and case insensitive; blank or whitespace-only is ignored. */
+                search?: string;
             };
             header?: never;
             path?: never;
@@ -2393,6 +2570,8 @@ export interface operations {
                 limit?: number;
                 /** @description Opaque cursor from the previous page meta */
                 cursor?: string;
+                /** @description Free text search. Accent and case insensitive; blank or whitespace-only is ignored. */
+                search?: string;
                 kind?: "MASTER" | "STANDARD";
             };
             header?: never;
@@ -2544,6 +2723,8 @@ export interface operations {
                 limit?: number;
                 /** @description Opaque cursor from the previous page meta */
                 cursor?: string;
+                /** @description Free text search. Accent and case insensitive; blank or whitespace-only is ignored. */
+                search?: string;
             };
             header?: never;
             path: {
@@ -2700,6 +2881,8 @@ export interface operations {
                 limit?: number;
                 /** @description Opaque cursor from the previous page meta */
                 cursor?: string;
+                /** @description Free text search. Accent and case insensitive; blank or whitespace-only is ignored. */
+                search?: string;
                 status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
                 /** @description Only blocks assigned to this folder */
                 folder?: string;
@@ -2877,6 +3060,8 @@ export interface operations {
                 limit?: number;
                 /** @description Opaque cursor from the previous page meta */
                 cursor?: string;
+                /** @description Free text search. Accent and case insensitive; blank or whitespace-only is ignored. */
+                search?: string;
                 /** @description Only content types assigned to this folder */
                 folder?: string;
             };
@@ -3005,6 +3190,8 @@ export interface operations {
                 limit?: number;
                 /** @description Opaque cursor from the previous page meta */
                 cursor?: string;
+                /** @description Free text search. Accent and case insensitive; blank or whitespace-only is ignored. */
+                search?: string;
                 /** @description Filter by content type: UUID or erc:<externalReferenceCode> */
                 contentType?: string;
                 /** @description Filter by site: UUID or erc:<externalReferenceCode> */
@@ -3328,12 +3515,35 @@ export interface operations {
             };
         };
     };
+    SettingsCatalogController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SettingsCatalogDto"];
+                    };
+                };
+            };
+        };
+    };
     SystemSettingsController_list: {
         parameters: {
             query?: {
                 limit?: number;
                 /** @description Opaque cursor from the previous page meta */
                 cursor?: string;
+                /** @description Free text search. Accent and case insensitive; blank or whitespace-only is ignored. */
+                search?: string;
             };
             header?: never;
             path?: never;
@@ -3711,6 +3921,8 @@ export interface operations {
                 limit?: number;
                 /** @description Opaque cursor from the previous page meta */
                 cursor?: string;
+                /** @description Free text search. Accent and case insensitive; blank or whitespace-only is ignored. */
+                search?: string;
                 /** @description Only objects assigned to this folder */
                 folder?: string;
             };
@@ -3839,6 +4051,8 @@ export interface operations {
                 limit?: number;
                 /** @description Opaque cursor from the previous page meta */
                 cursor?: string;
+                /** @description Free text search. Accent and case insensitive; blank or whitespace-only is ignored. */
+                search?: string;
                 /** @description Sort by a definition field key; prefix with '-' for descending. Not combinable with cursor (v1 limitation). */
                 sort?: string;
                 /** @description Equality filters on definition field keys, e.g. filter[status]=open. Multiple filters are ANDed; values are coerced by the field type; unknown keys are a 400. */
@@ -3971,12 +4185,158 @@ export interface operations {
             };
         };
     };
+    PublicObjectsController_definition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Object definition UUID or erc:<externalReferenceCode> */
+                defRef: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PublicObjectDefinitionDto"];
+                    };
+                };
+            };
+        };
+    };
+    PublicObjectsController_listRecords: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque cursor from the previous page meta */
+                cursor?: string;
+                /** @description Free text search. Accent and case insensitive; blank or whitespace-only is ignored. */
+                search?: string;
+                /** @description Sort by a definition field key; prefix with '-' for descending. Not combinable with cursor (v1 limitation). */
+                sort?: string;
+                /** @description Equality filters on definition field keys, e.g. filter[status]=open. Multiple filters are ANDed; values are coerced by the field type; unknown keys are a 400. */
+                filter?: {
+                    [key: string]: string;
+                };
+            };
+            header?: never;
+            path: {
+                /** @description Object definition UUID or erc:<externalReferenceCode> */
+                defRef: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PublicObjectRecordDto"][];
+                        meta: {
+                            cursor: string | null;
+                            limit: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    PublicObjectsController_createRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Object definition UUID or erc:<externalReferenceCode> */
+                defRef: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicCreateObjectRecordDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PublicObjectRecordDto"];
+                    };
+                };
+            };
+        };
+    };
+    PublicObjectsController_deleteRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Object definition UUID or erc:<externalReferenceCode> */
+                defRef: string;
+                /** @description Object record UUID or erc:<externalReferenceCode> */
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PublicObjectsController_updateRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Object definition UUID or erc:<externalReferenceCode> */
+                defRef: string;
+                /** @description Object record UUID or erc:<externalReferenceCode> */
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicUpdateObjectRecordDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PublicObjectRecordDto"];
+                    };
+                };
+            };
+        };
+    };
     StylebookController_list: {
         parameters: {
             query?: {
                 limit?: number;
                 /** @description Opaque cursor from the previous page meta */
                 cursor?: string;
+                /** @description Free text search. Accent and case insensitive; blank or whitespace-only is ignored. */
+                search?: string;
             };
             header?: never;
             path?: never;

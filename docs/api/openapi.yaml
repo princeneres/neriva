@@ -133,6 +133,14 @@ paths:
           description: Opaque cursor from the previous page meta
           schema:
             type: string
+        - name: search
+          required: false
+          in: query
+          description: Free text search. Accent and case insensitive; blank or
+            whitespace-only is ignored.
+          schema:
+            maxLength: 200
+            type: string
       responses:
         "200":
           description: ""
@@ -437,6 +445,14 @@ paths:
           description: Opaque cursor from the previous page meta
           schema:
             type: string
+        - name: search
+          required: false
+          in: query
+          description: Free text search. Accent and case insensitive; blank or
+            whitespace-only is ignored.
+          schema:
+            maxLength: 200
+            type: string
       responses:
         "200":
           description: ""
@@ -629,6 +645,14 @@ paths:
           description: Opaque cursor from the previous page meta
           schema:
             type: string
+        - name: search
+          required: false
+          in: query
+          description: Free text search. Accent and case insensitive; blank or
+            whitespace-only is ignored.
+          schema:
+            maxLength: 200
+            type: string
       responses:
         "200":
           description: ""
@@ -775,6 +799,14 @@ paths:
           in: query
           description: Opaque cursor from the previous page meta
           schema:
+            type: string
+        - name: search
+          required: false
+          in: query
+          description: Free text search. Accent and case insensitive; blank or
+            whitespace-only is ignored.
+          schema:
+            maxLength: 200
             type: string
         - name: kind
           required: false
@@ -963,6 +995,14 @@ paths:
           description: Opaque cursor from the previous page meta
           schema:
             type: string
+        - name: search
+          required: false
+          in: query
+          description: Free text search. Accent and case insensitive; blank or
+            whitespace-only is ignored.
+          schema:
+            maxLength: 200
+            type: string
       responses:
         "200":
           description: ""
@@ -1141,6 +1181,14 @@ paths:
           in: query
           description: Opaque cursor from the previous page meta
           schema:
+            type: string
+        - name: search
+          required: false
+          in: query
+          description: Free text search. Accent and case insensitive; blank or
+            whitespace-only is ignored.
+          schema:
+            maxLength: 200
             type: string
         - name: status
           required: false
@@ -1357,6 +1405,14 @@ paths:
           description: Opaque cursor from the previous page meta
           schema:
             type: string
+        - name: search
+          required: false
+          in: query
+          description: Free text search. Accent and case insensitive; blank or
+            whitespace-only is ignored.
+          schema:
+            maxLength: 200
+            type: string
         - name: folder
           required: false
           in: query
@@ -1510,6 +1566,14 @@ paths:
           in: query
           description: Opaque cursor from the previous page meta
           schema:
+            type: string
+        - name: search
+          required: false
+          in: query
+          description: Free text search. Accent and case insensitive; blank or
+            whitespace-only is ignored.
+          schema:
+            maxLength: 200
             type: string
         - name: contentType
           required: false
@@ -1893,6 +1957,26 @@ paths:
           description: ""
       tags:
         - Health
+  /system/settings-catalog:
+    get:
+      operationId: SettingsCatalogController_get
+      parameters: []
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SettingsCatalogDto"
+      security:
+        - bearer: []
+      tags:
+        - system
   /system/settings:
     get:
       operationId: SystemSettingsController_list
@@ -1910,6 +1994,14 @@ paths:
           in: query
           description: Opaque cursor from the previous page meta
           schema:
+            type: string
+        - name: search
+          required: false
+          in: query
+          description: Free text search. Accent and case insensitive; blank or
+            whitespace-only is ignored.
+          schema:
+            maxLength: 200
             type: string
       responses:
         "200":
@@ -2376,6 +2468,14 @@ paths:
           description: Opaque cursor from the previous page meta
           schema:
             type: string
+        - name: search
+          required: false
+          in: query
+          description: Free text search. Accent and case insensitive; blank or
+            whitespace-only is ignored.
+          schema:
+            maxLength: 200
+            type: string
         - name: folder
           required: false
           in: query
@@ -2536,6 +2636,14 @@ paths:
           description: Opaque cursor from the previous page meta
           schema:
             type: string
+        - name: search
+          required: false
+          in: query
+          description: Free text search. Accent and case insensitive; blank or
+            whitespace-only is ignored.
+          schema:
+            maxLength: 200
+            type: string
         - name: sort
           required: false
           in: query
@@ -2691,6 +2799,196 @@ paths:
         - bearer: []
       tags:
         - object-records
+  /public/object-definitions/{defRef}:
+    get:
+      operationId: PublicObjectsController_definition
+      parameters:
+        - name: defRef
+          required: true
+          in: path
+          description: Object definition UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PublicObjectDefinitionDto"
+      tags:
+        - public-objects
+  /public/object-definitions/{defRef}/records:
+    get:
+      operationId: PublicObjectsController_listRecords
+      parameters:
+        - name: defRef
+          required: true
+          in: path
+          description: Object definition UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 20
+            type: number
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor from the previous page meta
+          schema:
+            type: string
+        - name: search
+          required: false
+          in: query
+          description: Free text search. Accent and case insensitive; blank or
+            whitespace-only is ignored.
+          schema:
+            maxLength: 200
+            type: string
+        - name: sort
+          required: false
+          in: query
+          description: Sort by a definition field key; prefix with '-' for descending. Not
+            combinable with cursor (v1 limitation).
+          schema:
+            example: -createdOn
+            type: string
+        - name: filter
+          required: false
+          in: query
+          style: deepObject
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+          description: Equality filters on definition field keys, e.g.
+            filter[status]=open. Multiple filters are ANDed; values are coerced
+            by the field type; unknown keys are a 400.
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PublicObjectRecordDto"
+                  meta:
+                    type: object
+                    required:
+                      - cursor
+                      - limit
+                    properties:
+                      cursor:
+                        type:
+                          - string
+                          - "null"
+                      limit:
+                        type: number
+      tags:
+        - public-objects
+    post:
+      operationId: PublicObjectsController_createRecord
+      parameters:
+        - name: defRef
+          required: true
+          in: path
+          description: Object definition UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicCreateObjectRecordDto"
+      responses:
+        "201":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PublicObjectRecordDto"
+      tags:
+        - public-objects
+  /public/object-definitions/{defRef}/records/{recordId}:
+    patch:
+      operationId: PublicObjectsController_updateRecord
+      parameters:
+        - name: defRef
+          required: true
+          in: path
+          description: Object definition UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+        - name: recordId
+          required: true
+          in: path
+          description: Object record UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicUpdateObjectRecordDto"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PublicObjectRecordDto"
+      tags:
+        - public-objects
+    delete:
+      operationId: PublicObjectsController_deleteRecord
+      parameters:
+        - name: defRef
+          required: true
+          in: path
+          description: Object definition UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+        - name: recordId
+          required: true
+          in: path
+          description: Object record UUID or erc:<externalReferenceCode>
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      tags:
+        - public-objects
   /style-books:
     get:
       operationId: StylebookController_list
@@ -2708,6 +3006,14 @@ paths:
           in: query
           description: Opaque cursor from the previous page meta
           schema:
+            type: string
+        - name: search
+          required: false
+          in: query
+          description: Free text search. Accent and case insensitive; blank or
+            whitespace-only is ignored.
+          schema:
+            maxLength: 200
             type: string
       responses:
         "200":
@@ -4137,6 +4443,141 @@ components:
         - contentType
         - values
         - updatedAt
+    SettingGroupDto:
+      type: object
+      properties:
+        id:
+          type: string
+          example: email
+        label:
+          type: string
+          example: Email (SMTP)
+        description:
+          type: string
+        notice:
+          type:
+            - string
+            - "null"
+          description: Warning a client should show above the whole group, when there is
+            one.
+      required:
+        - id
+        - label
+        - description
+        - notice
+    SettingOptionDto:
+      type: object
+      properties:
+        value:
+          type: string
+        label:
+          type: string
+      required:
+        - value
+        - label
+    SettingCatalogEntryDto:
+      type: object
+      properties:
+        key:
+          type: string
+          example: smtp.host
+        group:
+          type: string
+          example: email
+          description: Id of the group this setting belongs to.
+        label:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum:
+            - string
+            - text
+            - number
+            - boolean
+            - select
+            - password
+        defaultValue:
+          type:
+            - object
+            - "null"
+          description: Value that applies when no row exists. Null means the consumer
+            decides.
+        options:
+          type:
+            - array
+            - "null"
+          items:
+            $ref: "#/components/schemas/SettingOptionDto"
+        optionsSource:
+          type:
+            - string
+            - "null"
+          enum:
+            - SITES
+          description: When set, the client fills the choices from that resource instead.
+        effect:
+          type: string
+          enum:
+            - APPLIED
+            - STORED
+          description: "APPLIED: something in Neriva reads this value today. STORED: kept
+            for a feature that does not exist yet."
+        effectNote:
+          type: string
+          description: Plain sentence naming where the value takes effect, or why it does
+            not.
+        placeholder:
+          type:
+            - string
+            - "null"
+        isSensitive:
+          type: boolean
+          description: Whether the value is redacted from API responses.
+        isSet:
+          type: boolean
+          description: Whether a row exists for this key.
+        value:
+          type:
+            - object
+            - "null"
+          description: Stored value. Null when the setting is unset or sensitive.
+        updatedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+      required:
+        - key
+        - group
+        - label
+        - description
+        - type
+        - defaultValue
+        - options
+        - optionsSource
+        - effect
+        - effectNote
+        - placeholder
+        - isSensitive
+        - isSet
+        - value
+        - updatedAt
+    SettingsCatalogDto:
+      type: object
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/SettingGroupDto"
+        settings:
+          type: array
+          items:
+            $ref: "#/components/schemas/SettingCatalogEntryDto"
+      required:
+        - groups
+        - settings
     SystemSettingDto:
       type: object
       properties:
@@ -4403,6 +4844,13 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ObjectFieldDto"
+        publicAccess:
+          type: string
+          enum:
+            - none
+            - read
+            - read-write
+          description: Anonymous access mode; "none" means the object is private
         folderId:
           type:
             - string
@@ -4419,6 +4867,7 @@ components:
         - pluralName
         - description
         - fields
+        - publicAccess
         - folderId
     CreateObjectDefinitionDto:
       type: object
@@ -4439,6 +4888,16 @@ components:
             - string
             - "null"
           format: uuid
+        publicAccess:
+          type: string
+          enum:
+            - none
+            - read
+            - read-write
+          description: Anonymous access to this object through /public/object-definitions.
+            Defaults to 'none', which keeps it private. 'read' lets anonymous
+            visitors list its records; 'read-write' also lets them create, edit
+            and delete any of them.
         fields:
           type: array
           items:
@@ -4468,6 +4927,16 @@ components:
             - string
             - "null"
           format: uuid
+        publicAccess:
+          type: string
+          enum:
+            - none
+            - read
+            - read-write
+          description: Anonymous access to this object through /public/object-definitions.
+            Defaults to 'none', which keeps it private. 'read' lets anonymous
+            visitors list its records; 'read-write' also lets them create, edit
+            and delete any of them.
     ObjectRecordDto:
       type: object
       properties:
@@ -4525,6 +4994,82 @@ components:
           additionalProperties: true
           description: Replaces the full data payload; validated against the definition
             fields
+    PublicObjectDefinitionDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReferenceCode:
+          type: string
+        name:
+          type: string
+        pluralName:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        publicAccess:
+          type: string
+          enum:
+            - read
+            - read-write
+          description: Whether anonymous callers may only read this object or also write
+            to it
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/ObjectFieldDto"
+      required:
+        - id
+        - externalReferenceCode
+        - name
+        - pluralName
+        - publicAccess
+        - fields
+    PublicObjectRecordDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalReferenceCode:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - externalReferenceCode
+        - data
+        - createdAt
+        - updatedAt
+    PublicCreateObjectRecordDto:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+          description: Field values keyed by the definition field keys
+      required:
+        - data
+    PublicUpdateObjectRecordDto:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+          description: Replaces the full data payload; validated against the definition
+            fields
+      required:
+        - data
     StyleBookDto:
       type: object
       properties:
