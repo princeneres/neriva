@@ -10,6 +10,7 @@ import {
   Menu,
   NavLink,
   ScrollArea,
+  Skeleton,
   Text,
   Tooltip,
   UnstyledButton,
@@ -262,6 +263,11 @@ export interface AdminShellProps {
   editTarget?: AdminShellEditTarget;
   /** Distinct persisted collapse/width state per surface (admin section vs. a site page). */
   storageNamespace?: 'admin' | 'site';
+  /**
+   * The signed-in profile is not known yet and `user` is a stand-in. The
+   * account row draws a placeholder rather than an empty name and address.
+   */
+  profilePending?: boolean;
   /** Site pages render their own background (Style Book tokens); the admin section paints one. */
   paintBackground?: boolean;
 }
@@ -272,6 +278,7 @@ export function AdminShell({
   editTarget,
   storageNamespace = 'admin',
   paintBackground = true,
+  profilePending = false,
 }: AdminShellProps) {
   return (
     <SiteProvider>
@@ -280,6 +287,7 @@ export function AdminShell({
         editTarget={editTarget}
         storageNamespace={storageNamespace}
         paintBackground={paintBackground}
+        profilePending={profilePending}
       >
         {children}
       </ShellInner>
@@ -293,8 +301,9 @@ function ShellInner({
   editTarget,
   storageNamespace,
   paintBackground,
-}: Required<Pick<AdminShellProps, 'storageNamespace' | 'paintBackground'>> &
-  Omit<AdminShellProps, 'storageNamespace' | 'paintBackground'>) {
+  profilePending,
+}: Required<Pick<AdminShellProps, 'storageNamespace' | 'paintBackground' | 'profilePending'>> &
+  Omit<AdminShellProps, 'storageNamespace' | 'paintBackground' | 'profilePending'>) {
   const router = useRouter();
   const pathname = usePathname();
   const { sites } = useSite();
@@ -666,17 +675,26 @@ function ShellInner({
               >
                 <Group gap="sm" wrap="nowrap" justify={collapsed ? 'center' : 'flex-start'}>
                   <Avatar color="neriva" radius="xl" size={collapsed ? 28 : 32}>
-                    {initials}
+                    {profilePending ? null : initials}
                   </Avatar>
                   {!collapsed ? (
                     <>
                       <Box flex={1} miw={0}>
-                        <Text size="sm" fw={600} truncate>
-                          {user.displayName}
-                        </Text>
-                        <Text className={classes.accountEmail} size="xs" truncate>
-                          {user.email}
-                        </Text>
+                        {profilePending ? (
+                          <>
+                            <Skeleton height={9} width="70%" mb={6} />
+                            <Skeleton height={8} width="90%" />
+                          </>
+                        ) : (
+                          <>
+                            <Text size="sm" fw={600} truncate>
+                              {user.displayName}
+                            </Text>
+                            <Text className={classes.accountEmail} size="xs" truncate>
+                              {user.email}
+                            </Text>
+                          </>
+                        )}
                       </Box>
                       <IconChevronDown size={14} color="var(--mantine-color-dimmed)" />
                     </>
@@ -685,7 +703,9 @@ function ShellInner({
               </UnstyledButton>
             </Menu.Target>
             <Menu.Dropdown>
-              <Menu.Label>Signed in as {user.email}</Menu.Label>
+              <Menu.Label>
+                {profilePending ? 'Checking your session…' : `Signed in as ${user.email}`}
+              </Menu.Label>
               {storageNamespace === 'site' ? (
                 <Menu.Item
                   component={Link}

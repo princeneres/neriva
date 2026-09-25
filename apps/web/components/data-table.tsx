@@ -9,6 +9,20 @@ interface ListResponse<T> {
   meta: ListMeta;
 }
 
+// A dead or blocked session is the admin layout's business: it clears the
+// session and sends the browser to /login or /change-password. A list that
+// happens to be in flight at that moment must not also raise an error of its
+// own, which would only flash a toast across the redirect.
+function isSessionFailure(error: ApiError): boolean {
+  return error.problem.status === 401 || error.problem.code === 'MUST_CHANGE_PASSWORD';
+}
+
+function reportError(error: unknown, handler?: (error: ApiError) => void): void {
+  if (error instanceof ApiError && handler && !isSessionFailure(error)) {
+    handler(error);
+  }
+}
+
 interface CachedPage<T> {
   items: T[];
   cursor: string | null;
@@ -75,9 +89,7 @@ export function useCursorList<T>(path: string, onError?: (error: ApiError) => vo
         );
       } catch (error) {
         setState((s) => (s.path === path ? { ...s, loading: false } : s));
-        if (error instanceof ApiError && errorHandler.current) {
-          errorHandler.current(error);
-        }
+        reportError(error, errorHandler.current);
       }
     },
     [path],
@@ -183,9 +195,7 @@ export function useCursorPage<T>(
         setState((existing) =>
           existing.path === path ? { ...existing, loading: false } : existing,
         );
-        if (error instanceof ApiError && errorHandler.current) {
-          errorHandler.current(error);
-        }
+        reportError(error, errorHandler.current);
       }
     },
     [path],
@@ -266,7 +276,7 @@ export function useCursorPage<T>(
     } catch (error) {
       if (sequence !== requestSequence.current) return;
       setState((existing) => (existing.path === path ? { ...existing, loading: false } : existing));
-      if (error instanceof ApiError && errorHandler.current) errorHandler.current(error);
+      reportError(error, errorHandler.current);
     }
   }, [current.limit, current.nextCursor, path]);
 

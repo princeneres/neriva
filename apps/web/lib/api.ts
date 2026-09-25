@@ -1,6 +1,7 @@
 import type { components } from '@neriva/contracts';
 import { apiUrl } from './api-url';
 import { clearTokens, getAccessToken, getRefreshToken, saveTokens } from './auth-storage';
+import { dedupeInFlight } from './client-cache';
 
 export type AuthTokens = components['schemas']['AuthTokensDto'];
 export type PublicUser = components['schemas']['PublicUserDto'];
@@ -95,7 +96,11 @@ async function request<T>(path: string, init: RequestInit = {}, allowRetry = tru
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>(path, { method: 'GET' }),
+  // Reads are shared while they are open: the shell and the screen it wraps
+  // mount together and regularly ask for the same URL in the same tick. Writes
+  // are never shared, since two of them are two intended operations.
+  get: <T>(path: string) =>
+    dedupeInFlight(`GET ${path}`, () => request<T>(path, { method: 'GET' })),
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, {
       method: 'POST',
