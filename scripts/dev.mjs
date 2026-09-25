@@ -213,7 +213,10 @@ async function main() {
   process.on('SIGTERM', () => void shutdown(children, postgres, 0));
 
   log('dev', 'API on http://localhost:3001, site on http://localhost:3000');
-  log('dev', 'admin on http://localhost:3000/admin, sign in with admin@neriva.com / admin');
+  log(
+    'dev',
+    'admin on http://localhost:3000/admin, sign in as admin@neriva.com with NERIVA_INITIAL_ADMIN_PASSWORD from .env',
+  );
 }
 
 main().catch((error) => {
