@@ -47,13 +47,42 @@ export function validateDefinitionFields(fields: ObjectFieldDefinition[]): void 
   }
 }
 
+// Size ceilings on a record payload. An Object field is metadata, not a
+// document store, so these are far above any modelled value and still keep a
+// single row from becoming a denial-of-service payload.
+export interface RecordSizeLimits {
+  maxTextLength: number;
+  maxPayloadBytes: number;
+}
+
+// Applied to every caller, authenticated included.
+export const DEFAULT_RECORD_SIZE_LIMITS: RecordSizeLimits = {
+  maxTextLength: 10_000,
+  maxPayloadBytes: 64 * 1024,
+};
+
+// Applied to anonymous writes, which have no account behind them to hold
+// responsible; a public to-do item or comment fits comfortably.
+export const PUBLIC_RECORD_SIZE_LIMITS: RecordSizeLimits = {
+  maxTextLength: 1_000,
+  maxPayloadBytes: 4 * 1024,
+};
+
 // Validates a record payload against the definition fields: unknown keys 400,
-// missing required 400, type check, picklist membership (spec 05).
-// null is accepted for optional fields and stored as provided.
+// missing required 400, type check, picklist membership, size ceilings
+// (spec 05). null is accepted for optional fields and stored as provided.
 export function validateRecordData(
   fields: ObjectFieldDefinition[],
   data: Record<string, unknown>,
+  limits: RecordSizeLimits = DEFAULT_RECORD_SIZE_LIMITS,
 ): void {
+  // Byte length, not character count: the column stores UTF-8 and a caller
+  // padding with multi-byte characters must not buy extra room.
+  const payloadBytes = Buffer.byteLength(JSON.stringify(data) ?? 'null', 'utf8');
+  if (payloadBytes > limits.maxPayloadBytes) {
+    bad(`Record payload is ${payloadBytes} bytes, over the ${limits.maxPayloadBytes} byte limit`);
+  }
+
   const known = new Set(fields.map((field) => field.key));
   const unknown = Object.keys(data).filter((key) => !known.has(key));
   if (unknown.length > 0) {
@@ -72,6 +101,9 @@ export function validateRecordData(
       case 'text':
         if (typeof value !== 'string') {
           bad(`Field "${field.key}" must be a string`);
+        }
+        if (value.length > limits.maxTextLength) {
+          bad(`Field "${field.key}" is longer than ${limits.maxTextLength} characters`);
         }
         break;
       case 'number':

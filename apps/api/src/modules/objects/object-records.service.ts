@@ -9,11 +9,12 @@ import type { InferSelectModel } from 'drizzle-orm';
 import { sql, type Selectable } from 'kysely';
 import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
 import { isInvalidTextRepresentation, isUniqueViolation } from '../../common/pg-errors';
+import { normalizeSearchTerm } from '../../common/search';
 import { DB, type Database } from '../../db/database';
 import { objectRecords } from '../../db/schema';
 import { TenantScopedRepository, type CursorPage } from '../../db/tenant-scoped.repository';
 import { ObjectDefinitionsService } from './object-definitions.service';
-import { validateRecordData } from './object-field.validation';
+import { validateRecordData, type RecordSizeLimits } from './object-field.validation';
 import { parseRecordFilters, parseRecordSort, type RecordFilter } from './record-filter';
 import { OBJECTS_KYSELY, type ObjectRecordsTable, type ObjectsKysely } from './objects.kysely';
 
@@ -62,12 +63,15 @@ export class ObjectRecordsService {
 
   async create(
     tenantId: string,
-    createdBy: string,
+    // null for an anonymous write through the public surface: there is no
+    // account to attribute the record to.
+    createdBy: string | null,
     definitionRef: string,
     input: { data: Record<string, unknown>; externalReferenceCode?: string },
+    limits?: RecordSizeLimits,
   ): Promise<ObjectRecordRow> {
     const definition = await this.definitionsService.getByRef(tenantId, definitionRef);
-    validateRecordData(definition.fields, input.data);
+    validateRecordData(definition.fields, input.data, limits);
     try {
       const values = {
         objectDefinitionId: definition.id,
@@ -96,6 +100,7 @@ export class ObjectRecordsService {
     tenantId: string,
     ref: string,
     input: { data?: Record<string, unknown> },
+    limits?: RecordSizeLimits,
   ): Promise<ObjectRecordRow> {
     const existing = await this.getByRef(tenantId, ref);
     if (input.data === undefined) {
@@ -105,7 +110,7 @@ export class ObjectRecordsService {
       tenantId,
       existing.objectDefinitionId,
     );
-    validateRecordData(definition.fields, input.data);
+    validateRecordData(definition.fields, input.data, limits);
     const updated = await this.repo(tenantId).updateById(existing.id, { data: input.data });
     return updated ?? existing;
   }
@@ -118,15 +123,21 @@ export class ObjectRecordsService {
   // Dynamic listing (spec 05): equality filters and sorting over
   // runtime-defined JSONB fields, built with Kysely. The tenant filter is
   // always the first WHERE clause.
+  // Records are the highest volume table and their payload is free text the
+  // admin never modelled, so the search is Portuguese full text over the whole
+  // data payload, backed by object_records_fts_idx. It matches whole (stemmed)
+  // words rather than fragments, which is the trade for an index that does not
+  // grow with the length of every value.
   async listByDefinition(
     tenantId: string,
     definitionRef: string,
-    query: { limit?: number; cursor?: string; sort?: string },
+    query: { limit?: number; cursor?: string; sort?: string; search?: string },
     rawQuery: Record<string, unknown>,
   ): Promise<CursorPage<ObjectRecordRow>> {
     const definition = await this.definitionsService.getByRef(tenantId, definitionRef);
     const filters = parseRecordFilters(rawQuery, definition.fields);
     const sort = parseRecordSort(query.sort, definition.fields);
+    const search = normalizeSearchTerm(query.search);
     if (sort && query.cursor !== undefined) {
       throw new BadRequestException({
         detail: 'sort cannot be combined with cursor (v1 limitation)',
@@ -141,6 +152,14 @@ export class ObjectRecordsService {
       .where('object_definition_id', '=', definition.id);
     for (const filter of filters) {
       qb = qb.where(filterCondition(filter));
+    }
+    if (search !== undefined) {
+      // Kysely has no Drizzle SQL interop, so this repeats the expression that
+      // common/search.ts builds for the Drizzle modules. Keep both in sync
+      // with the index in drizzle/0020_search_indexes.sql.
+      qb = qb.where(
+        sql<boolean>`nv_search_tsv(data::text) @@ websearch_to_tsquery('portuguese', nv_search_text(${search}))`,
+      );
     }
     if (query.cursor !== undefined) {
       qb = qb.where('id', '>', decodeCursor(query.cursor).id);

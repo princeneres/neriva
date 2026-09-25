@@ -148,6 +148,13 @@
       "when": 1789686092338,
       "tag": "0020_search_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1789863853339,
+      "tag": "0021_public_object_access",
+      "breakpoints": true
     }
   ]
 }

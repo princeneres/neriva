@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { OBJECT_PUBLIC_ACCESS_MODES, type ObjectPublicAccess } from '../../../db/schema';
 import { ObjectFieldDto } from './object-definitions.dto';
 
 export class ObjectDefinitionDto {
@@ -31,6 +32,12 @@ export class ObjectDefinitionDto {
 
   @ApiProperty({ type: [ObjectFieldDto] })
   fields!: ObjectFieldDto[];
+
+  @ApiProperty({
+    enum: OBJECT_PUBLIC_ACCESS_MODES,
+    description: 'Anonymous access mode; "none" means the object is private',
+  })
+  publicAccess!: ObjectPublicAccess;
 
   @ApiProperty({ type: String, format: 'uuid', nullable: true })
   folderId!: string | null;

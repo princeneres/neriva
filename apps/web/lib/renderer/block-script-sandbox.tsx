@@ -120,7 +120,13 @@ export function BlockScriptSandbox({
     <iframe
       ref={frame}
       title={`${erc} interactive Block`}
-      sandbox="allow-scripts"
+      // allow-forms only makes the submit event fire, which a block's script
+      // needs to read its own form (the to-do list's "Add task"). Without it
+      // the browser drops the submission before the event, so the handler
+      // never runs. It grants no way out: the sandbox CSP sets
+      // form-action 'none', so a form still cannot post anywhere, and the
+      // frame keeps its opaque origin and connect-src 'none'.
+      sandbox="allow-scripts allow-forms"
       srcDoc={srcDoc}
       style={{ display: 'block', width: '100%', height, border: 0 }}
     />

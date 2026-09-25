@@ -30,6 +30,7 @@ export default function EditObjectDefinitionPage() {
       name: values.name,
       pluralName: values.pluralName,
       description: description === '' ? null : description,
+      publicAccess: values.publicAccess,
       fields: values.fields,
     });
     notifications.show({
@@ -96,6 +97,7 @@ export default function EditObjectDefinitionPage() {
                 name: definition.name,
                 pluralName: definition.pluralName,
                 description: definition.description ?? '',
+                publicAccess: definition.publicAccess,
                 fields: definition.fields,
               }}
               submitLabel="Save changes"

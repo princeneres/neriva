@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   Group,
+  Radio,
   Select,
   Stack,
   Switch,
@@ -17,7 +18,7 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconAlertTriangle, IconPlus, IconTrash } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { HelpTip } from '../../../components/help-tip';
@@ -25,14 +26,17 @@ import { ApiError } from '../../../lib/api';
 import {
   FIELD_KEY_PATTERN,
   FIELD_TYPE_OPTIONS,
+  PUBLIC_ACCESS_OPTIONS,
   type ObjectField,
   type ObjectFieldType,
+  type ObjectPublicAccess,
 } from './types';
 
 export interface DefinitionFormValues {
   name: string;
   pluralName: string;
   description: string;
+  publicAccess: ObjectPublicAccess;
   fields: ObjectField[];
 }
 
@@ -48,6 +52,7 @@ interface FormValues {
   name: string;
   pluralName: string;
   description: string;
+  publicAccess: ObjectPublicAccess;
   fields: FieldRow[];
 }
 
@@ -91,6 +96,8 @@ export function DefinitionForm({
       name: initial?.name ?? '',
       pluralName: initial?.pluralName ?? '',
       description: initial?.description ?? '',
+      // Fail closed: a form with no initial value creates a private object.
+      publicAccess: initial?.publicAccess ?? 'none',
       fields: toRows(initial?.fields ?? []),
     },
     validate: {
@@ -137,6 +144,7 @@ export function DefinitionForm({
         name: values.name,
         pluralName: values.pluralName,
         description: values.description,
+        publicAccess: values.publicAccess,
         fields: values.fields.map((row) => ({
           key: row.key,
           label: row.label,
@@ -213,6 +221,53 @@ export function DefinitionForm({
           minRows={2}
           {...form.getInputProps('description')}
         />
+
+        <Box>
+          <Group gap={4} mb={4}>
+            <Text component="span" fw={600} size="sm">
+              Who can see this
+            </Text>
+            <HelpTip label="Controls what visitors who are not signed in can do with these records on your website" />
+          </Group>
+          <Radio.Group
+            value={form.values.publicAccess}
+            onChange={(value) => form.setFieldValue('publicAccess', value as ObjectPublicAccess)}
+          >
+            <Stack gap="xs">
+              {PUBLIC_ACCESS_OPTIONS.map((option) => (
+                <Radio
+                  key={option.value}
+                  value={option.value}
+                  label={option.label}
+                  description={option.description}
+                />
+              ))}
+            </Stack>
+          </Radio.Group>
+          {form.values.publicAccess === 'read-write' ? (
+            <Alert
+              mt="sm"
+              color="orange"
+              icon={<IconAlertTriangle size={18} />}
+              title="Anyone on the internet can write here"
+            >
+              <Text size="sm">
+                There is no account behind an anonymous write, so there is no way to tell two
+                visitors apart: any visitor can edit or delete any record in this object, including
+                records other people added. That is what makes a shared demo list work, and it is
+                the wrong setting for anything you would not publish on a public page.
+              </Text>
+            </Alert>
+          ) : null}
+          {form.values.publicAccess === 'read' ? (
+            <Alert mt="sm" color="blue" title="These records become public">
+              <Text size="sm">
+                Anyone can list every record in this object without signing in. Nobody can change
+                them.
+              </Text>
+            </Alert>
+          ) : null}
+        </Box>
 
         <Box>
           <Group gap={4} mb={4}>

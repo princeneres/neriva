@@ -5,6 +5,7 @@ import { api } from '../api';
 import { apiUrl } from '../api-url';
 import { getAccessToken } from '../auth-storage';
 import { BlockScriptSandbox } from './block-script-sandbox';
+import { objectRecordsGateway } from './object-records-gateway';
 import {
   buildNewRecordData,
   fieldByKey,
@@ -33,10 +34,6 @@ interface ObjectRecord {
   id: string;
   externalReferenceCode: string;
   data: Record<string, unknown>;
-}
-
-interface ObjectDefinition {
-  fields: ObjectFieldDefinition[];
 }
 
 interface ObjectRecordsRequest {
@@ -222,6 +219,12 @@ export function TemplateRuntimeBlock({
   const [entries, setEntries] = useState<Entry[]>([]);
   const [records, setRecords] = useState<ObjectRecord[]>([]);
   const [objectFields, setObjectFields] = useState<ObjectFieldDefinition[]>([]);
+  const [canWrite, setCanWrite] = useState(false);
+  // Read once per mount: localStorage is not reactive, and the rendered page
+  // is not an app the visitor signs into mid-session.
+  const [accessToken] = useState<string | null>(() =>
+    typeof window === 'undefined' ? null : getAccessToken(),
+  );
 
   const contentType = text(runtimeProps.contentType).trim();
   const objectDefinition = text(runtimeProps.objectDefinition).trim();
@@ -254,39 +257,49 @@ export function TemplateRuntimeBlock({
     };
   }, [contentType, limit, runtime, siteSlug]);
 
+  // Signed in, the block talks to the management API and obeys the visitor's
+  // role. Signed out, it talks to /public/object-definitions, which answers
+  // only for objects an administrator published (spec 05). A private object
+  // simply 404s and the list stays empty, as before.
+  const gateway = useMemo(
+    () => objectRecordsGateway(objectDefinition, accessToken, api),
+    [accessToken, objectDefinition],
+  );
+
   useEffect(() => {
-    if (runtime !== 'object-records' || !objectDefinition || getAccessToken() === null) {
+    if (runtime !== 'object-records' || !objectDefinition) {
       setRecords([]);
       setObjectFields([]);
+      setCanWrite(false);
       return;
     }
     let active = true;
-    Promise.all([
-      api.get<{ data: ObjectDefinition }>(
-        `/object-definitions/${encodeURIComponent(objectDefinition)}`,
-      ),
-      api.get<{ data: ObjectRecord[] }>(
-        `/object-definitions/${encodeURIComponent(objectDefinition)}/records?limit=100`,
-      ),
-    ])
+    Promise.all([gateway.loadDefinition(), gateway.listRecords(100)])
       .then(([definition, list]) => {
         if (!active) return;
-        setObjectFields(definition.data.fields);
-        setRecords(list.data);
+        setObjectFields(definition.fields);
+        setRecords(list);
+        // publicAccess is only present on the anonymous surface; a signed-in
+        // visitor's write attempts are judged by their role, as before.
+        setCanWrite(
+          definition.publicAccess === undefined || definition.publicAccess === 'read-write',
+        );
       })
       .catch(() => {
         if (!active) return;
         setRecords([]);
         setObjectFields([]);
+        setCanWrite(false);
       });
     return () => {
       active = false;
     };
-  }, [objectDefinition, runtime]);
+  }, [gateway, objectDefinition, runtime]);
 
   const handleAction = useCallback(
     async (action: string, payload: unknown) => {
       if (runtime !== 'object-records' || objectDefinition === '' || !isRecord(payload)) return;
+      if (!canWrite) return;
       const keys = resolveTodoFieldKeys(runtimeProps);
       const request =
         action === 'runtime:request'
@@ -297,16 +310,11 @@ export function TemplateRuntimeBlock({
         const title = text(request.data?.[keys.title]).trim();
         if (title === '') return;
         try {
-          const created = await api.post<{ data: ObjectRecord }>(
-            `/object-definitions/${encodeURIComponent(objectDefinition)}/records`,
-            {
-              data: {
-                ...buildNewRecordData(title, keys, objectFields, null),
-                ...request.data,
-              },
-            },
-          );
-          setRecords((current) => [...current, created.data]);
+          const created = await gateway.createRecord({
+            ...buildNewRecordData(title, keys, objectFields, null),
+            ...request.data,
+          });
+          setRecords((current) => [...current, created]);
         } catch {
           // The source remains rendered. Invalid records are rejected by the
           // Object API, whose validation is the authoritative contract.
@@ -323,7 +331,7 @@ export function TemplateRuntimeBlock({
           current.map((candidate) => (candidate.id === id ? { ...candidate, data } : candidate)),
         );
         try {
-          await api.patch(`/object-records/${encodeURIComponent(id)}`, { data });
+          await gateway.updateRecord(id, data);
         } catch {
           setRecords(previous);
         }
@@ -333,13 +341,13 @@ export function TemplateRuntimeBlock({
         const previous = records;
         setRecords((current) => current.filter((candidate) => candidate.id !== id));
         try {
-          await api.del(`/object-records/${encodeURIComponent(id)}`);
+          await gateway.deleteRecord(id);
         } catch {
           setRecords(previous);
         }
       }
     },
-    [objectDefinition, objectFields, records, runtime, runtimeProps],
+    [canWrite, gateway, objectDefinition, objectFields, records, runtime, runtimeProps],
   );
 
   const output = useMemo(

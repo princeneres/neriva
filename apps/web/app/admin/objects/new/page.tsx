@@ -17,6 +17,7 @@ export default function NewObjectDefinitionPage() {
       name: values.name,
       pluralName: values.pluralName,
       ...(description ? { description } : {}),
+      publicAccess: values.publicAccess,
       fields: values.fields,
     });
     notifications.show({

@@ -17,6 +17,7 @@ import {
   Title,
   Tooltip,
 } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import {
@@ -37,18 +38,24 @@ import {
 } from '../../../components/folder-organizer';
 import { HelpTip } from '../../../components/help-tip';
 import { ApiError, api } from '../../../lib/api';
-import { OBJECTS_HELP, type ObjectDefinition } from './types';
+import { SEARCH_DEBOUNCE_MS, buildListPath, isSearching } from '../../../lib/list-query';
+import { OBJECTS_HELP, publicAccessLabel, type ObjectDefinition } from './types';
 import { useState } from 'react';
 
 const SKELETON_ROWS = [1, 2, 3, 4];
 
 export default function ObjectDefinitionsPage() {
   const [search, setSearch] = useState('');
+  const [debouncedSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
   const [sort, setSort] = useState('name');
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-  const listPath = selectedFolder
-    ? `/object-definitions?folder=${encodeURIComponent(selectedFolder)}`
-    : '/object-definitions';
+  // The term is part of the request path, so the server filters every object
+  // and the filtered listing gets its own cache entry.
+  const searching = isSearching(debouncedSearch);
+  const listPath = buildListPath('/object-definitions', {
+    folder: selectedFolder,
+    search: debouncedSearch,
+  });
   const {
     items,
     loading,
@@ -101,20 +108,14 @@ export default function ObjectDefinitionsPage() {
     });
   }
 
-  const query = search.trim().toLowerCase();
   const visibleItems = items
     .filter((row) => selectedFolder === null || folders.folderFor(row.id) === selectedFolder)
-    .filter(
-      (row) =>
-        query === '' ||
-        [row.name, row.pluralName, row.description ?? ''].some((value) =>
-          value.toLowerCase().includes(query),
-        ),
-    )
     .sort((a, b) =>
       sort === 'created' ? b.createdAt.localeCompare(a.createdAt) : a.name.localeCompare(b.name),
     );
-  const showEmptyState = !loading && items.length === 0;
+  // An empty result while searching is not an empty catalogue, so the
+  // onboarding card stays out of the way.
+  const showEmptyState = !loading && !searching && items.length === 0;
 
   return (
     <>
@@ -196,70 +197,96 @@ export default function ObjectDefinitionsPage() {
                         Fields
                         <HelpTip label="How many columns this table has" />
                       </Table.Th>
+                      <Table.Th>
+                        Visibility
+                        <HelpTip label="What visitors who are not signed in can do with these records" />
+                      </Table.Th>
                       <Table.Th>Created</Table.Th>
                       <Table.Th aria-label="Actions" />
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
-                    {loading && items.length === 0
-                      ? SKELETON_ROWS.map((row) => (
-                          <Table.Tr key={row}>
-                            <Table.Td colSpan={5}>
-                              <Skeleton height={14} />
-                            </Table.Td>
-                          </Table.Tr>
-                        ))
-                      : visibleItems.map((definition) => (
-                          <Table.Tr key={definition.id}>
-                            <Table.Td fw={600}>{definition.name}</Table.Td>
-                            <Table.Td>{definition.pluralName}</Table.Td>
-                            <Table.Td>
-                              <Badge color="gray">{definition.fields.length}</Badge>
-                            </Table.Td>
-                            <Table.Td>{new Date(definition.createdAt).toLocaleString()}</Table.Td>
-                            <Table.Td>
-                              <Group gap={4} justify="flex-end" wrap="nowrap">
-                                <FolderPicker
-                                  value={folders.folderFor(definition.id)}
-                                  folders={folders.folders}
-                                  onChange={(folderId) =>
-                                    folders.assignItem(definition.id, folderId)
-                                  }
-                                />
-                                <Tooltip label="Browse records">
-                                  <ActionIcon
-                                    component={Link}
-                                    href={`/admin/objects/${definition.id}/records`}
-                                    variant="subtle"
-                                    aria-label={`Browse ${definition.pluralName} records`}
-                                  >
-                                    <IconTable size={16} />
-                                  </ActionIcon>
-                                </Tooltip>
-                                <Tooltip label="Edit object">
-                                  <ActionIcon
-                                    component={Link}
-                                    href={`/admin/objects/${definition.id}`}
-                                    variant="subtle"
-                                    aria-label={`Edit ${definition.name}`}
-                                  >
-                                    <IconPencil size={16} />
-                                  </ActionIcon>
-                                </Tooltip>
-                                <Tooltip label="Delete object">
-                                  <ActionIcon
-                                    variant="subtle"
-                                    color="red"
-                                    aria-label={`Delete ${definition.name}`}
-                                    onClick={() => confirmDelete(definition)}
-                                  >
-                                    <IconTrash size={16} />
-                                  </ActionIcon>
-                                </Tooltip>
-                              </Group>
-                            </Table.Td>
-                          </Table.Tr>
-                        ))}
+                    {loading && items.length === 0 ? (
+                      SKELETON_ROWS.map((row) => (
+                        <Table.Tr key={row}>
+                          <Table.Td colSpan={6}>
+                            <Skeleton height={14} />
+                          </Table.Td>
+                        </Table.Tr>
+                      ))
+                    ) : visibleItems.length === 0 ? (
+                      <Table.Tr>
+                        <Table.Td colSpan={6}>
+                          <Text size="sm" c="slate.5" ta="center" py="xl">
+                            No objects match &quot;{debouncedSearch.trim()}&quot;.
+                          </Text>
+                        </Table.Td>
+                      </Table.Tr>
+                    ) : (
+                      visibleItems.map((definition) => (
+                        <Table.Tr key={definition.id}>
+                          <Table.Td fw={600}>{definition.name}</Table.Td>
+                          <Table.Td>{definition.pluralName}</Table.Td>
+                          <Table.Td>
+                            <Badge color="gray">{definition.fields.length}</Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge
+                              variant={definition.publicAccess === 'none' ? 'light' : 'filled'}
+                              color={
+                                definition.publicAccess === 'read-write'
+                                  ? 'orange'
+                                  : definition.publicAccess === 'read'
+                                    ? 'blue'
+                                    : 'gray'
+                              }
+                            >
+                              {publicAccessLabel(definition.publicAccess)}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>{new Date(definition.createdAt).toLocaleString()}</Table.Td>
+                          <Table.Td>
+                            <Group gap={4} justify="flex-end" wrap="nowrap">
+                              <FolderPicker
+                                value={folders.folderFor(definition.id)}
+                                folders={folders.folders}
+                                onChange={(folderId) => folders.assignItem(definition.id, folderId)}
+                              />
+                              <Tooltip label="Browse records">
+                                <ActionIcon
+                                  component={Link}
+                                  href={`/admin/objects/${definition.id}/records`}
+                                  variant="subtle"
+                                  aria-label={`Browse ${definition.pluralName} records`}
+                                >
+                                  <IconTable size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                              <Tooltip label="Edit object">
+                                <ActionIcon
+                                  component={Link}
+                                  href={`/admin/objects/${definition.id}`}
+                                  variant="subtle"
+                                  aria-label={`Edit ${definition.name}`}
+                                >
+                                  <IconPencil size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                              <Tooltip label="Delete object">
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="red"
+                                  aria-label={`Delete ${definition.name}`}
+                                  onClick={() => confirmDelete(definition)}
+                                >
+                                  <IconTrash size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))
+                    )}
                   </Table.Tbody>
                 </Table>
               </Table.ScrollContainer>

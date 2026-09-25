@@ -132,6 +132,10 @@ There is deliberately no public single-entry endpoint and no public write endpoi
 
 - `content-type: text/css`. Returns two blocks for the tenant's most recently published Style Book (highest `updatedAt` among PUBLISHED): the light tokens on `:root { --nv-<token>: <value>; }`, then the dark tokens on `.nv-site-root:has(#nv-theme-toggle:checked) { --nv-<token>: <value>; }` (spec 06 dark-mode amendment). Empty `:root {}` with no dark block when no Style Book exists.
 
+## Relationship with the public Objects surface
+
+`/public` is the anonymous prefix of the whole API, not the private property of this module. Spec 05 adds `/public/object-definitions/...` under the same prefix and the same "no bearer token, no management envelope" contract, but it lives in the Objects module: delivery is site-scoped and read-only by definition, while that surface is tenant-scoped and carries anonymous writes into an explicitly opted-in Object. Nothing in this spec changes: delivery itself stays read-only and there is still no public write endpoint here.
+
 ## Rules
 
 - v1 is single-tenant per deploy: resolve the tenant the same way login does (default tenant by ERC). All queries remain tenant-scoped.

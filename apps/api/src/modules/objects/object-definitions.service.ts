@@ -3,8 +3,13 @@ import { and, asc, eq, gt } from 'drizzle-orm';
 import type { InferSelectModel } from 'drizzle-orm';
 import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
 import { isForeignKeyViolation, isUniqueViolation } from '../../common/pg-errors';
+import { normalizeSearchTerm, substringSearch } from '../../common/search';
 import { DB, type Database } from '../../db/database';
-import { objectDefinitions, type ObjectFieldDefinition } from '../../db/schema';
+import {
+  objectDefinitions,
+  type ObjectFieldDefinition,
+  type ObjectPublicAccess,
+} from '../../db/schema';
 import { TenantScopedRepository, type CursorPage } from '../../db/tenant-scoped.repository';
 import { validateDefinitionFields } from './object-field.validation';
 import { ResourceFoldersService } from '../resource-folders/resource-folders.service';
@@ -22,12 +27,17 @@ export class ObjectDefinitionsService {
     return new TenantScopedRepository(this.db, objectDefinitions, tenantId);
   }
 
+  // Same shape as content types: a modelling artefact counted in tens, so a
+  // plain accent insensitive substring match with no index behind it.
   async list(
     tenantId: string,
-    params: { limit?: number; cursor?: string; folder?: string },
+    params: { limit?: number; cursor?: string; folder?: string; search?: string },
   ): Promise<CursorPage<ObjectDefinitionRow>> {
-    if (!params.folder) return this.repo(tenantId).list(params);
-    const folder = await this.foldersService.assertForResource(tenantId, params.folder, 'objects');
+    const search = normalizeSearchTerm(params.search);
+    if (!params.folder && search === undefined) return this.repo(tenantId).list(params);
+    const folder = params.folder
+      ? await this.foldersService.assertForResource(tenantId, params.folder, 'objects')
+      : null;
     const limit = clampLimit(params.limit);
     const rows = await this.db
       .select()
@@ -35,7 +45,14 @@ export class ObjectDefinitionsService {
       .where(
         and(
           eq(objectDefinitions.tenantId, tenantId),
-          eq(objectDefinitions.folderId, folder.id),
+          folder ? eq(objectDefinitions.folderId, folder.id) : undefined,
+          search
+            ? substringSearch(search, [
+                objectDefinitions.name,
+                objectDefinitions.pluralName,
+                objectDefinitions.description,
+              ])
+            : undefined,
           params.cursor ? gt(objectDefinitions.id, decodeCursor(params.cursor).id) : undefined,
         ),
       )
@@ -68,6 +85,7 @@ export class ObjectDefinitionsService {
       externalReferenceCode?: string;
       fields: ObjectFieldDefinition[];
       folderId?: string | null;
+      publicAccess?: ObjectPublicAccess;
     },
   ): Promise<ObjectDefinitionRow> {
     validateDefinitionFields(input.fields);
@@ -86,6 +104,8 @@ export class ObjectDefinitionsService {
         // undefined lets the envelope default generate one
         externalReferenceCode: input.externalReferenceCode,
         folderId: folder?.id ?? null,
+        // Explicit opt-in only; omitting the field leaves the definition private.
+        publicAccess: input.publicAccess ?? 'none',
       };
       return await this.repo(tenantId).create(values);
     } catch (error) {
@@ -107,6 +127,7 @@ export class ObjectDefinitionsService {
       description?: string;
       fields?: ObjectFieldDefinition[];
       folderId?: string | null;
+      publicAccess?: ObjectPublicAccess;
     },
   ): Promise<ObjectDefinitionRow> {
     const existing = await this.getByRef(tenantId, ref);
@@ -119,6 +140,7 @@ export class ObjectDefinitionsService {
       description: string | null;
       fields: ObjectFieldDefinition[];
       folderId: string | null;
+      publicAccess: ObjectPublicAccess;
     }> = {};
     if (input.name !== undefined) {
       values.name = input.name;
@@ -134,6 +156,7 @@ export class ObjectDefinitionsService {
       values.fields = input.fields;
     }
     if (input.folderId !== undefined) values.folderId = folder?.id ?? null;
+    if (input.publicAccess !== undefined) values.publicAccess = input.publicAccess;
     if (Object.keys(values).length === 0) {
       return existing;
     }

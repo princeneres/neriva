@@ -1,7 +1,12 @@
 import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
 import type { ObjectFieldDefinition } from '../../db/schema';
-import { validateDefinitionFields, validateRecordData } from './object-field.validation';
+import {
+  DEFAULT_RECORD_SIZE_LIMITS,
+  PUBLIC_RECORD_SIZE_LIMITS,
+  validateDefinitionFields,
+  validateRecordData,
+} from './object-field.validation';
 
 const fields: ObjectFieldDefinition[] = [
   { key: 'title', label: 'Title', type: 'text', required: true },
@@ -145,5 +150,25 @@ describe('validateRecordData', () => {
     expect(() => validateRecordData(fields, { title: 'x', status: 'archived' })).toThrow(
       BadRequestException,
     );
+  });
+  it('accepts a text value at the default ceiling and rejects one past it', () => {
+    const atLimit = 'a'.repeat(DEFAULT_RECORD_SIZE_LIMITS.maxTextLength);
+    expect(() => validateRecordData(fields, { title: atLimit })).not.toThrow();
+    expect(() => validateRecordData(fields, { title: `${atLimit}a` })).toThrow(BadRequestException);
+  });
+
+  it('rejects a payload over the byte ceiling before looking at the fields', () => {
+    // Multi-byte padding: the limit is on bytes, so a caller cannot buy room
+    // by switching alphabet.
+    const oversized = 'ã'.repeat(DEFAULT_RECORD_SIZE_LIMITS.maxPayloadBytes);
+    expect(() => validateRecordData(fields, { title: oversized })).toThrow(BadRequestException);
+  });
+
+  it('applies the tighter public limits when they are passed', () => {
+    const overPublic = 'a'.repeat(PUBLIC_RECORD_SIZE_LIMITS.maxTextLength + 1);
+    expect(() => validateRecordData(fields, { title: overPublic })).not.toThrow();
+    expect(() =>
+      validateRecordData(fields, { title: overPublic }, PUBLIC_RECORD_SIZE_LIMITS),
+    ).toThrow(BadRequestException);
   });
 });

@@ -11,9 +11,14 @@ import {
   MaxLength,
   ValidateNested,
 } from 'class-validator';
-import { OBJECT_FIELD_TYPES, type ObjectFieldType } from '../../../db/schema';
+import {
+  OBJECT_FIELD_TYPES,
+  OBJECT_PUBLIC_ACCESS_MODES,
+  type ObjectFieldType,
+  type ObjectPublicAccess,
+} from '../../../db/schema';
 import { FIELD_KEY_PATTERN } from '../object-field.validation';
-import { ListQueryDto } from '../../../common/list-query.dto';
+import { SearchableListQueryDto } from '../../../common/list-query.dto';
 
 export class ObjectFieldDto {
   @ApiProperty({ pattern: FIELD_KEY_PATTERN.source, example: 'firstName' })
@@ -70,6 +75,17 @@ export class CreateObjectDefinitionDto {
   @IsString()
   folderId?: string | null;
 
+  @ApiPropertyOptional({
+    enum: OBJECT_PUBLIC_ACCESS_MODES,
+    description:
+      'Anonymous access to this object through /public/object-definitions. ' +
+      "Defaults to 'none', which keeps it private. 'read' lets anonymous visitors list its " +
+      "records; 'read-write' also lets them create, edit and delete any of them.",
+  })
+  @IsOptional()
+  @IsIn(OBJECT_PUBLIC_ACCESS_MODES)
+  publicAccess?: ObjectPublicAccess;
+
   @ApiProperty({ type: [ObjectFieldDto] })
   @IsArray()
   @ValidateNested({ each: true })
@@ -108,9 +124,20 @@ export class UpdateObjectDefinitionDto {
   @IsOptional()
   @IsString()
   folderId?: string | null;
+
+  @ApiPropertyOptional({
+    enum: OBJECT_PUBLIC_ACCESS_MODES,
+    description:
+      'Anonymous access to this object through /public/object-definitions. ' +
+      "Defaults to 'none', which keeps it private. 'read' lets anonymous visitors list its " +
+      "records; 'read-write' also lets them create, edit and delete any of them.",
+  })
+  @IsOptional()
+  @IsIn(OBJECT_PUBLIC_ACCESS_MODES)
+  publicAccess?: ObjectPublicAccess;
 }
 
-export class ListObjectDefinitionsQueryDto extends ListQueryDto {
+export class ListObjectDefinitionsQueryDto extends SearchableListQueryDto {
   @ApiPropertyOptional({ format: 'uuid', description: 'Only objects assigned to this folder' })
   @IsOptional()
   @IsString()
