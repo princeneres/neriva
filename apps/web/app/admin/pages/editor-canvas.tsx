@@ -28,6 +28,7 @@ import {
   type MouseEvent,
   type ReactNode,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -352,21 +353,26 @@ function EditableHtml({
   onEdit: (kind: 'text' | 'rich', propKey: string, element: HTMLElement) => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const initialHtml = useRef(html);
-  const appliedHtml = useRef(html);
+  const appliedHtml = useRef<string | null>(null);
   const onEditRef = useRef(onEdit);
   onEditRef.current = onEdit;
 
-  useEffect(() => {
+  // This effect owns the markup, not React: with dangerouslySetInnerHTML,
+  // React wrote the stale initial markup back on later renders and undid prop
+  // edits made from the inspector.
+  useLayoutEffect(() => {
     const element = ref.current;
     if (element === null) {
       return;
     }
     if (appliedHtml.current !== html) {
-      appliedHtml.current = html;
       const active = document.activeElement;
       const editingHere =
-        active instanceof HTMLElement && active.isContentEditable && element.contains(active);
+        appliedHtml.current !== null &&
+        active instanceof HTMLElement &&
+        active.isContentEditable &&
+        element.contains(active);
+      appliedHtml.current = html;
       if (!editingHere) {
         element.innerHTML = html;
       }
@@ -419,14 +425,7 @@ function EditableHtml({
     return () => element.removeEventListener('input', handler);
   }, []);
 
-  return (
-    <div
-      ref={ref}
-      style={{ display: 'contents' }}
-      // Written once; later updates go through the effect above.
-      dangerouslySetInnerHTML={{ __html: initialHtml.current }}
-    />
-  );
+  return <div ref={ref} style={{ display: 'contents' }} />;
 }
 
 interface ImageTarget {
