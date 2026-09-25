@@ -1,10 +1,12 @@
 import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { and, eq } from 'drizzle-orm';
+import { DEFAULT_STYLE_BOOK_TOKENS } from '../common/style-tokens';
 import { DB, type Database } from './database';
-import { rolePermissions, roles, tenants, userRoles, users } from './schema';
+import { rolePermissions, roles, styleBooks, tenants, userRoles, users } from './schema';
 
 export const DEFAULT_TENANT_ERC = 'default';
+export const BASE_STYLE_BOOK_ERC = 'base-style-book';
 export const ADMIN_ROLE_ERC = 'administrator';
 // "Manager" (not "Editor") because the grant covers the full content
 // lifecycle, publish included, not just drafting; kept distinct from the
@@ -193,6 +195,37 @@ export class SeedService implements OnApplicationBootstrap {
         .insert(userRoles)
         .values({ userId: adminUser.id, roleId: adminRole.id, tenantId: tenant.id })
         .onConflictDoNothing();
+
+      // The default token set as an editable entity, so an install with no
+      // content at all still puts the full set of design decisions in front of
+      // the client instead of an empty Style Book screen. Seeded DRAFT on
+      // purpose: delivery serves the most recently published Style Book of the
+      // tenant, so a PUBLISHED row here would take over a site that already has
+      // its own theme on the next boot. Publishing it is the client's
+      // deliberate act, and until then the same values still apply through the
+      // var() fallbacks the native blocks carry.
+      const existingBaseStyleBook = (
+        await tx
+          .select({ id: styleBooks.id })
+          .from(styleBooks)
+          .where(
+            and(
+              eq(styleBooks.tenantId, tenant.id),
+              eq(styleBooks.externalReferenceCode, BASE_STYLE_BOOK_ERC),
+            ),
+          )
+          .limit(1)
+      )[0];
+      if (!existingBaseStyleBook) {
+        await tx.insert(styleBooks).values({
+          tenantId: tenant.id,
+          externalReferenceCode: BASE_STYLE_BOOK_ERC,
+          name: 'Neriva Base',
+          tokens: DEFAULT_STYLE_BOOK_TOKENS,
+          status: 'DRAFT',
+        });
+        this.logger.log('Seeded the base Style Book with the default token set');
+      }
     });
   }
 }

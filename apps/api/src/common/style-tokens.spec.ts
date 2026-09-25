@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderTokensCss } from './style-tokens';
+import { DEFAULT_STYLE_BOOK_TOKENS, renderTokensCss } from './style-tokens';
 
 describe('renderTokensCss', () => {
   it('renders tokens as --nv- prefixed custom properties on :root', () => {
@@ -98,6 +98,70 @@ describe('renderTokensCss', () => {
         '  }\n' +
         '}\n',
     );
+  });
+
+  it('derives a dimmer light neutral for a muted text role, not the full-strength one', () => {
+    // Regression guard for the rule order: "color-text-muted" contains
+    // "text", so without the muted check running first the secondary text of
+    // every block would come back at full brightness in dark mode.
+    const css = renderTokensCss({ 'color-text': '#1a1917', 'color-text-muted': '#6f6a63' });
+    expect(css).toContain('--nv-color-text: #f4f3f1;');
+    expect(css).toContain('--nv-color-text-muted: #a29c93;');
+  });
+
+  it('lightens a destructive color, which would be unreadable on a dark ground', () => {
+    const css = renderTokensCss({ 'color-danger': '#9d2637' });
+    expect(css).toContain('--nv-color-danger: #ff6b6b;');
+  });
+
+  it('keeps brand roles unchanged, including the hover and the on-primary contrast', () => {
+    const css = renderTokensCss({
+      'color-primary': '#cc3d47',
+      'color-primary-hover': '#b53540',
+      'color-primary-contrast': '#ffffff',
+    });
+    expect(css).toContain(
+      ":root[data-nv-theme='dark'],\n.nv-site-root:has(#nv-theme-toggle:checked) {\n" +
+        '  --nv-color-primary: #cc3d47;\n' +
+        '  --nv-color-primary-contrast: #ffffff;\n' +
+        '  --nv-color-primary-hover: #b53540;\n' +
+        '}\n',
+    );
+  });
+
+  it('deepens the ink of a known elevation step and leaves an unknown one alone', () => {
+    const css = renderTokensCss({
+      'shadow-sm': '0 1px 3px rgba(26, 25, 23, 0.06)',
+      'shadow-inset': 'inset 0 1px 0 #fff',
+    });
+    expect(css).toContain('--nv-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);');
+    expect(css).toContain('--nv-shadow-inset: inset 0 1px 0 #fff;');
+  });
+
+  it('carries every non-color token of the default set into dark mode unchanged', () => {
+    const css = renderTokensCss({ ...DEFAULT_STYLE_BOOK_TOKENS });
+    const dark = css.slice(css.indexOf(":root[data-nv-theme='dark']"));
+    for (const [name, value] of Object.entries(DEFAULT_STYLE_BOOK_TOKENS)) {
+      if (name.startsWith('color-') || name.startsWith('shadow-')) {
+        continue;
+      }
+      expect(dark, `${name} must be theme-agnostic`).toContain(`--nv-${name}: ${value};`);
+    }
+  });
+
+  it('gives every color of the default set a dark value that is not its light one', () => {
+    // A token whose dark counterpart is missing would make the theme toggle a
+    // partial no-op, which is the failure mode the derivation exists to
+    // prevent. Brand colors are the deliberate exception: a brand stays itself.
+    const brandRoles = ['color-primary', 'color-primary-hover', 'color-primary-contrast'];
+    const css = renderTokensCss({ ...DEFAULT_STYLE_BOOK_TOKENS });
+    const dark = css.slice(css.indexOf(":root[data-nv-theme='dark']"));
+    for (const [name, value] of Object.entries(DEFAULT_STYLE_BOOK_TOKENS)) {
+      if (!name.startsWith('color-') || brandRoles.includes(name)) {
+        continue;
+      }
+      expect(dark, `${name} has no dark counterpart`).not.toContain(`--nv-${name}: ${value};`);
+    }
   });
 
   it('emits no dark blocks at all for an empty token map', () => {

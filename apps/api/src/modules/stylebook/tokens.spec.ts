@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_STYLE_BOOK_TOKENS } from '../../common/style-tokens';
 import { findTokenViolations } from './tokens';
 
 describe('findTokenViolations', () => {
+  // The default set is seeded straight into a row, bypassing the controller,
+  // so nothing else would catch a name the write path would reject (a token
+  // like "font-size-2XL" or an accidentally empty value).
+  it('accepts the seeded default token set', () => {
+    expect(findTokenViolations({ ...DEFAULT_STYLE_BOOK_TOKENS })).toBeNull();
+  });
+
   it('accepts a valid token map', () => {
     expect(
       findTokenViolations({
