@@ -5,7 +5,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, sql, type InferSelectModel } from 'drizzle-orm';
+import { and, asc, eq, gt, sql, type InferSelectModel } from 'drizzle-orm';
+import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
+import { normalizeSearchTerm, substringSearch } from '../../common/search';
 import { isUniqueViolation } from '../../common/pg-errors';
 import { DB, type Database } from '../../db/database';
 import { styleBooks } from '../../db/schema';
@@ -22,11 +24,38 @@ export class StylebookService {
     return new TenantScopedRepository(this.db, styleBooks, tenantId);
   }
 
+  // A tenant keeps a couple of style books, so the search is a plain accent
+  // insensitive substring match with no index behind it.
   async list(
     tenantId: string,
-    params: { limit?: number; cursor?: string },
+    params: { limit?: number; cursor?: string; search?: string },
   ): Promise<CursorPage<StyleBookRow>> {
-    return this.repo(tenantId).list(params);
+    const search = normalizeSearchTerm(params.search);
+    if (search === undefined) {
+      return this.repo(tenantId).list(params);
+    }
+    // The generic repository has no extra-filter support; this mirrors its
+    // pagination logic with the tenant filter applied explicitly.
+    const limit = clampLimit(params.limit);
+    const rows = await this.db
+      .select()
+      .from(styleBooks)
+      .where(
+        and(
+          eq(styleBooks.tenantId, tenantId),
+          substringSearch(search, [styleBooks.name]),
+          params.cursor ? gt(styleBooks.id, decodeCursor(params.cursor).id) : undefined,
+        ),
+      )
+      .orderBy(asc(styleBooks.id))
+      .limit(limit + 1);
+    const items = rows.slice(0, limit);
+    const last = items[items.length - 1];
+    return {
+      items,
+      nextCursor: rows.length > limit && last ? encodeCursor(last.id) : null,
+      limit,
+    };
   }
 
   async getByRef(tenantId: string, ref: string): Promise<StyleBookRow> {

@@ -1,6 +1,8 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import * as argon2 from 'argon2';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray } from 'drizzle-orm';
+import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
+import { normalizeSearchTerm, trigramSearch } from '../../common/search';
 import { isUniqueViolation } from '../../common/pg-errors';
 import { DB, type Database } from '../../db/database';
 import { roles, userRoles, users } from '../../db/schema';
@@ -15,12 +17,40 @@ export class UsersService {
     return new TenantScopedRepository(this.db, users, tenantId);
   }
 
+  // Accounts can reach the thousands in a large deploy, and a display name is
+  // exactly the short, accented, often mistyped string trigram search is for
+  // (users_search_idx).
   async list(
     tenantId: string,
-    params: { limit?: number; cursor?: string },
+    params: { limit?: number; cursor?: string; search?: string },
   ): Promise<CursorPage<PublicUser>> {
-    const page = await this.repo(tenantId).list(params);
-    return { ...page, items: page.items.map(toPublicUser) };
+    const search = normalizeSearchTerm(params.search);
+    if (search === undefined) {
+      const page = await this.repo(tenantId).list(params);
+      return { ...page, items: page.items.map(toPublicUser) };
+    }
+    // The generic repository has no extra-filter support; this mirrors its
+    // pagination logic with the tenant filter applied explicitly.
+    const limit = clampLimit(params.limit);
+    const rows = await this.db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.tenantId, tenantId),
+          trigramSearch(search, [users.displayName, users.email]),
+          params.cursor ? gt(users.id, decodeCursor(params.cursor).id) : undefined,
+        ),
+      )
+      .orderBy(asc(users.id))
+      .limit(limit + 1);
+    const window = rows.slice(0, limit);
+    const last = window[window.length - 1];
+    return {
+      items: window.map(toPublicUser),
+      nextCursor: rows.length > limit && last ? encodeCursor(last.id) : null,
+      limit,
+    };
   }
 
   async getByRef(tenantId: string, ref: string): Promise<PublicUser> {

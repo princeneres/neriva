@@ -9,6 +9,7 @@ import { and, asc, eq, gt } from 'drizzle-orm';
 import type { InferSelectModel } from 'drizzle-orm';
 import { isUniqueViolation } from '../../common/pg-errors';
 import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
+import { normalizeSearchTerm, trigramSearch } from '../../common/search';
 import { DB, type Database } from '../../db/database';
 import { blocks, type BlockSlot, type BlockTemplateSource } from '../../db/schema';
 import { TenantScopedRepository, type CursorPage } from '../../db/tenant-scoped.repository';
@@ -34,11 +35,21 @@ export class BlocksService {
     return new TenantScopedRepository(this.db, blocks, tenantId);
   }
 
+  // Search is trigram based over name, category and description
+  // (blocks_search_idx): short labels an editor half remembers, so substring
+  // plus typo tolerance is worth more than stemming here.
   async list(
     tenantId: string,
-    params: { limit?: number; cursor?: string; status?: BlockStatus; folder?: string },
+    params: {
+      limit?: number;
+      cursor?: string;
+      status?: BlockStatus;
+      folder?: string;
+      search?: string;
+    },
   ): Promise<CursorPage<BlockRow>> {
-    if (params.status === undefined && params.folder === undefined) {
+    const search = normalizeSearchTerm(params.search);
+    if (params.status === undefined && params.folder === undefined && search === undefined) {
       return this.repo(tenantId).list(params);
     }
     // The generic repository has no extra-filter support; this mirrors its
@@ -52,6 +63,9 @@ export class BlocksService {
             blocks.folderId,
             (await this.foldersService.assertForResource(tenantId, params.folder, 'blocks')).id,
           )
+        : undefined,
+      search
+        ? trigramSearch(search, [blocks.name, blocks.category, blocks.description])
         : undefined,
       params.cursor ? gt(blocks.id, decodeCursor(params.cursor).id) : undefined,
     ];

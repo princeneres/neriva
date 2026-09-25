@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
 import { ApiDataResponse, ApiListResponse } from '../../common/api-envelope.decorators';
-import { ListQueryDto } from '../../common/list-query.dto';
+import { SearchableListQueryDto } from '../../common/list-query.dto';
 import { CurrentUser } from '../auth/auth.decorators';
 import type { AuthenticatedUser, PublicUser } from '../auth/auth.types';
 import { PublicUserDto } from '../auth/dto/auth-response.dto';
@@ -23,7 +23,7 @@ export class UsersController {
   @RequirePermission('user:read')
   async list(
     @CurrentUser() user: AuthenticatedUser,
-    @Query() query: ListQueryDto,
+    @Query() query: SearchableListQueryDto,
   ): Promise<{ data: PublicUser[]; meta: { cursor: string | null; limit: number } }> {
     const page = await this.usersService.list(user.tenantId, query);
     return { data: page.items, meta: { cursor: page.nextCursor, limit: page.limit } };

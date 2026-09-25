@@ -19,6 +19,7 @@ import {
   ThemeIcon,
   Title,
 } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import {
@@ -41,6 +42,7 @@ import {
   useFolderOrganization,
 } from '../../../components/folder-organizer';
 import { ApiError, api } from '../../../lib/api';
+import { SEARCH_DEBOUNCE_MS, buildListPath, isSearching } from '../../../lib/list-query';
 import classes from './blocks-gallery.module.css';
 import type { Block } from './types';
 
@@ -107,12 +109,18 @@ function groupByCategory(blocks: Block[]): BlockGroup[] {
 
 export default function BlocksPage() {
   const [search, setSearch] = useState('');
+  const [debouncedSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
   const [category, setCategory] = useState<string>(ALL_CATEGORIES);
   const [sort, setSort] = useState('name');
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-  const listPath = selectedFolder
-    ? `/blocks?folder=${encodeURIComponent(selectedFolder)}`
-    : '/blocks';
+  // The term is part of the request path, so the server filters the whole
+  // library instead of the page already on screen, and the filtered listing
+  // gets its own cache entry.
+  const searching = isSearching(debouncedSearch);
+  const listPath = buildListPath('/blocks', {
+    folder: selectedFolder,
+    search: debouncedSearch,
+  });
   const {
     items,
     loading,
@@ -181,31 +189,29 @@ export default function BlocksPage() {
     });
   }
 
-  const showEmptyState = !loading && items.length === 0;
+  // Only "no blocks at all" deserves the onboarding card; an empty result set
+  // while searching is a different message, below.
+  const showEmptyState = !loading && !searching && items.length === 0;
 
   const categoryOptions = [
     { value: ALL_CATEGORIES, label: 'All categories' },
-    ...[...new Set(items.map((block) => categoryKey(block)))]
+    // The selected category stays selectable even when the current result set
+    // no longer contains it.
+    ...[
+      ...new Set([
+        ...items.map((block) => categoryKey(block)),
+        ...(category !== ALL_CATEGORIES ? [category] : []),
+      ]),
+    ]
       .sort((a, b) => groupRank(a) - groupRank(b) || a.localeCompare(b))
       .map((key) => ({ value: key, label: categoryLabel(key) })),
   ];
 
-  const query = search.trim().toLowerCase();
   const visible = items.filter((block) => {
     if (selectedFolder !== null && folders.folderFor(block.id) !== selectedFolder) {
       return false;
     }
-    if (category !== ALL_CATEGORIES && categoryKey(block) !== category) {
-      return false;
-    }
-    if (query === '') {
-      return true;
-    }
-    return (
-      block.name.toLowerCase().includes(query) ||
-      (block.description ?? '').toLowerCase().includes(query) ||
-      block.externalReferenceCode.toLowerCase().includes(query)
-    );
+    return category === ALL_CATEGORIES || categoryKey(block) === category;
   });
   const sortBlocks = (a: Block, b: Block) => {
     if (sort === 'updated') return b.updatedAt.localeCompare(a.updatedAt);
@@ -313,7 +319,9 @@ export default function BlocksPage() {
               ) : groups.length === 0 ? (
                 <Card>
                   <Text size="sm" c="slate.5" ta="center" py="xl">
-                    No blocks match your search or folder.
+                    {searching
+                      ? `No blocks match "${debouncedSearch.trim()}". Search looks at every block, not just this page.`
+                      : 'No blocks match your folder or category.'}
                   </Text>
                 </Card>
               ) : (

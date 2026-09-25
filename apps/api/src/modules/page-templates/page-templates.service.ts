@@ -10,6 +10,7 @@ import type { InferSelectModel } from 'drizzle-orm';
 import { isUniqueViolation } from '../../common/pg-errors';
 import { expectedUpdatedAt, staleResource } from '../../common/optimistic-concurrency';
 import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
+import { normalizeSearchTerm, substringSearch } from '../../common/search';
 import { DB, type Database } from '../../db/database';
 import {
   blocks,
@@ -47,11 +48,14 @@ export class PageTemplatesService {
     return new TenantScopedRepository(this.db, pageTemplates, tenantId);
   }
 
+  // Templates are counted in tens and have a single searchable column, so the
+  // search is a plain accent insensitive substring match with no index.
   async list(
     tenantId: string,
-    params: { limit?: number; cursor?: string; kind?: PageTemplateKind },
+    params: { limit?: number; cursor?: string; kind?: PageTemplateKind; search?: string },
   ): Promise<CursorPage<PageTemplateRow>> {
-    if (params.kind === undefined) {
+    const search = normalizeSearchTerm(params.search);
+    if (params.kind === undefined && search === undefined) {
       return this.repo(tenantId).list(params);
     }
     // The generic repository has no extra-filter support; this mirrors its
@@ -60,7 +64,8 @@ export class PageTemplatesService {
     const limit = clampLimit(params.limit);
     const conditions = [
       eq(pageTemplates.tenantId, tenantId),
-      eq(pageTemplates.kind, params.kind),
+      params.kind ? eq(pageTemplates.kind, params.kind) : undefined,
+      search ? substringSearch(search, [pageTemplates.name]) : undefined,
       params.cursor ? gt(pageTemplates.id, decodeCursor(params.cursor).id) : undefined,
     ];
     const rows = await this.db

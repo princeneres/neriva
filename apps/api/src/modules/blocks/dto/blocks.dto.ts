@@ -10,7 +10,7 @@ import {
   MaxLength,
   ValidateNested,
 } from 'class-validator';
-import { ListQueryDto } from '../../../common/list-query.dto';
+import { SearchableListQueryDto } from '../../../common/list-query.dto';
 
 export const BLOCK_STATUSES = ['DRAFT', 'PUBLISHED', 'ARCHIVED'] as const;
 export type BlockStatus = (typeof BLOCK_STATUSES)[number];
@@ -175,7 +175,7 @@ export class UpdateBlockDto {
   folderId?: string | null;
 }
 
-export class ListBlocksQueryDto extends ListQueryDto {
+export class ListBlocksQueryDto extends SearchableListQueryDto {
   @ApiPropertyOptional({ enum: BLOCK_STATUSES })
   @IsOptional()
   @IsIn(BLOCK_STATUSES)

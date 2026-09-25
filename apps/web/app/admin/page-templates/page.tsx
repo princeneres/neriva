@@ -12,9 +12,11 @@ import {
   Skeleton,
   Stack,
   Text,
+  TextInput,
   ThemeIcon,
   Title,
 } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import {
@@ -23,12 +25,15 @@ import {
   IconLayoutBoard,
   IconPencil,
   IconPlus,
+  IconSearch,
   IconTemplate,
   IconTrash,
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useState } from 'react';
 import { useCursorList } from '../../../components/data-table';
 import { ApiError, api } from '../../../lib/api';
+import { SEARCH_DEBOUNCE_MS, buildListPath, isSearching } from '../../../lib/list-query';
 import classes from './page-templates-gallery.module.css';
 import { countBlocks, type PageTemplate, type PageTemplateKind } from './types';
 
@@ -66,8 +71,15 @@ function groupByKind(items: PageTemplate[]): Group[] {
 }
 
 export default function PageTemplatesPage() {
+  const [search, setSearch] = useState('');
+  const [debouncedSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
+  // The term is part of the request path, so the server filters every template
+  // rather than the ones already loaded, and the filtered listing gets its own
+  // cache entry.
+  const searching = isSearching(debouncedSearch);
+  const listPath = buildListPath('/page-templates', { search: debouncedSearch });
   const { items, loading, hasMore, refresh, loadMore } = useCursorList<PageTemplate>(
-    '/page-templates',
+    listPath,
     (error) => notifications.show({ color: 'red', message: error.message }),
   );
 
@@ -121,7 +133,9 @@ export default function PageTemplatesPage() {
     });
   }
 
-  const showEmptyState = !loading && items.length === 0;
+  // An empty result while searching is not an empty library, so the onboarding
+  // card stays out of the way.
+  const showEmptyState = !loading && !searching && items.length === 0;
   const groups = groupByKind(items);
 
   return (
@@ -138,6 +152,16 @@ export default function PageTemplatesPage() {
         </div>
         <NewTemplateMenu />
       </Group>
+
+      <TextInput
+        placeholder="Search templates"
+        aria-label="Search page templates"
+        leftSection={<IconSearch size={16} />}
+        value={search}
+        onChange={(event) => setSearch(event.currentTarget.value)}
+        mb="lg"
+        maw={320}
+      />
 
       {showEmptyState ? (
         <Card>
@@ -161,6 +185,13 @@ export default function PageTemplatesPage() {
             <Skeleton key={tile} height={168} radius="md" />
           ))}
         </SimpleGrid>
+      ) : groups.length === 0 ? (
+        <Card>
+          <Text size="sm" c="slate.5" ta="center" py="xl">
+            No templates match &quot;{debouncedSearch.trim()}&quot;. Search looks at every template,
+            accents and typos included.
+          </Text>
+        </Card>
       ) : (
         <Stack gap="xl">
           {groups.map((group) => (
@@ -193,10 +224,6 @@ export default function PageTemplatesPage() {
           <Button variant="light" loading={loading} onClick={() => void loadMore()}>
             Load more
           </Button>
-          <Text size="xs" c="slate.5">
-            More templates exist on the server. Search and filters only cover the templates loaded
-            so far.
-          </Text>
         </Stack>
       ) : null}
     </div>

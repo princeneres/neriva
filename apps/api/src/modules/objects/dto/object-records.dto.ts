@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNotEmpty, IsObject, IsOptional, IsString, Matches } from 'class-validator';
-import { ListQueryDto } from '../../../common/list-query.dto';
+import { SearchableListQueryDto } from '../../../common/list-query.dto';
 
 export class CreateObjectRecordDto {
   @ApiPropertyOptional({ description: 'Stable code for idempotent upsert; generated when omitted' })
@@ -29,7 +29,7 @@ export class UpdateObjectRecordDto {
   data?: Record<string, unknown>;
 }
 
-export class ListObjectRecordsQueryDto extends ListQueryDto {
+export class ListObjectRecordsQueryDto extends SearchableListQueryDto {
   @ApiPropertyOptional({
     description:
       "Sort by a definition field key; prefix with '-' for descending. Not combinable with cursor (v1 limitation).",

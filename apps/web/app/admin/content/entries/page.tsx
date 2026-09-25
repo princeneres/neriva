@@ -18,6 +18,7 @@ import {
   Title,
   Tooltip,
 } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import {
@@ -40,6 +41,7 @@ import {
   FolderPicker,
   useFolderOrganization,
 } from '../../../../components/folder-organizer';
+import { SEARCH_DEBOUNCE_MS, buildListPath, isSearching } from '../../../../lib/list-query';
 import { ApiError, api, type ListMeta } from '../../../../lib/api';
 import { STATUS_COLORS, type ContentEntry, type ContentType } from '../types';
 
@@ -64,6 +66,7 @@ export default function ContentEntriesPage() {
   const [contentTypes, setContentTypes] = useState<ContentType[]>([]);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [debouncedSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [sort, setSort] = useState('updated');
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
@@ -86,13 +89,19 @@ export default function ContentEntriesPage() {
     [contentTypes],
   );
 
-  const listPath = useMemo(() => {
-    const params = new URLSearchParams();
-    if (typeFilter) params.set('contentType', typeFilter);
-    if (selectedFolder) params.set('folder', selectedFolder);
-    const query = params.toString();
-    return query ? `/content-entries?${query}` : '/content-entries';
-  }, [selectedFolder, typeFilter]);
+  // The term is part of the request path, so the server runs the full text
+  // search over every entry instead of the page already on screen, and the
+  // filtered listing gets its own cache entry.
+  const searching = isSearching(debouncedSearch);
+  const listPath = useMemo(
+    () =>
+      buildListPath('/content-entries', {
+        contentType: typeFilter,
+        folder: selectedFolder,
+        search: debouncedSearch,
+      }),
+    [debouncedSearch, selectedFolder, typeFilter],
+  );
 
   const {
     items,
@@ -175,12 +184,12 @@ export default function ContentEntriesPage() {
   const newEntryHref = typeFilter
     ? `/admin/content/entries/new?type=${encodeURIComponent(typeFilter)}`
     : '/admin/content/entries/new';
-  const showEmpty = !loading && items.length === 0;
-  const query = search.trim().toLowerCase();
+  // An empty result while searching is not an empty library, so the onboarding
+  // card stays out of the way.
+  const showEmpty = !loading && !searching && items.length === 0;
   const visibleItems = items
     .filter((row) => selectedFolder === null || folders.folderFor(row.id) === selectedFolder)
     .filter((row) => statusFilter === null || row.status === statusFilter)
-    .filter((row) => query === '' || row.title.toLowerCase().includes(query))
     .sort((a, b) =>
       sort === 'title' ? a.title.localeCompare(b.title) : b.updatedAt.localeCompare(a.updatedAt),
     );
@@ -305,6 +314,15 @@ export default function ContentEntriesPage() {
                   <Table.Tbody>
                     {loading && items.length === 0 ? (
                       <SkeletonRows />
+                    ) : visibleItems.length === 0 ? (
+                      <Table.Tr>
+                        <Table.Td colSpan={5}>
+                          <Text size="sm" c="slate.5" ta="center" py="xl">
+                            No entries match &quot;{debouncedSearch.trim()}&quot;. Search looks at
+                            every entry, title and field values alike.
+                          </Text>
+                        </Table.Td>
+                      </Table.Tr>
                     ) : (
                       visibleItems.map((row) => (
                         <Table.Tr

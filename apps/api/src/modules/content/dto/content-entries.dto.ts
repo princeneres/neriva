@@ -7,7 +7,7 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
-import { ListQueryDto } from '../../../common/list-query.dto';
+import { SearchableListQueryDto } from '../../../common/list-query.dto';
 
 export const CONTENT_ENTRY_STATUSES = ['DRAFT', 'PUBLISHED', 'ARCHIVED'] as const;
 export type ContentEntryStatus = (typeof CONTENT_ENTRY_STATUSES)[number];
@@ -96,7 +96,7 @@ export class UpdateContentEntryDto {
   folderId?: string | null;
 }
 
-export class ListContentEntriesQueryDto extends ListQueryDto {
+export class ListContentEntriesQueryDto extends SearchableListQueryDto {
   @ApiPropertyOptional({ description: `Filter by content type: ${REF_DESCRIPTION}` })
   @IsOptional()
   @IsString()

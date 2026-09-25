@@ -13,10 +13,12 @@ import {
   Stack,
   Table,
   Text,
+  TextInput,
   ThemeIcon,
   Title,
   Tooltip,
 } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import {
@@ -27,6 +29,7 @@ import {
   IconListTree,
   IconPlus,
   IconRocket,
+  IconSearch,
   IconTable,
   IconTrash,
   IconWorld,
@@ -37,6 +40,7 @@ import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { useCursorList } from '../../../components/data-table';
 import { HelpTip } from '../../../components/help-tip';
 import { ApiError, api } from '../../../lib/api';
+import { SEARCH_DEBOUNCE_MS, buildListPath, isSearching } from '../../../lib/list-query';
 import { publicPageUrl, type SiteSummary, useSite } from '../../../lib/site-context';
 import { buildHierarchy, type HierarchyNode, pathSegment } from './page-hierarchy';
 import classes from './pages.module.css';
@@ -237,10 +241,17 @@ function TreeRow({
 
 function SitePages({ site, view }: { site: SiteSummary; view: 'tree' | 'table' }) {
   const router = useRouter();
-  const { items, loading, hasMore, refresh, loadMore } = useCursorList<Page>(
-    `/sites/${site.id}/pages?limit=100`,
-    (error) =>
-      notifications.show({ color: 'red', title: 'Could not load pages', message: error.message }),
+  const [search, setSearch] = useState('');
+  const [debouncedSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
+  const searching = isSearching(debouncedSearch);
+  // The term travels in the path, so the server searches every page of the
+  // site rather than the 100 already loaded, and the filtered listing keeps a
+  // cache entry of its own.
+  const listPath = buildListPath(`/sites/${site.id}/pages?limit=100`, {
+    search: debouncedSearch,
+  });
+  const { items, loading, hasMore, refresh, loadMore } = useCursorList<Page>(listPath, (error) =>
+    notifications.show({ color: 'red', title: 'Could not load pages', message: error.message }),
   );
 
   const hierarchy = useMemo(() => buildHierarchy(items), [items]);
@@ -303,10 +314,32 @@ function SitePages({ site, view }: { site: SiteSummary; view: 'tree' | 'table' }
   }
 
   const showSkeleton = loading && items.length === 0;
+  const searchField = (
+    <TextInput
+      placeholder="Search pages by title or address"
+      aria-label="Search pages"
+      leftSection={<IconSearch size={16} />}
+      value={search}
+      onChange={(event) => setSearch(event.currentTarget.value)}
+      mb="md"
+      maw={360}
+    />
+  );
+  // An empty result while searching is not an empty site, so the onboarding
+  // card would be the wrong message.
+  const emptyContent = searching ? (
+    <Text size="sm" c="slate.5" ta="center" py="xl">
+      No pages match &quot;{debouncedSearch.trim()}&quot;. Search looks at every page of this site,
+      accents and typos included.
+    </Text>
+  ) : (
+    <EmptyState siteId={site.id} />
+  );
 
   if (view === 'tree') {
     return (
       <>
+        {searchField}
         <Card padding="sm">
           {showSkeleton ? (
             <Stack gap="xs" p="xs">
@@ -315,7 +348,7 @@ function SitePages({ site, view }: { site: SiteSummary; view: 'tree' | 'table' }
               ))}
             </Stack>
           ) : items.length === 0 ? (
-            <EmptyState siteId={site.id} />
+            emptyContent
           ) : (
             hierarchy.map((node) => (
               <TreeRow
@@ -342,6 +375,7 @@ function SitePages({ site, view }: { site: SiteSummary; view: 'tree' | 'table' }
 
   return (
     <>
+      {searchField}
       <Card padding={0}>
         <Table.ScrollContainer minWidth={820} type="native">
           <Table highlightOnHover verticalSpacing="sm">
@@ -399,9 +433,7 @@ function SitePages({ site, view }: { site: SiteSummary; view: 'tree' | 'table' }
               ))}
               {!loading && items.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={5}>
-                    <EmptyState siteId={site.id} />
-                  </Table.Td>
+                  <Table.Td colSpan={5}>{emptyContent}</Table.Td>
                 </Table.Tr>
               ) : null}
             </Table.Tbody>

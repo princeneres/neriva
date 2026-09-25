@@ -13,7 +13,7 @@ import {
 } from 'class-validator';
 import { CONTENT_FIELD_TYPES, type ContentFieldType } from '../../../db/schema';
 import { FIELD_KEY_PATTERN } from '../content-field.validation';
-import { ListQueryDto } from '../../../common/list-query.dto';
+import { SearchableListQueryDto } from '../../../common/list-query.dto';
 
 export class ContentFieldDto {
   @ApiProperty({ pattern: FIELD_KEY_PATTERN.source, example: 'headline' })
@@ -92,7 +92,7 @@ export class UpdateContentTypeDto {
   folderId?: string | null;
 }
 
-export class ListContentTypesQueryDto extends ListQueryDto {
+export class ListContentTypesQueryDto extends SearchableListQueryDto {
   @ApiPropertyOptional({
     format: 'uuid',
     description: 'Only content types assigned to this folder',

@@ -10,6 +10,7 @@ import type { InferSelectModel } from 'drizzle-orm';
 import { isUniqueViolation } from '../../common/pg-errors';
 import { expectedUpdatedAt, staleResource } from '../../common/optimistic-concurrency';
 import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
+import { normalizeSearchTerm, trigramSearch } from '../../common/search';
 import { DB, type Database } from '../../db/database';
 import { blocks, pages, type PageTree } from '../../db/schema';
 import { TenantScopedRepository, type CursorPage } from '../../db/tenant-scoped.repository';
@@ -43,18 +44,23 @@ export class PagesService {
     return new TenantScopedRepository(this.db, pages, tenantId);
   }
 
+  // Search is trigram based over title and path (pages_search_idx): a page
+  // library grows with the site, and an editor looking for one types a
+  // fragment of its title, often with a typo or without accents.
   async listBySite(
     tenantId: string,
     siteRef: string,
-    params: { limit?: number; cursor?: string },
+    params: { limit?: number; cursor?: string; search?: string },
   ): Promise<CursorPage<PageRow>> {
     const site = await this.sitesService.getByRef(tenantId, siteRef);
+    const search = normalizeSearchTerm(params.search);
     // The generic repository has no extra-filter support; this mirrors its
     // pagination logic with the tenant filter applied explicitly.
     const limit = clampLimit(params.limit);
     const conditions = [
       eq(pages.tenantId, tenantId),
       eq(pages.siteId, site.id),
+      search ? trigramSearch(search, [pages.title, pages.path]) : undefined,
       params.cursor ? gt(pages.id, decodeCursor(params.cursor).id) : undefined,
     ];
     const rows = await this.db

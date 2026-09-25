@@ -1,11 +1,13 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray } from 'drizzle-orm';
 import type { InferSelectModel } from 'drizzle-orm';
 import type { CursorPage } from '../../db/tenant-scoped.repository';
 import { DB, type Database } from '../../db/database';
 import { rolePermissions, roles } from '../../db/schema';
 import { TenantScopedRepository } from '../../db/tenant-scoped.repository';
+import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
 import { isUniqueViolation } from '../../common/pg-errors';
+import { normalizeSearchTerm, substringSearch } from '../../common/search';
 import type { PermissionDto } from './dto/roles.dto';
 
 export type RoleRow = InferSelectModel<typeof roles>;
@@ -21,13 +23,48 @@ export class RolesService {
     return new TenantScopedRepository(this.db, roles, tenantId);
   }
 
+  // A deploy has a handful of roles, so the search is a plain accent
+  // insensitive substring match with no index behind it.
   async list(
     tenantId: string,
-    params: { limit?: number; cursor?: string },
+    params: { limit?: number; cursor?: string; search?: string },
   ): Promise<CursorPage<RoleWithPermissions>> {
-    const page = await this.repo(tenantId).list(params);
+    const search = normalizeSearchTerm(params.search);
+    const page =
+      search === undefined
+        ? await this.repo(tenantId).list(params)
+        : await this.searchPage(tenantId, search, params);
     const withPermissions = await this.attachPermissions(page.items);
     return { ...page, items: withPermissions };
+  }
+
+  // The generic repository has no extra-filter support; this mirrors its
+  // pagination logic with the tenant filter applied explicitly.
+  private async searchPage(
+    tenantId: string,
+    search: string,
+    params: { limit?: number; cursor?: string },
+  ): Promise<CursorPage<RoleRow>> {
+    const limit = clampLimit(params.limit);
+    const rows = await this.db
+      .select()
+      .from(roles)
+      .where(
+        and(
+          eq(roles.tenantId, tenantId),
+          substringSearch(search, [roles.name, roles.description]),
+          params.cursor ? gt(roles.id, decodeCursor(params.cursor).id) : undefined,
+        ),
+      )
+      .orderBy(asc(roles.id))
+      .limit(limit + 1);
+    const items = rows.slice(0, limit);
+    const last = items[items.length - 1];
+    return {
+      items,
+      nextCursor: rows.length > limit && last ? encodeCursor(last.id) : null,
+      limit,
+    };
   }
 
   async getByRef(tenantId: string, ref: string): Promise<RoleWithPermissions> {

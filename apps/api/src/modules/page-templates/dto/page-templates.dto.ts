@@ -8,7 +8,7 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
-import { ListQueryDto } from '../../../common/list-query.dto';
+import { SearchableListQueryDto } from '../../../common/list-query.dto';
 
 export const PAGE_TEMPLATE_KINDS = ['MASTER', 'STANDARD'] as const;
 export type PageTemplateKindValue = (typeof PAGE_TEMPLATE_KINDS)[number];
@@ -80,7 +80,7 @@ export class UpdatePageTemplateDto {
   tree?: Record<string, unknown>;
 }
 
-export class ListPageTemplatesQueryDto extends ListQueryDto {
+export class ListPageTemplatesQueryDto extends SearchableListQueryDto {
   @ApiPropertyOptional({ enum: PAGE_TEMPLATE_KINDS })
   @IsOptional()
   @IsIn(PAGE_TEMPLATE_KINDS)

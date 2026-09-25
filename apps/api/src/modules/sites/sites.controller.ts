@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
 import { ApiDataResponse, ApiListResponse } from '../../common/api-envelope.decorators';
-import { ListQueryDto } from '../../common/list-query.dto';
+import { SearchableListQueryDto } from '../../common/list-query.dto';
 import { CurrentUser } from '../auth/auth.decorators';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { RequirePermission } from '../roles/require-permission.decorator';
@@ -26,7 +26,7 @@ export class SitesController {
   @RequirePermission('site:read')
   async list(
     @CurrentUser() user: AuthenticatedUser,
-    @Query() query: ListQueryDto,
+    @Query() query: SearchableListQueryDto,
   ): Promise<{ data: SiteRow[]; meta: { cursor: string | null; limit: number } }> {
     const page = await this.sitesService.list(user.tenantId, query);
     return { data: page.items, meta: { cursor: page.nextCursor, limit: page.limit } };

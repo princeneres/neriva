@@ -3,6 +3,7 @@ import { and, asc, eq, gt } from 'drizzle-orm';
 import type { InferSelectModel } from 'drizzle-orm';
 import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
 import { isForeignKeyViolation, isUniqueViolation } from '../../common/pg-errors';
+import { normalizeSearchTerm, substringSearch } from '../../common/search';
 import { DB, type Database } from '../../db/database';
 import { contentTypes, type ContentFieldDefinition } from '../../db/schema';
 import { TenantScopedRepository, type CursorPage } from '../../db/tenant-scoped.repository';
@@ -24,16 +25,18 @@ export class ContentTypesService {
     return new TenantScopedRepository(this.db, contentTypes, tenantId);
   }
 
+  // Content types are a modelling artefact: a deploy has tens of them, never
+  // thousands, so the search stays a plain accent insensitive substring match
+  // with no index to maintain.
   async list(
     tenantId: string,
-    params: { limit?: number; cursor?: string; folder?: string },
+    params: { limit?: number; cursor?: string; folder?: string; search?: string },
   ): Promise<CursorPage<ContentTypeRow>> {
-    if (!params.folder) return this.repo(tenantId).list(params);
-    const folder = await this.foldersService.assertForResource(
-      tenantId,
-      params.folder,
-      'content-types',
-    );
+    const search = normalizeSearchTerm(params.search);
+    if (!params.folder && search === undefined) return this.repo(tenantId).list(params);
+    const folder = params.folder
+      ? await this.foldersService.assertForResource(tenantId, params.folder, 'content-types')
+      : null;
     const limit = clampLimit(params.limit);
     const rows = await this.db
       .select()
@@ -41,7 +44,10 @@ export class ContentTypesService {
       .where(
         and(
           eq(contentTypes.tenantId, tenantId),
-          eq(contentTypes.folderId, folder.id),
+          folder ? eq(contentTypes.folderId, folder.id) : undefined,
+          search
+            ? substringSearch(search, [contentTypes.name, contentTypes.description])
+            : undefined,
           params.cursor ? gt(contentTypes.id, decodeCursor(params.cursor).id) : undefined,
         ),
       )

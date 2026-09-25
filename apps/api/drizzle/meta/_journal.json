@@ -141,6 +141,13 @@
       "when": 1789599692338,
       "tag": "0019_dashing_warbound",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1789686092338,
+      "tag": "0020_search_indexes",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,8 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { InferSelectModel } from 'drizzle-orm';
+import { and, asc, eq, gt, type InferSelectModel } from 'drizzle-orm';
+import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
 import { isUniqueViolation } from '../../common/pg-errors';
+import { normalizeSearchTerm, substringSearch } from '../../common/search';
 import { DB, type Database } from '../../db/database';
 import { sites } from '../../db/schema';
 import { TenantScopedRepository, type CursorPage } from '../../db/tenant-scoped.repository';
@@ -17,11 +19,35 @@ export class SitesService {
     return new TenantScopedRepository(this.db, sites, tenantId);
   }
 
+  // A deploy has a handful of sites, so the search is a plain accent
+  // insensitive substring match with no index behind it.
   async list(
     tenantId: string,
-    params: { limit?: number; cursor?: string },
+    params: { limit?: number; cursor?: string; search?: string },
   ): Promise<CursorPage<SiteRow>> {
-    return this.repo(tenantId).list(params);
+    const search = normalizeSearchTerm(params.search);
+    if (search === undefined) {
+      return this.repo(tenantId).list(params);
+    }
+    // The generic repository has no extra-filter support; this mirrors its
+    // pagination logic with the tenant filter applied explicitly.
+    const limit = clampLimit(params.limit);
+    const rows = await this.db
+      .select()
+      .from(sites)
+      .where(
+        and(
+          eq(sites.tenantId, tenantId),
+          substringSearch(search, [sites.name, sites.slug, sites.description]),
+          params.cursor ? gt(sites.id, decodeCursor(params.cursor).id) : undefined,
+        ),
+      )
+      .orderBy(asc(sites.id))
+      .limit(limit + 1);
+    const items = rows.slice(0, limit);
+    const last = items[items.length - 1];
+    const nextCursor = rows.length > limit && last ? encodeCursor(last.id) : null;
+    return { items, nextCursor, limit };
   }
 
   async getByRef(tenantId: string, ref: string): Promise<SiteRow> {

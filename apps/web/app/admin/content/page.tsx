@@ -18,6 +18,7 @@ import {
   Title,
   Tooltip,
 } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import {
@@ -40,6 +41,7 @@ import {
   useFolderOrganization,
 } from '../../../components/folder-organizer';
 import { ApiError, api } from '../../../lib/api';
+import { SEARCH_DEBOUNCE_MS, buildListPath, isSearching } from '../../../lib/list-query';
 import { CONTENT_TYPE_HELP, type ContentType } from './types';
 
 function SkeletonRows() {
@@ -61,11 +63,16 @@ function SkeletonRows() {
 export default function ContentTypesPage() {
   const router = useRouter();
   const [search, setSearch] = useState('');
+  const [debouncedSearch] = useDebouncedValue(search, SEARCH_DEBOUNCE_MS);
   const [sort, setSort] = useState('name');
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
-  const listPath = selectedFolder
-    ? `/content-types?folder=${encodeURIComponent(selectedFolder)}`
-    : '/content-types';
+  // The term is part of the request path, so the server filters every content
+  // type and the filtered listing gets its own cache entry.
+  const searching = isSearching(debouncedSearch);
+  const listPath = buildListPath('/content-types', {
+    folder: selectedFolder,
+    search: debouncedSearch,
+  });
   const {
     items,
     loading,
@@ -118,18 +125,14 @@ export default function ContentTypesPage() {
     });
   }
 
-  const query = search.trim().toLowerCase();
   const visibleItems = items
     .filter((row) => selectedFolder === null || folders.folderFor(row.id) === selectedFolder)
-    .filter(
-      (row) =>
-        query === '' ||
-        [row.name, row.description ?? ''].some((value) => value.toLowerCase().includes(query)),
-    )
     .sort((a, b) =>
       sort === 'created' ? b.createdAt.localeCompare(a.createdAt) : a.name.localeCompare(b.name),
     );
-  const showEmpty = !loading && items.length === 0;
+  // An empty result while searching is not an empty library, so the onboarding
+  // card stays out of the way.
+  const showEmpty = !loading && !searching && items.length === 0;
 
   return (
     <>
@@ -231,6 +234,14 @@ export default function ContentTypesPage() {
                   <Table.Tbody>
                     {loading && items.length === 0 ? (
                       <SkeletonRows />
+                    ) : visibleItems.length === 0 ? (
+                      <Table.Tr>
+                        <Table.Td colSpan={5}>
+                          <Text size="sm" c="slate.5" ta="center" py="xl">
+                            No content types match &quot;{debouncedSearch.trim()}&quot;.
+                          </Text>
+                        </Table.Td>
+                      </Table.Tr>
                     ) : (
                       visibleItems.map((row) => (
                         <Table.Tr

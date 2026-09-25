@@ -1,8 +1,9 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, eq, gt, type InferSelectModel, type SQL } from 'drizzle-orm';
+import { and, asc, eq, gt, sql, type InferSelectModel, type SQL } from 'drizzle-orm';
 import { clampLimit, decodeCursor, encodeCursor } from '../../common/pagination';
 import { isUniqueViolation } from '../../common/pg-errors';
 import { expectedUpdatedAt, staleResource } from '../../common/optimistic-concurrency';
+import { fullTextOrTrigramSearch, normalizeSearchTerm } from '../../common/search';
 import { DB, type Database } from '../../db/database';
 import { contentEntries } from '../../db/schema';
 import { TenantScopedRepository, type CursorPage } from '../../db/tenant-scoped.repository';
@@ -26,6 +27,11 @@ export class ContentEntriesService {
     return new TenantScopedRepository(this.db, contentEntries, tenantId);
   }
 
+  // Entries carry the bulk of the tenant's prose, so the search combines two
+  // techniques (see drizzle/0020_search_indexes.sql): Portuguese full text
+  // over title + the whole values payload, which brings stemming and multi
+  // word queries, OR'd with a trigram match on the title alone, which still
+  // answers the half typed or misspelled title the full text index cannot.
   async list(
     tenantId: string,
     params: {
@@ -34,12 +40,15 @@ export class ContentEntriesService {
       contentType?: string;
       site?: string;
       folder?: string;
+      search?: string;
     },
   ): Promise<CursorPage<ContentEntryRow>> {
+    const search = normalizeSearchTerm(params.search);
     if (
       params.contentType === undefined &&
       params.site === undefined &&
-      params.folder === undefined
+      params.folder === undefined &&
+      search === undefined
     ) {
       return this.repo(tenantId).list(params);
     }
@@ -62,6 +71,14 @@ export class ContentEntriesService {
         'content-entries',
       );
       conditions.push(eq(contentEntries.folderId, folder.id));
+    }
+    if (search !== undefined) {
+      conditions.push(
+        fullTextOrTrigramSearch(search, {
+          trigramColumns: [contentEntries.title],
+          textColumns: [contentEntries.title, sql`${contentEntries.values}::text`],
+        }),
+      );
     }
     if (params.cursor !== undefined) {
       conditions.push(gt(contentEntries.id, decodeCursor(params.cursor).id));
