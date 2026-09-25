@@ -20,6 +20,7 @@ interface PageBody {
   tree: Record<string, unknown>;
   masterPageTemplateId: string | null;
   customFields: Record<string, unknown>;
+  updatedAt: string;
 }
 
 interface Problem {
@@ -437,6 +438,36 @@ describe('pages (e2e)', () => {
     expect(body.title).toBe('Homepage');
     expect(body.path).toBe('/homepage');
     expect(body.tree).toEqual({ blocks: [{ block: 'hero-banner', props: { title: 'Updated' } }] });
+  });
+
+  it('accepts the expectedUpdatedAt of a freshly created page and rejects a stale one', async () => {
+    // The database default stores microseconds while the API serializes
+    // milliseconds, so the first save must still match the loaded value.
+    const created = await app.inject({
+      method: 'POST',
+      url: `/sites/${siteId}/pages`,
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: { title: 'Concurrency', path: '/concurrency' },
+    });
+    expect(created.statusCode).toBe(201);
+    const page = (created.json() as { data: PageBody }).data;
+
+    const first = await app.inject({
+      method: 'PATCH',
+      url: `/pages/${page.id}`,
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: { title: 'Concurrency v2', expectedUpdatedAt: page.updatedAt },
+    });
+    expect(first.statusCode).toBe(200);
+
+    const stale = await app.inject({
+      method: 'PATCH',
+      url: `/pages/${page.id}`,
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: { title: 'Concurrency v3', expectedUpdatedAt: page.updatedAt },
+    });
+    expect(stale.statusCode).toBe(409);
+    expect((stale.json() as { code: string }).code).toBe('STALE_RESOURCE');
   });
 
   it('refuses to publish a page referencing a non-PUBLISHED block (400)', async () => {

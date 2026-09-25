@@ -5,6 +5,7 @@ import {
   gt,
   type InferInsertModel,
   type InferSelectModel,
+  sql,
   type SQL,
 } from 'drizzle-orm';
 import type { AnyPgColumn, PgTable, PgUpdateSetSource } from 'drizzle-orm/pg-core';
@@ -117,7 +118,9 @@ export class TenantScopedRepository<TTable extends EnvelopeTable> {
 
   // Compare-and-set update for editors. The timestamp is returned by every
   // entity response, so API clients can prevent an older draft from silently
-  // overwriting a newer one.
+  // overwriting a newer one. Rows stamped by the database default carry
+  // microseconds while responses serialize milliseconds, so the stored value is
+  // truncated before comparing.
   async updateByIdIfUnmodified(
     id: string,
     expectedUpdatedAt: Date,
@@ -126,7 +129,14 @@ export class TenantScopedRepository<TTable extends EnvelopeTable> {
     const rows = (await this.db
       .update(this.table)
       .set({ ...values, updatedAt: new Date() } as PgUpdateSetSource<TTable>)
-      .where(this.scoped(and(eq(this.table.id, id), eq(this.table.updatedAt, expectedUpdatedAt))))
+      .where(
+        this.scoped(
+          and(
+            eq(this.table.id, id),
+            sql`date_trunc('milliseconds', ${this.table.updatedAt}) = ${expectedUpdatedAt.toISOString()}::timestamptz`,
+          ),
+        ),
+      )
       .returning()) as InferSelectModel<TTable>[];
     return rows[0] ?? null;
   }
