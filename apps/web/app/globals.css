@@ -20,9 +20,15 @@ body {
 }
 
 :root[data-nv-theme='dark'] body {
-  /* Only visible outside the page surface (overscroll, short viewports). */
+  /* Only visible outside the page surface (overscroll, short viewports), so
+     background is all this rule needs. It deliberately does not set `color`:
+     Mantine renders Select dropdowns and modals in portals on document.body,
+     outside the admin surface that carries the admin palette, so a light text
+     color here reached them and painted white on white across the admin
+     whenever a visitor had left the published site on its dark theme. A
+     published page never depended on it either, since .nv-site-root paints its
+     own text from the Style Book. */
   background: var(--nv-color-neutral-900);
-  color: var(--nv-color-neutral-0);
 }
 
 /* Scoped to the published page so the admin keeps its own scheme: makes
